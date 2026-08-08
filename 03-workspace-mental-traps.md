@@ -76,7 +76,7 @@ Each trap follows the same anatomy: **the pull** (why capable people fall in), *
 *The pull:* the agent that wrote the code has all the context — surely it reviews fastest.
 *The cost:* the reviewer inherits the writer's assumptions and blind spots, producing a rubber stamp with extra steps and the *feeling* of review — which is worse than no review, because it discharges the vigilance.
 *The tell:* review happening in the same session as implementation; approvals that never articulate what was probed.
-*The antidote:* fresh context, artifact-only inputs (P3), an adversarial mandate ("find the strongest case against before approving"), and approvals that must show their work, so empty ones are visible.
+*The antidote:* fresh context, artifact-only inputs (P3), an adversarial mandate ("find the strongest case against before approving"), and approvals that must show their work, so empty ones are visible. The same logic applies one level down: verifiers are locked before generation — tests derived from acceptance criteria get written, confirmed failing, and committed before implementation begins, so the code is graded against a standard it cannot quietly rewrite. An implementer permitted to edit its own tests is a writer reviewing its own work by another name.
 
 ### T10 — Unbounded loops
 *The pull:* retrying feels like diligence; the agent is so close; one more attempt.
