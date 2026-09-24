@@ -5,8 +5,24 @@
 **Before release:** pilot 2 (the Claude Code adapter run for real from an
 installed repository, `evals/pilots/2026-09-24-pilot-2.md`) and the rebuilt,
 self-contained golden task (run 3 times, `evals/golden/review-maxlength/`)
-are done. What remains is to date this entry and tag the release once it is
-merged; installs should use the tag, not HEAD.
+are done. Still open before release:
+
+- Pilot 2's remaining friction (`evals/pilots/2026-09-24-pilot-2.md`): F1
+  (subagents chain shell commands that permission rules can't match; the
+  skills now say not to, but the agent definitions don't), F4 (the review
+  skill's before/after check misses edits made after its Agent call), F6
+  (below). Then one interactive run to count real permission prompts.
+- Refresh `evals/golden/review-maxlength/fixture.bundle` from the current
+  template (its harness predates the latest `review.md` and `gates.sh`), so
+  re-running it after a `review.md` edit tests the edit.
+- Date this entry and tag the release once merged; installs should use the
+  tag, not HEAD.
+
+Note: `gates.sh` finds its sibling scripts in its own directory only from
+this release on. No repository installed an earlier revision (2.0.0 is the
+first release); anything installed from a pre-release commit should be
+reinstalled, or a base-branch `gates.sh` from it would run the branch's
+`tests-locked.sh`.
 
 cortex becomes an installable single-repository harness instead of a prompt
 that generates a multi-repo workspace.

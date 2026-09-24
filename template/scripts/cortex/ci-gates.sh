@@ -6,11 +6,13 @@
 #
 # The local scripts are guardrails: an agent with git access on its own
 # machine can rewrite history, hide edits with --skip-worktree, or edit the
-# checker. Here the checker comes from the base branch, so a change can't
-# weaken the script that judges it; a fresh checkout has no hidden edits, and
-# any flagged file is refused anyway; and the gates run on exactly what will
-# merge. Required human review of tests and harness files (CODEOWNERS) covers
-# what no script can judge.
+# checker. Here every checker comes from the base branch (the template
+# workflow extracts this script from the base too), so a change can't weaken
+# the scripts that judge it; a fresh checkout has no hidden edits, and any
+# flagged file is refused anyway; and the gates run on the branch as pushed.
+# What no script can judge (the tests' assertions, .cortex/config edits made
+# before the lock, the workflow file itself) is covered by required human
+# review of those paths (CODEOWNERS).
 #
 # Usage: scripts/cortex/ci-gates.sh <base-ref>
 # Exit:  0 all passed, 1 something failed, 2 usage error.

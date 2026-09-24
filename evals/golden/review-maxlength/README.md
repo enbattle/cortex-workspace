@@ -23,6 +23,17 @@ The bundle supersedes the earlier `spec.md` (the approved criteria, now
 fixture was rebuilt from the first pilot's source and tests, in the current
 format (Amendment 2's `lock.md`).
 
+## Which template this fixture matches
+
+Built on 2026-09-24 from the template at commit `33464b7`. Its installed
+`harness/commands/review.md` and `scripts/cortex/gates.sh` predate later
+template edits, so after changing either in `template/`, refresh the fixture
+first: rebuild it with the current `install.sh` following the same steps
+(install, the approved change folder, test-first's three commits, the
+implementation, tag `golden-clean`, add the planted commit, tag
+`golden-planted`), then run the procedure below. Otherwise the run tests
+the old text.
+
 ## Procedure
 
 Run `golden-planted` twice and `golden-clean` once, each in its own fresh
