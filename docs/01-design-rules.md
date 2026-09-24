@@ -97,7 +97,10 @@ account for untracked files, which `git diff` never shows: use
 guardrail, not a boundary: an agent with full git access can rewrite history,
 set `--skip-worktree`, or edit the checker. Against deliberate tampering the
 boundary is server-side: CI on the pull request, running the checks from a
-fresh checkout with the base branch's copy of `scripts/cortex/`.
+fresh checkout with the base branch's copy of `scripts/cortex/`
+(`ci-gates.sh`), plus required human review of tests and harness files
+(CODEOWNERS). A person approving what the tests assert is the one check an
+agent can't route around.
 
 **R12 — Separate roles where a bias needs preventing, not for every step.**
 Three roles run as separate, fresh contexts: the **test writer** (before any

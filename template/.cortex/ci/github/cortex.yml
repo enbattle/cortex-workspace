@@ -1,0 +1,26 @@
+# cortex gates on every pull request: the server-side boundary for the test
+# lock (see scripts/cortex/ci-gates.sh). Copy to .github/workflows/cortex.yml,
+# then make the "cortex" check required on the default branch.
+#
+# Actions are pinned to full commit SHAs (a tag can be moved to new code; a
+# SHA can't); let Dependabot's github-actions updates keep them current.
+name: cortex
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  cortex:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0 # the lock check needs the branch's full history
+      # Add the setup your BUILD_CMD / TEST_CMD / LINT_CMD need here, e.g.
+      # actions/setup-node plus `npm ci`, pinned to a SHA like the step above.
+      - name: Gates, with the checker taken from the base branch
+        run: bash scripts/cortex/ci-gates.sh "origin/${{ github.base_ref }}"

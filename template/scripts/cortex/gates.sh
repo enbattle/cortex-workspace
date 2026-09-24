@@ -18,9 +18,13 @@ if [ "$#" -ne 1 ]; then
   exit 2
 fi
 folder="$(cd "$1" 2>/dev/null && pwd || printf '%s' "$1")"
+# The sibling scripts are the ones next to this file, resolved before the cd
+# below: when ci-gates.sh runs a base-branch copy of this script from a
+# temporary directory, it must use the base copies of the others too, never
+# the branch's own (which the change under review could have edited).
+here="$(cd "$(dirname "$0")" && pwd)"
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
-here="$root/scripts/cortex"
 
 config_get() { # KEY -> value, empty if unset or a <placeholder>
   [ -f .cortex/config ] || return 0

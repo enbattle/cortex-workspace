@@ -2,16 +2,11 @@
 
 ## 2.0.0 — Unreleased
 
-**Before release** (from the completeness audit of 2026-09-24):
-
-- Run pilot 2 on the current template from inside an installed repository,
-  so the Claude Code subagents, the permission rules and the three-commit
-  lock flow are exercised by agents.
-- Rebuild `evals/golden/review-maxlength/` as a self-contained fixture and
-  run it twice.
-- Decide how far to harden the local test lock against deliberate tampering
-  (see `docs/02-extensions.md` §3: the boundary is CI on the pull request).
-- Tag the release; installs should use the tag, not HEAD.
+**Before release:** pilot 2 (the Claude Code adapter run for real from an
+installed repository, `evals/pilots/2026-09-24-pilot-2.md`) and the rebuilt,
+self-contained golden task (run 3 times, `evals/golden/review-maxlength/`)
+are done. What remains is to date this entry and tag the release once it is
+merged; installs should use the tag, not HEAD.
 
 cortex becomes an installable single-repository harness instead of a prompt
 that generates a multi-repo workspace.
@@ -89,6 +84,16 @@ release:
   clean tree). README no longer claims reviewers can't edit (they have
   Bash; the before/after `git status` is the real check). Fewer, broader
   permission rules.
+
+**Changed after the completeness audit** (spec Amendment 3):
+
+- The test lock's boundary moved server-side: new
+  `scripts/cortex/ci-gates.sh` runs the gates with the base branch's copy of
+  the scripts and refuses files hidden with skip-worktree or
+  assume-unchanged; `.cortex/ci/github/` ships a workflow (actions pinned to
+  SHAs) and a CODEOWNERS template; INSTALL.md step 5b sets them up and lists
+  the branch-protection settings that make them binding. The local scripts
+  remain guardrails.
 
 **Fixed (design problems in v1):**
 

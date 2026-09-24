@@ -23,9 +23,12 @@ against the change before approving it.
 ## Procedure
 
 1. Record the working tree's state before you start
-   (`git status --porcelain -uall`). Review never edits anything.
+   (`git status --porcelain -uall`). Review never edits anything in the
+   repository; any experiment or probe script goes in a scratch directory
+   outside it.
 2. Find the base, the commit the change branch started from:
-   `git merge-base HEAD <default branch>`. The diff under review is
+   `git merge-base HEAD <default branch>` (in a fresh clone, use
+   `origin/<default branch>`). The diff under review is
    `git diff <base>...HEAD`. Because the tree is clean, every new file is
    committed and appears in it (plain `git diff` would miss untracked files).
 3. Re-run the gates yourself rather than trusting `tasks.md`:
@@ -69,7 +72,8 @@ carries them to the next `implement`, not this conversation). Each round is
 a section headed `## Round <n>`, so the round count is mechanical. If you
 are running read-only (an adapter may take away your write tools), return
 the findings in that format instead; the session that started the review
-writes the file and does nothing else.
+writes the file and does nothing else. Either way, `review-findings.md` is
+committed on its own, so the next `implement` round starts from a clean tree.
 
 ## Autonomy
 

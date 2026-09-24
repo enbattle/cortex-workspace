@@ -13,9 +13,13 @@ separate agent before the scripts were (`tests/`, 5 suites). The whole
 pipeline has run end to end once, on a toy repository
 ([pilot 1](evals/pilots/2026-09-23-toy-repo.md)): review caught a real
 compatibility break, and a fresh reviewer caught a planted bug the tests
-missed. That pilot ran on an earlier revision; its 15 friction points are
-fixed but not re-verified by a second run. **Not yet releasable:** see
-"Before release" in [CHANGELOG.md](CHANGELOG.md).
+missed. [Pilot 2](evals/pilots/2026-09-24-pilot-2.md) then ran the Claude
+Code adapter for real from inside an installed repository: each role was
+delegated to its own subagent, the three-commit test lock held, and review
+again caught a real compatibility break. The rebuilt golden task
+([evals/golden/](evals/golden/review-maxlength/)) passes. cortex has not yet
+been used on a real project; treat the first real change as part of the
+evaluation. Release status: see [CHANGELOG.md](CHANGELOG.md).
 
 ## What you get
 
@@ -30,8 +34,8 @@ docs/constitution.md           the project's non-negotiables (project-owned; upg
 docs/knowledge/                index, glossary, architecture, decisions/
 docs/deferred-practices.md     practices considered and deferred, with triggers
 changes/pipeline-log.md        one row per change: gates, findings, retro, escaped defects
-scripts/cortex/                check.sh, tests-locked.sh, gates.sh, adapt.sh
-.cortex/                       config, version, design rules, adapter sources per agent tool
+scripts/cortex/                check.sh, tests-locked.sh, gates.sh, ci-gates.sh, adapt.sh
+.cortex/                       config, version, design rules, adapter sources, CI and CODEOWNERS templates
 ```
 
 The workflow for a nontrivial change:

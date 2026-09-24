@@ -10,4 +10,4 @@ Don't run the command in this session, and never fork: spawn the
 only the change folder's path. Record `git status --porcelain -uall` before
 and after; any difference is a finding. If it reports an external surface,
 also spawn `cortex-security-reviewer` with the same path. Write its findings
-to `review-findings.md` as a `## Round <n>` section, as `review.md` specifies.
+to `review-findings.md` as a `## Round <n>` section and commit that file alone.

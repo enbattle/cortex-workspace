@@ -83,11 +83,25 @@ bash scripts/cortex/check.sh
 
 Fix every `FAIL` line (each names the rule it enforces) and re-run until it
 prints `check: ok`. On a fresh install it fails on purpose: C11 for each
-`.cortex/config` value still unset, and C12 while `AGENTS.md` has a `TODO`. If `.github/workflows/` exists, offer to add a CI job that
-runs `bash scripts/cortex/check.sh` on every push and, on a pull request that
-adds a change folder, `bash scripts/cortex/gates.sh <folder>` from a fresh
-checkout, with `scripts/cortex/` taken from the base branch. That job is the
-real boundary against tampering; the local gates are guardrails.
+`.cortex/config` value still unset, and C12 while `AGENTS.md` has a `TODO`. 
+## 5b. Make the pull request the boundary (hosted on GitHub)
+
+The local gates are guardrails: an agent with git access on its own machine
+can get around them. The boundary is the pull request. With the user:
+
+1. Copy `.cortex/ci/github/cortex.yml` to `.github/workflows/cortex.yml` and
+   add the setup steps its comment asks for (runtime, dependency install).
+   It runs `bash scripts/cortex/ci-gates.sh origin/<base>` on every pull
+   request: the gates, with the checker taken from the base branch, on a
+   fresh checkout.
+2. Copy `.cortex/ci/github/CODEOWNERS` to `.github/CODEOWNERS`, set the
+   owner, and add this repository's test paths (the ones in `TEST_GLOBS`).
+3. Tell the user the repository settings that make both binding (they are
+   not in the code): require a pull request before merging, require the
+   `cortex` check to pass, and require review from Code Owners.
+
+On another host, set up the equivalent: the same script in CI, and required
+human review for the same paths.
 
 ## 6. Smoke test in a fresh context
 
