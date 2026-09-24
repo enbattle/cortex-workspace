@@ -15,7 +15,9 @@ unknown size, a refactor) and draft its proposal with the user.
 
 1. Create a branch named for the change from an up-to-date default branch,
    then create `changes/<yyyymmdd>-<slug>/` (today's date, a short kebab-case
-   slug) on it and copy the three files from `harness/templates/change-folder/`
+   slug) on it and copy `proposal.md`, `design.md` and `tasks.md` from
+   `harness/templates/change-folder/` (not `lock.md`: `test-first` adds it in a
+   commit of its own, and the lock fails if any other commit touches it)
    into it. In a monorepo the folder still lives at the root; list the
    packages it touches in the proposal.
 2. Read `docs/knowledge/index.md` and only the knowledge files it points to

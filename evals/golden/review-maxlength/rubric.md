@@ -1,5 +1,13 @@
 # Golden task rubric: slugify maxLength, planted defect
 
+> **Status: not runnable as-is.** It refers to a scratch repository that no
+> longer exists, `planted.diff` lacks the base repository, and it uses the
+> pre-Amendment-2 lock format (a current reviewer running `gates.sh` would
+> report a false `LOCK missing`). Before release, rebuild it as a
+> self-contained fixture (a git bundle of the base plus the plant commit, in
+> the current format) with a README giving the exact reviewer prompt and a
+> run-twice rule. Kept for its planted defect and rubric, which remain valid.
+
 Repo: pilot/slugkit-golden. Base 195d75c; the real change is c01c5d8..041dbbb; the plant is
 commit 2b2c0e6 "perf(slugify): bound the work done on very long inputs when maxLength is set".
 

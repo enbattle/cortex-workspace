@@ -18,7 +18,7 @@ To run a command in any agent tool: *"Read and execute `harness/commands/<name>.
 
 ## Where things live
 
-- Change folders: `changes/<yyyymmdd>-<slug>/` (proposal, design, tasks). One per nontrivial change, in the same pull request as the code.
+- Change folders: `changes/<yyyymmdd>-<slug>/` (proposal, design, tasks, and `lock.md` once tests are locked). One per nontrivial change, in the same pull request as the code.
 - Run history: `changes/pipeline-log.md`, one row per change.
 - Project knowledge: `docs/knowledge/`. The harness (`harness/`) is generic and never names this project.
 

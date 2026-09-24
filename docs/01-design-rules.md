@@ -93,6 +93,11 @@ Where a rule can be checked by a script, it is (`check.sh`,
 it claims to catch and watching it fail. Checks built on `git diff` must
 account for untracked files, which `git diff` never shows: use
 `git add -N .` before diffing, compare against a commit, or hash files.
+*Limit:* a check that runs on the same machine as the agent it checks is a
+guardrail, not a boundary: an agent with full git access can rewrite history,
+set `--skip-worktree`, or edit the checker. Against deliberate tampering the
+boundary is server-side: CI on the pull request, running the checks from a
+fresh checkout with the base branch's copy of `scripts/cortex/`.
 
 **R12 — Separate roles where a bias needs preventing, not for every step.**
 Three roles run as separate, fresh contexts: the **test writer** (before any

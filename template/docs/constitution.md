@@ -7,7 +7,8 @@ choosing. Keep it short: one line per principle.
 
 This file belongs to the project, not the harness: it lives outside
 `harness/` so a harness upgrade never touches it. Edit freely; cite a
-principle as E2, S3, P1, and so on.
+principle as E2, S3, W1, P1, and so on (R-numbers are the design rules in
+`.cortex/design-rules.md`).
 
 ## Engineering
 
@@ -25,11 +26,11 @@ principle as E2, S3, P1, and so on.
 
 ## Process
 
-- R1. Test writer, implementer and reviewer are separate fresh contexts; nobody approves their own change.
-- R2. Locked tests change only through `test-first`, never during `implement`.
-- R3. Gates are checks the next stage runs itself (`scripts/cortex/gates.sh`), never a report it trusts.
-- R4. Only a human approves a proposal, merges, pushes, or waives a finding.
-- R5. Every loop has a budget; hitting it means stopping and asking.
+- W1. Test writer, implementer and reviewer are separate fresh contexts; nobody approves their own change.
+- W2. Locked tests change only through `test-first`, never during `implement`.
+- W3. Gates are checks the next stage runs itself (`scripts/cortex/gates.sh`), never a report it trusts.
+- W4. Only a human approves a proposal, merges, pushes, or waives a finding.
+- W5. Every loop has a budget; hitting it means stopping and asking.
 
 ## Project
 

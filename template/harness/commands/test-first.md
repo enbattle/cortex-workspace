@@ -18,7 +18,7 @@ tests to fit it, so the tests stop encoding the spec.
 - You are on the change branch, and its latest commit contains the approved
   change folder (`spec-clarify` commits it). If not, stop and say so.
 - Load `docs/constitution.md` and the repository's `AGENTS.md`
-  (for the test command and conventions).
+  (for conventions; the test command is `TEST_CMD` in `.cortex/config`).
 
 ## Procedure
 

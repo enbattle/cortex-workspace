@@ -1,6 +1,17 @@
 # Changelog
 
-## 2.0.0 — 2026-09-23
+## 2.0.0 — Unreleased
+
+**Before release** (from the completeness audit of 2026-09-24):
+
+- Run pilot 2 on the current template from inside an installed repository,
+  so the Claude Code subagents, the permission rules and the three-commit
+  lock flow are exercised by agents.
+- Rebuild `evals/golden/review-maxlength/` as a self-contained fixture and
+  run it twice.
+- Decide how far to harden the local test lock against deliberate tampering
+  (see `docs/02-extensions.md` §3: the boundary is CI on the pull request).
+- Tag the release; installs should use the tag, not HEAD.
 
 cortex becomes an installable single-repository harness instead of a prompt
 that generates a multi-repo workspace.
@@ -21,8 +32,9 @@ that generates a multi-repo workspace.
 - Design rules R11 (gates are mechanical checks the next stage runs, and
   account for untracked files) and R12 (separate fresh contexts for test
   writer, implementer and reviewer, and only where a bias needs preventing).
-- `scripts/cortex/check.sh`: the old prose verification checklist as ten
-  checks (C1–C10), each with a planted-violation test.
+- `scripts/cortex/check.sh`: the old prose verification checklist as
+  checks (C1–C10, then C11–C12 after the pilot), each with a
+  planted-violation test.
 - `scripts/cortex/tests-locked.sh` and `adapt.sh`.
 - Human-only approval: no command writes the approval line, and `check.sh`
   enforces that only the proposal template has the field.
@@ -30,8 +42,8 @@ that generates a multi-repo workspace.
   tool-neutral permissions policy, and Claude Code permission rules.
 - `changes/pipeline-log.md` (Tier-1 metrics built in) and an `Escaped from`
   field so escaped defects can be traced.
-- A Claude Code adapter that enforces isolation: role subagents, reviewers
-  without edit tools, skills that delegate instead of forking.
+- A Claude Code adapter that enforces what the tool allows: role subagents,
+  reviewers without Edit/Write tools, skills that delegate instead of forking.
 - Test suites for all scripts (`tests/`), written before the scripts, and CI.
 
 **Changed after pilot 1** (`evals/pilots/2026-09-23-toy-repo.md`), before
@@ -44,14 +56,15 @@ release:
 - New `scripts/cortex/gates.sh` runs the lock, build, test, lint and harness
   check from `.cortex/config`; `implement` and `review` use it.
 - `install.sh` installs the design rules as `.cortex/design-rules.md`.
-- The constitution moved to `docs/constitution.md` (project-owned, E/S/R/P
+- The constitution moved to `docs/constitution.md` (project-owned, E/S/W/P
   numbering, open project section).
 - `spec-new` creates the branch; `spec-clarify` commits the approved folder
   and asks about compatibility with existing callers.
 - `review.md`: base commit via merge-base, a clean-tree precondition instead
   of a throwaway index, a High/Medium/Low scale, `## Round <n>` sections, and
   the calling session writes findings for a read-only reviewer.
-- `tasks.md` has fixed Lock sections; `test-first` has a carve-out for
+- The lock got its own place (first fixed sections in `tasks.md`, then
+  `lock.md`; see below); `test-first` has a carve-out for
   regression criteria.
 - First golden task: `evals/golden/review-maxlength/`.
 

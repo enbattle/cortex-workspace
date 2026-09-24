@@ -35,7 +35,10 @@ Ask, in one batch where you can:
    are named, but every helper, fixture and setup file it picks up. Check the
    runner's discovery rules; for example `node --test` loads more than
    `*.test.js` from a `test/` directory. When unsure, lock the whole test
-   directory (`test/**`).
+   directory (`test/**`). Include the runner's own configuration too
+   (`package.json` if its scripts pick the tests, `jest.config.*`,
+   `pytest.ini`, and similar), or the test command can be narrowed without
+   touching a test.
 4. Which agent tools the team uses (`claude`, `cursor`, `copilot`, `gemini`,
    `codex`).
 5. The project's own non-negotiable principles, for the constitution's
@@ -80,8 +83,11 @@ bash scripts/cortex/check.sh
 
 Fix every `FAIL` line (each names the rule it enforces) and re-run until it
 prints `check: ok`. On a fresh install it fails on purpose: C11 for each
-`.cortex/config` value still unset, and C12 while `AGENTS.md` has a `TODO`. If `.github/workflows/` exists, offer to add a CI step
-that runs `bash scripts/cortex/check.sh`.
+`.cortex/config` value still unset, and C12 while `AGENTS.md` has a `TODO`. If `.github/workflows/` exists, offer to add a CI job that
+runs `bash scripts/cortex/check.sh` on every push and, on a pull request that
+adds a change folder, `bash scripts/cortex/gates.sh <folder>` from a fresh
+checkout, with `scripts/cortex/` taken from the base branch. That job is the
+real boundary against tampering; the local gates are guardrails.
 
 ## 6. Smoke test in a fresh context
 
