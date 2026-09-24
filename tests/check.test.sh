@@ -1,16 +1,15 @@
 #!/usr/bin/env bash
-# Tests for scripts/cortex/check.sh (spec acceptance criteria 4 and 5, C1-C10).
+# Tests for scripts/cortex/check.sh (spec acceptance criteria 4, 5 and 10;
+# C1-C12). Under Amendment 1 (A2) a clean baseline is a *filled* install: all
+# six config keys set and no TODO in AGENTS.md (fill_install in lib.sh).
 set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
 TOKEN="Zqxproj"
 
-# prepared_install -> fresh install with PROJECT_NAME set to a unique token
+# prepared_install -> fresh install, filled (A2), PROJECT_NAME = unique token
 prepared_install() {
-  local d
-  d="$(fresh_install)" || return 1
-  set_config "$d/.cortex/config" PROJECT_NAME "$TOKEN"
-  printf '%s\n' "$d"
+  filled_install "$TOKEN"
 }
 
 check_in() { # dir -> runs installed check.sh with cwd = dir
@@ -68,8 +67,9 @@ case_token_absent_from_template() {
 case_baseline_ok() {
   local d; d="$(prepared_install)"
   assert_file_contains "$d/.cortex/config" "PROJECT_NAME=$TOKEN" "PROJECT_NAME set"
+  assert_file_not_contains "$d/AGENTS.md" "TODO" "AGENTS.md has no TODO"
   check_in "$d"
-  assert_exit 0 "$CODE" "fresh install passes"
+  assert_exit 0 "$CODE" "filled install passes"
   assert_line "$OUT" "check: ok" "prints check: ok"
   assert_not_contains "$OUT" "FAIL [" "no FAIL lines"
 }
@@ -104,12 +104,13 @@ case_C1_case_insensitive() {
 }
 
 case_C1_unset_project_name() {
-  local d r; d="$(fresh_install)"
+  local d r; d="$(prepared_install)"; baseline_ok "$d"
   set_config "$d/.cortex/config" PROJECT_NAME ""
   r="$(a_command "$d")"
   append "$d/$r" "Notes for $TOKEN."
   check_in "$d"
   assert_not_contains "$OUT" "[C1]" "empty PROJECT_NAME disables C1"
+  assert_line "$OUT" "FAIL [C11] .cortex/config: PROJECT_NAME is not set" "empty PROJECT_NAME is reported as C11 instead"
 }
 
 case_C2() {
@@ -280,6 +281,87 @@ case_multiple_failures_counted() {
   assert_line "$OUT" "check: 2 failure(s)" "failure count is 2"
 }
 
+# ---- AC10 (A2): C11 unset config keys, C12 TODO in AGENTS.md -------------------
+
+c11() { printf 'FAIL [C11] .cortex/config: %s is not set' "$1"; }
+
+case_unfilled_install_fails_C11_C12() {
+  local d k fails others; d="$(fresh_install)"
+  planted "template AGENTS.md has TODO" grep -qF "TODO" "$d/AGENTS.md"
+  check_in "$d"
+  assert_exit 1 "$CODE" "fresh unfilled install fails"
+  for k in $FILL_KEYS; do
+    assert_line "$OUT" "$(c11 "$k")" "C11 for unset $k"
+    assert_true "C11 for $k reported exactly once" \
+      test "$(grep -cxF -- "$(c11 "$k")" <<<"$OUT" || true)" = 1
+  done
+  assert_contains "$OUT" "FAIL [C12] AGENTS.md:" "C12 for TODO in AGENTS.md"
+  assert_true "C12 reported once" test "$(grep -cF 'FAIL [C12]' <<<"$OUT" || true)" = 1
+  fails="$(grep '^FAIL ' <<<"$OUT" || true)"
+  others="$(grep -vF -e 'FAIL [C11]' -e 'FAIL [C12]' <<<"$fails" || true)"
+  if [ -n "$others" ]; then fail "unfilled install triggers checks other than C11/C12"; show_output; else pass; fi
+  assert_line "$OUT" "check: 7 failure(s)" "six C11 + one C12"
+  assert_not_contains "$OUT" "check: ok" "unfilled install is not ok"
+}
+
+case_filling_gives_ok() {
+  local d; d="$(fresh_install)"
+  check_in "$d"
+  assert_exit 1 "$CODE" "unfilled install fails first"
+  fill_install "$d" "$TOKEN"
+  check_in "$d"
+  assert_exit 0 "$CODE" "filling the config and removing TODO gives ok"
+  assert_line "$OUT" "check: ok" "check: ok after filling"
+}
+
+case_C11_placeholder() {
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  set_config "$d/.cortex/config" BUILD_CMD "<x>"
+  planted "placeholder set" grep -qxF "BUILD_CMD=<x>" "$d/.cortex/config"
+  expect_violation "$d" C11 ".cortex/config"
+  assert_line "$OUT" "$(c11 BUILD_CMD)" "placeholder <x> counts as unset"
+  assert_line "$OUT" "check: 1 failure(s)" "only the one key fails"
+}
+
+case_C11_empty() {
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  set_config "$d/.cortex/config" TEST_GLOBS ""
+  expect_violation "$d" C11 ".cortex/config"
+  assert_line "$OUT" "$(c11 TEST_GLOBS)" "empty value counts as unset"
+}
+
+case_C11_whitespace_only() {
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  set_config "$d/.cortex/config" LINT_CMD "   "
+  expect_violation "$d" C11 ".cortex/config"
+  assert_line "$OUT" "$(c11 LINT_CMD)" "whitespace-only value counts as unset"
+}
+
+case_C11_missing_key() {
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  filter_file "$d/.cortex/config" awk '!/^[[:space:]]*TOOLS[[:space:]]*=/'
+  planted "TOOLS line removed" test -z "$(grep '^[[:space:]]*TOOLS[[:space:]]*=' "$d/.cortex/config" || true)"
+  expect_violation "$d" C11 ".cortex/config"
+  assert_line "$OUT" "$(c11 TOOLS)" "absent key counts as unset"
+}
+
+case_C11_two_keys() {
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  set_config "$d/.cortex/config" TEST_CMD "<test command>"
+  set_config "$d/.cortex/config" TOOLS ""
+  expect_violation "$d" C11 ".cortex/config"
+  assert_line "$OUT" "$(c11 TEST_CMD)" "TEST_CMD reported"
+  assert_line "$OUT" "$(c11 TOOLS)" "TOOLS reported"
+  assert_line "$OUT" "check: 2 failure(s)" "one line per unset key"
+}
+
+case_C12() {
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  append "$d/AGENTS.md" "<!-- TODO: describe the repo -->"
+  planted "TODO in AGENTS.md" grep -qF "TODO" "$d/AGENTS.md"
+  expect_violation "$d" C12 "AGENTS.md"
+}
+
 run_case "token absent from template" case_token_absent_from_template
 run_case "AC4 baseline check: ok" case_baseline_ok
 run_case "repo-root argument" case_root_argument
@@ -305,4 +387,12 @@ run_case "C9 hand-written SKILL.md ignored" case_C9_handwritten_ok
 run_case "C10 untrusted-content phrase removed" case_C10
 run_case ".cortex/adapters not scanned" case_adapters_not_scanned
 run_case "multiple failures counted" case_multiple_failures_counted
+run_case "AC10 unfilled install fails C11 x6 + C12 only" case_unfilled_install_fails_C11_C12
+run_case "AC10 filling config + removing TODO gives ok" case_filling_gives_ok
+run_case "C11 placeholder <x> counts as unset" case_C11_placeholder
+run_case "C11 empty value" case_C11_empty
+run_case "C11 whitespace-only value" case_C11_whitespace_only
+run_case "C11 key line absent" case_C11_missing_key
+run_case "C11 one line per unset key" case_C11_two_keys
+run_case "C12 TODO in AGENTS.md" case_C12
 summary

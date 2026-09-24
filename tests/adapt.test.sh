@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for scripts/cortex/adapt.sh (spec acceptance criteria 7 and 8).
+# Tests for scripts/cortex/adapt.sh (spec acceptance criteria 7, 8 and 11).
 set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
@@ -167,8 +167,10 @@ case_root_argument() {
 }
 
 case_check_ok_after_adapt() {
-  local d; d="$(tools_install claude)"
-  set_config "$d/.cortex/config" PROJECT_NAME Zqxproj
+  local d; d="$(filled_install Zqxproj)"   # A2: a filled baseline, TOOLS=claude
+  assert_file_contains "$d/.cortex/config" "TOOLS=claude" "fixture sets TOOLS=claude"
+  run bash -c 'cd "$1" && ./scripts/cortex/check.sh' _ "$d"
+  assert_exit 0 "$CODE" "filled baseline passes check before adapt"
   adapt "$d"
   assert_exit 0 "$CODE" "adapt exits 0"
   run bash -c 'cd "$1" && ./scripts/cortex/check.sh' _ "$d"
@@ -176,7 +178,46 @@ case_check_ok_after_adapt() {
   assert_line "$OUT" "check: ok" "check: ok after adapt"
 }
 
+# ---- AC11 (A3): TOOLS unset -> warning, nothing written --------------------------
+
+TOOLS_WARNING="warning: TOOLS is not set in .cortex/config; no adapters written"
+
+# expect_no_adapters DIR LABEL : exit 0, the A3 warning, no files, no wrote lines
+expect_no_adapters() {
+  local d="$1" what="$2"
+  adapt "$d"
+  assert_exit 0 "$CODE" "$what: exits 0"
+  assert_contains "$OUT$ERR" "$TOOLS_WARNING" "$what: warns TOOLS is not set"
+  assert_true "$what: no wrote lines" test -z "$(grep '^wrote ' <<<"$OUT" || true)"
+  assert_file_absent "$d/CLAUDE.md" "$what: no CLAUDE.md"
+  assert_file_absent "$d/GEMINI.md" "$what: no GEMINI.md"
+  assert_file_absent "$d/.claude" "$what: no .claude/"
+  assert_file_absent "$d/.cursor" "$what: no .cursor/"
+  assert_file_absent "$d/.github/copilot-instructions.md" "$what: no copilot file"
+}
+
+case_tools_placeholder() {
+  local d; d="$(fresh_install)"
+  assert_true "template TOOLS is a placeholder" grep -q '^TOOLS=<.*>' "$d/.cortex/config"
+  expect_no_adapters "$d" "TOOLS placeholder"
+}
+
+case_tools_empty() {
+  local d; d="$(tools_install "")"
+  expect_no_adapters "$d" "TOOLS empty"
+}
+
+case_tools_absent() {
+  local d; d="$(fresh_install)"
+  filter_file "$d/.cortex/config" awk '!/^[[:space:]]*TOOLS[[:space:]]*=/'
+  assert_true "TOOLS line removed" test -z "$(grep 'TOOLS[[:space:]]*=' "$d/.cortex/config" || true)"
+  expect_no_adapters "$d" "TOOLS absent"
+}
+
 run_case "missing .cortex/config -> exit 2" case_missing_config
+run_case "AC11 TOOLS placeholder warns, writes nothing" case_tools_placeholder
+run_case "AC11 TOOLS empty warns, writes nothing" case_tools_empty
+run_case "AC11 TOOLS key absent warns, writes nothing" case_tools_absent
 run_case "template ships Claude adapter sources" case_template_has_adapters
 run_case "all tools write documented files (AC7)" case_all_tools
 run_case "second run idempotent (AC7)" case_second_run_idempotent

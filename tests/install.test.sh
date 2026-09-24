@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests for scripts/install.sh (spec: docs/specs/2026-09-23-v2-scripts.md,
-# acceptance criteria 1-3).
+# acceptance criteria 1-3 and 13).
 set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
@@ -51,12 +51,14 @@ case_fresh_install() {
   done <<<"$files"
   assert_file_exists "$d/changes/archive/.gitkeep" ".gitkeep is installed"
   assert_file_exists "$d/.cortex/config" ".cortex/config is installed"
-  for f in check.sh tests-locked.sh adapt.sh; do
+  for f in check.sh tests-locked.sh adapt.sh gates.sh; do
     assert_true "scripts/cortex/$f is executable" test -x "$d/scripts/cortex/$f"
   done
   assert_same_file "$ROOT/VERSION" "$d/.cortex/version" ".cortex/version matches VERSION"
   assert_line "$OUT" "created .cortex/version" "reports created .cortex/version"
-  assert_line "$OUT" "install: $((n + 1)) created, 0 unchanged, 0 skipped" "summary line counts every file"
+  assert_same_file "$ROOT/docs/01-design-rules.md" "$d/.cortex/design-rules.md" ".cortex/design-rules.md matches docs/01-design-rules.md (A5)"
+  assert_line "$OUT" "created .cortex/design-rules.md" "reports created .cortex/design-rules.md (A5)"
+  assert_line "$OUT" "install: $((n + 2)) created, 0 unchanged, 0 skipped" "summary counts template files + design rules + version"
   # never runs git commands that write
   assert_true "no commit created" test -z "$(git -C "$d" rev-list --all 2>/dev/null)"
   assert_true "nothing staged" test -z "$(git -C "$d" ls-files)"
@@ -72,7 +74,8 @@ case_second_run_idempotent() {
   assert_contains "$OUT" "0 created" "second run reports 0 created"
   assert_line "$OUT" "unchanged .cortex/version" "version reported unchanged"
   assert_line "$OUT" "unchanged AGENTS.md" "AGENTS.md reported unchanged"
-  assert_line "$OUT" "install: 0 created, $((n + 1)) unchanged, 0 skipped" "second-run summary"
+  assert_line "$OUT" "unchanged .cortex/design-rules.md" "design rules reported unchanged (A5)"
+  assert_line "$OUT" "install: 0 created, $((n + 2)) unchanged, 0 skipped" "second-run summary"
 }
 
 case_existing_differing_file_skipped() {
@@ -123,6 +126,36 @@ case_subdir_of_git_repo() {
   assert_file_exists "$d/sub/AGENTS.md" "installed at the given path"
 }
 
+case_design_rules_not_in_template() {
+  # A5 copies from docs/, so the template must not ship its own copy (that
+  # would double-count and could drift from the canonical rules)
+  assert_file_exists "$ROOT/docs/01-design-rules.md" "cortex ships docs/01-design-rules.md"
+  assert_file_absent "$ROOT/template/.cortex/design-rules.md" "template has no separate design-rules copy"
+}
+
+case_existing_differing_design_rules_skipped() {
+  local d
+  d="$(new_git_repo)"
+  mkdir -p "$d/.cortex"
+  printf '# my local rules\n' > "$d/.cortex/design-rules.md"
+  cp "$d/.cortex/design-rules.md" "$TEST_TMP/rules.orig"
+  run "$INSTALL" "$d"
+  assert_exit 0 "$CODE" "install exits 0"
+  assert_line "$OUT" "skipped .cortex/design-rules.md (exists, differs)" "differing design rules skipped (A5)"
+  assert_same_file "$TEST_TMP/rules.orig" "$d/.cortex/design-rules.md" "existing design rules untouched"
+  assert_contains "$OUT" "1 skipped" "summary counts the skip"
+}
+
+case_design_rules_idempotent() {
+  local d
+  d="$(fresh_install)"
+  assert_same_file "$ROOT/docs/01-design-rules.md" "$d/.cortex/design-rules.md" "installed by the first run"
+  run "$INSTALL" "$d"
+  assert_not_contains "$OUT" "created .cortex/design-rules.md" "second run does not recreate it"
+  assert_line "$OUT" "unchanged .cortex/design-rules.md" "second run reports it unchanged"
+  assert_same_file "$ROOT/docs/01-design-rules.md" "$d/.cortex/design-rules.md" "still identical after second run"
+}
+
 run_case "no argument -> exit 2" case_no_argument
 run_case "missing target dir -> exit 2" case_missing_dir
 run_case "non-git dir -> exit 2" case_non_git_dir
@@ -132,4 +165,7 @@ run_case "differing existing file is skipped (AC2)" case_existing_differing_file
 run_case "version mismatch warns, keeps file" case_version_mismatch_warns
 run_case "never deletes or modifies user files" case_never_deletes
 run_case "target inside a git work tree" case_subdir_of_git_repo
+run_case "design rules come from docs/, not template/ (A5)" case_design_rules_not_in_template
+run_case "differing design rules skipped (A5)" case_existing_differing_design_rules_skipped
+run_case "design rules idempotent (AC13)" case_design_rules_idempotent
 summary

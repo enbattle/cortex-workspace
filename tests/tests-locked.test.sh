@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for scripts/cortex/tests-locked.sh (spec acceptance criterion 6).
+# Tests for scripts/cortex/tests-locked.sh (spec acceptance criteria 6 and 9).
 set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
@@ -211,6 +211,110 @@ case_not_locked() {
   expect_lock not-locked tests/z.test.sh "listed path absent at the sha"
 }
 
+# ---- AC9 (A1): pre-existing tests matching TEST_GLOBS are locked too ------------
+
+# locked_repo_with_old -> like locked_repo, but the lock commit also contains
+# tests/old.test.sh (matches TEST_GLOBS, NOT in ## Locked tests) and a
+# non-matching helper tests/helper.sh
+locked_repo_with_old() {
+  local d sha
+  d="$(fresh_install)" || return 1
+  set_config "$d/.cortex/config" TEST_GLOBS '*.test.sh'
+  mkdir -p "$d/tests" "$d/src"
+  printf 'echo a\n' > "$d/tests/a.test.sh"
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  printf 'echo old regression\n' > "$d/tests/old.test.sh"
+  printf 'echo helper\n' > "$d/tests/helper.sh"
+  printf 'app\n' > "$d/src/app.txt"
+  commit_all "$d" "lock tests"
+  sha="$(git -C "$d" rev-parse HEAD)"
+  write_tasks "$d" "$sha"
+  commit_all "$d" "tasks"
+  if grep -qF "old.test.sh" "$d/changes/x/tasks.md"; then
+    fail "fixture: old.test.sh must not be listed"; return 1
+  fi
+  printf '%s\n' "$d"
+}
+
+case_A1_pass_counts_listed_plus_matched() {
+  local d; d="$(locked_repo_with_old)"
+  locked "$d"
+  assert_exit 0 "$CODE" "untouched listed + matched tests pass"
+  # a, b listed (and matched), old matched only: 3, each counted once;
+  # helper.sh does not match TEST_GLOBS
+  assert_contains "$OUT" "tests-locked: 3 file(s) unchanged since" "success line counts listed + matched once each"
+}
+
+case_A1_listed_and_matched_not_double_counted() {
+  local d; d="$(locked_repo)"
+  locked "$d"
+  assert_exit 0 "$CODE" "passes"
+  assert_contains "$OUT" "tests-locked: 2 file(s) unchanged since" "listed files that also match TEST_GLOBS count once"
+}
+
+case_A1_non_matching_helper_free() {
+  local d; d="$(locked_repo_with_old)"
+  printf 'echo helper v2\n' > "$d/tests/helper.sh"
+  locked "$d"
+  assert_exit 0 "$CODE" "a file not matching TEST_GLOBS and not listed is not locked"
+}
+
+case_A1_modified_unstaged() {
+  local d; d="$(locked_repo_with_old)"
+  printf 'echo weakened\n' > "$d/tests/old.test.sh"
+  locked "$d"
+  expect_lock modified tests/old.test.sh "unlisted pre-existing test modified, unstaged"
+}
+
+case_A1_modified_staged() {
+  local d; d="$(locked_repo_with_old)"
+  printf 'echo weakened\n' > "$d/tests/old.test.sh"
+  git -C "$d" add tests/old.test.sh
+  locked "$d"
+  expect_lock modified tests/old.test.sh "unlisted pre-existing test modified, staged"
+}
+
+case_A1_modified_committed() {
+  local d; d="$(locked_repo_with_old)"
+  printf 'echo weakened\n' > "$d/tests/old.test.sh"
+  commit_all "$d" "weaken old test"
+  locked "$d"
+  expect_lock modified tests/old.test.sh "unlisted pre-existing test modified, committed"
+}
+
+case_A1_deleted() {
+  local d; d="$(locked_repo_with_old)"
+  rm "$d/tests/old.test.sh"
+  locked "$d"
+  expect_lock deleted tests/old.test.sh "unlisted pre-existing test deleted"
+}
+
+case_A1_deleted_committed() {
+  local d; d="$(locked_repo_with_old)"
+  git -C "$d" rm -q tests/old.test.sh
+  git -C "$d" commit -q -m "drop old test"
+  locked "$d"
+  expect_lock deleted tests/old.test.sh "unlisted pre-existing test deleted, committed"
+}
+
+case_A1_without_globs_passes() {
+  local d; d="$(locked_repo_with_old)"
+  set_config "$d/.cortex/config" TEST_GLOBS ""
+  printf 'echo weakened\n' > "$d/tests/old.test.sh"
+  locked "$d"
+  assert_exit 0 "$CODE" "without TEST_GLOBS an unlisted test is not locked"
+  assert_not_contains "$OUT$ERR" "LOCK " "no LOCK lines without TEST_GLOBS"
+  assert_contains "$OUT" "tests-locked: 2 file(s) unchanged since" "only the listed files are counted"
+}
+
+case_A1_placeholder_globs_passes() {
+  local d; d="$(locked_repo_with_old)"
+  set_config "$d/.cortex/config" TEST_GLOBS "<test file globs>"
+  rm "$d/tests/old.test.sh"
+  locked "$d"
+  assert_exit 0 "$CODE" "a placeholder TEST_GLOBS counts as unset"
+}
+
 run_case "pass: untouched locked set" case_pass_untouched
 run_case "pass: non-test changes" case_pass_non_test_changes
 run_case "pass: run from a subdirectory" case_pass_from_subdir
@@ -230,4 +334,14 @@ run_case "missing: no Tests-locked-at" case_missing_locked_at
 run_case "missing: no tasks.md" case_missing_tasks_file
 run_case "missing: no locked tests" case_no_locked_tests
 run_case "not-locked: path absent at sha" case_not_locked
+run_case "AC9 pass: count = listed + matched" case_A1_pass_counts_listed_plus_matched
+run_case "AC9 pass: listed+matched counted once" case_A1_listed_and_matched_not_double_counted
+run_case "AC9 pass: non-matching unlisted file free" case_A1_non_matching_helper_free
+run_case "AC9 modified: unlisted test, unstaged" case_A1_modified_unstaged
+run_case "AC9 modified: unlisted test, staged" case_A1_modified_staged
+run_case "AC9 modified: unlisted test, committed" case_A1_modified_committed
+run_case "AC9 deleted: unlisted test" case_A1_deleted
+run_case "AC9 deleted: unlisted test, committed" case_A1_deleted_committed
+run_case "AC9 pass: without TEST_GLOBS" case_A1_without_globs_passes
+run_case "AC9 pass: placeholder TEST_GLOBS" case_A1_placeholder_globs_passes
 summary

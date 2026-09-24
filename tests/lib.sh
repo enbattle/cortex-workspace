@@ -174,3 +174,43 @@ append() {
 }
 
 line_count() { wc -l < "$1" | tr -d ' '; }
+
+# ---- filled baseline (spec Amendment 1, A2) ---------------------------------------
+
+# fill_install DIR [PROJECT_NAME] : make an install a "filled" baseline that
+# check.sh accepts under A2: all six required .cortex/config keys set to
+# harmless non-placeholder values, and no TODO left in AGENTS.md. Verifies
+# the fill took effect; returns 1 (and records a failure) if it did not.
+FILL_KEYS="PROJECT_NAME BUILD_CMD TEST_CMD LINT_CMD TEST_GLOBS TOOLS"
+fill_install() {
+  local d="$1" name="${2:-Zqxproj}" k
+  local cfg="$d/.cortex/config"
+  set_config "$cfg" PROJECT_NAME "$name"
+  set_config "$cfg" BUILD_CMD "true"
+  set_config "$cfg" TEST_CMD "true"
+  set_config "$cfg" LINT_CMD "true"
+  set_config "$cfg" TEST_GLOBS "*.test.sh"
+  set_config "$cfg" TOOLS "claude"
+  for k in $FILL_KEYS; do
+    if ! grep -q "^${k}=[^<[:space:]]" "$cfg"; then
+      fail "fill_install: $k not filled in $cfg"; return 1
+    fi
+  done
+  if [ -f "$d/AGENTS.md" ]; then
+    filter_file "$d/AGENTS.md" awk '!/TODO/'
+    if grep -q 'TODO' "$d/AGENTS.md"; then
+      fail "fill_install: TODO still in AGENTS.md"; return 1
+    fi
+    if [ ! -s "$d/AGENTS.md" ]; then
+      fail "fill_install: AGENTS.md empty after removing TODO lines"; return 1
+    fi
+  fi
+}
+
+# filled_install [PROJECT_NAME] -> path of a fresh install, filled as above
+filled_install() {
+  local d
+  d="$(fresh_install)" || return 1
+  fill_install "$d" "${1:-Zqxproj}" || return 1
+  printf '%s\n' "$d"
+}
