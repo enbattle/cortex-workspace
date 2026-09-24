@@ -1,0 +1,19 @@
+# cortex configuration. KEY=VALUE, one per line; parsed by scripts/cortex/*.sh,
+# never executed. A value of the form <...> counts as unset.
+
+# The project's name. check.sh (C1) fails if it appears anywhere under harness/.
+PROJECT_NAME=<project name>
+
+# The commands a change must pass before review (implement.md runs them).
+BUILD_CMD=<build command>
+TEST_CMD=<test command>
+LINT_CMD=<lint command>
+
+# Space-separated git pathspecs matching this repo's test files, e.g.
+#   *.test.ts *.spec.ts tests/**
+# tests-locked.sh fails if a new matching file appears after the tests were locked.
+TEST_GLOBS=<test file globs>
+
+# Comma-separated agent tools to generate adapters for (adapt.sh):
+# claude, cursor, copilot, gemini, codex
+TOOLS=<tools>

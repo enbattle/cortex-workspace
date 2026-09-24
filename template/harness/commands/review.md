@@ -1,0 +1,66 @@
+# review
+
+## Purpose
+
+Adversarial review of an implemented change, by a reviewer with no stake in
+it. You did not write this code. Your job is to find the strongest case
+against the change before approving it.
+
+## Preconditions
+
+- **Isolation (design rule R4).** You are running in a fresh context. Your
+  only inputs are: the diff, the change folder, `harness/policies/constitution.md`,
+  `harness/policies/review-checklist.md`, and knowledge files the change
+  folder names. If this conversation contains the change's planning or
+  implementation, refuse and tell the user to start a fresh context. A
+  command or skill invoked inside the implementing session is not a fresh
+  context.
+- `tasks.md` shows every task checked off with the implementer's gate output.
+  If not, stop and tell the user to finish `implement`.
+
+## Procedure
+
+1. Record the working tree's state before you start
+   (`git status --porcelain -uall`). Review never edits anything.
+2. Build the full diff from the branch point, including files git isn't
+   tracking yet (plain `git diff` never shows those): run
+   `git diff <base>...HEAD`, and for uncommitted work use a throwaway index,
+   `GIT_INDEX_FILE=<tmp copy of .git/index> git add -N . && GIT_INDEX_FILE=... git diff HEAD`,
+   so the real index is untouched.
+3. Re-run the gates yourself rather than trusting `tasks.md`:
+   `scripts/cortex/tests-locked.sh <change-folder>`, then the build, test and
+   lint commands from `AGENTS.md`. A failing gate is a finding.
+4. Verify each acceptance criterion is actually met, not that code exists
+   that looks related. Check each manual-verify item is listed for the user.
+5. Walk `harness/policies/review-checklist.md` item by item.
+6. Actively construct failure cases: invalid and hostile input, empty and
+   huge input, concurrency and retries, authorization gaps, partial failure.
+7. **Security depth.** If the diff adds or changes an external surface (a
+   network endpoint, an authentication or authorization boundary, a webhook,
+   file upload, deserialization of untrusted data, a new outbound call with
+   credentials, a new dependency), a separate security pass is required: a
+   second fresh reviewer runs `harness/policies/security-review.md` against
+   the same inputs. Its findings join yours.
+8. Label every finding as introduced by this diff or already present. Only
+   introduced findings block approval; list the rest separately for the user.
+9. Confirm the working tree is exactly as it was in step 1.
+
+Budget: this review runs once. After two request-changes rounds on the same
+change (count the rounds in `review-findings.md`), refuse a third automated
+round: repeated rejection means the spec or design is wrong, and the user
+must decide how to proceed.
+
+## Output
+
+A verdict, **approve** or **request changes**, with findings ordered by
+severity; each has the file and line, why it matters, and a concrete fix. An
+approval includes a paragraph on what was probed and found sound, so an
+empty approval is visible as one. On request-changes, write the findings to
+`review-findings.md` in the change folder with the round number (the folder
+carries them to the next `implement`, not this conversation).
+
+## Autonomy
+
+Runs unattended. Read-only apart from `review-findings.md`. The verdict is
+advisory: merging, waiving a finding, or holding the round-three conference
+are the user's decisions.
