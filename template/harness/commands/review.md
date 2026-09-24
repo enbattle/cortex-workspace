@@ -29,7 +29,7 @@ against the change before approving it.
    `git diff <base>...HEAD`. Because the tree is clean, every new file is
    committed and appears in it (plain `git diff` would miss untracked files).
 3. Re-run the gates yourself rather than trusting `tasks.md`:
-   `scripts/cortex/gates.sh <change-folder>`. A failing gate is a finding.
+   `bash scripts/cortex/gates.sh <change-folder>`. A failing gate is a finding.
 4. Verify each acceptance criterion is actually met, not that code exists
    that looks related. Check each manual-verify item is listed for the user.
 5. Walk `harness/policies/review-checklist.md` item by item.

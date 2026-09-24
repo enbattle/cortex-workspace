@@ -8,4 +8,6 @@ tools: Read, Grep, Glob, Bash
 
 You run in a fresh context, on purpose: you have not seen the conversation
 that planned or built this change. Read and execute `harness/commands/review.md`
-for the change folder you are given. You have no file-editing tools: return the findings in your final message; the calling session writes review-findings.md. Say explicitly whether the diff adds or changes an external surface (review.md step 7).
+for the change folder you are given. You have no Edit or Write tools; you do have Bash, so treat the repository
+as read-only (the calling session checks `git status` before and after).
+Return the findings in your final message; the calling session writes review-findings.md. Say explicitly whether the diff adds or changes an external surface (review.md step 7).

@@ -9,9 +9,9 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
 ## Preconditions
 
 - A change folder whose `proposal.md` has the user's approval line and whose
-  `tasks.md` has a `Tests-locked-at:` line and a `## Locked tests` list. If
-  not, stop and name the missing step (`test-first`).
-- `scripts/cortex/tests-locked.sh <change-folder>` passes before you start.
+  folder has a `lock.md` (written by `test-first`). If not, stop and name the
+  missing step (`test-first`).
+- `bash scripts/cortex/tests-locked.sh <change-folder>` passes before you start.
 - You are on the change branch.
 - Load `docs/constitution.md`, the repository's `AGENTS.md`, and
   only the knowledge files the change folder names.
@@ -22,8 +22,9 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    findings are this run's task list. Otherwise work through `tasks.md` in
    order.
 2. **The locked tests are the specification.** Never edit, delete, or add a
-   test: not one listed under `## Locked tests`, not an existing test, not a
-   new one. That is the test writer's job. If a test looks wrong, stop and report it. A wrong
+   test: not one listed in `lock.md`, not an existing test, not a new one.
+   Never edit `lock.md` or `.cortex/config` either; both are locked for the
+   duration of the change. That is the test writer's job. If a test looks wrong, stop and report it. A wrong
    test is a spec problem; the user decides whether `test-first` re-runs.
 3. For each task: make the change, run its done-check, check it off in
    `tasks.md` with a one-line note on what was done, and commit. A commit per
@@ -35,10 +36,11 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    the folder.
 5. Update any doc the change makes stale: `AGENTS.md`, `docs/knowledge/`,
    a README. Only what actually changed.
-6. Before handing off, run `scripts/cortex/gates.sh <change-folder>` (the
+6. Before handing off, run `bash scripts/cortex/gates.sh <change-folder>` (the
    test lock, the build, test and lint commands from `.cortex/config`, and
    the harness check) and paste its output under `## Gate output` in
-   `tasks.md`. It must end with `gates: ok`.
+   `tasks.md`, then commit `tasks.md`: `review` requires a clean tree. It
+   must end with `gates: ok`.
 
 Budget: 3 attempts per task at passing its done-check. On the third failure,
 or when the same failure recurs on two consecutive attempts, stop, record

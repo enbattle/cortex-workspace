@@ -7,5 +7,5 @@ description: Implement an approved change against its locked tests (cortex imple
 
 Don't run the command in this session, and never fork: spawn the
 `cortex-implementer` subagent (Agent tool, `subagent_type: cortex-implementer`) and give it
-only the change folder's path. When it returns, run `scripts/cortex/gates.sh <change-folder>` yourself;
+only the change folder's path. When it returns, run `bash scripts/cortex/gates.sh <change-folder>` yourself;
 a failure goes back to the user, not to a retry.

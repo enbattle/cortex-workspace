@@ -8,7 +8,8 @@ rule wins; flag the conflict to the user instead of guessing.
 
 cortex targets **one repository**: a single-package repo or a monorepo. A
 system spread across several repositories is an extension, triggered by
-evidence (`02-extensions.md`, "Multi-repo systems"), not the default.
+evidence (cortex's `docs/02-extensions.md`, "Multi-repo systems"), not the
+default.
 
 ---
 
@@ -57,8 +58,8 @@ in, or suggests text for it; a command that finds it missing stops and asks.
 
 **R7 — Plain files.** The harness is markdown plus a few POSIX shell scripts
 that need only git. No framework, no package, no daemon. Any urge to add
-tooling beyond this is a signal to re-read this rule and check the extensions
-catalog.
+tooling beyond this is a signal to re-read this rule and check cortex's
+extensions catalog (`docs/02-extensions.md` in the cortex repository).
 
 **R8 — Tool-neutral canon, generated adapters.** Canonical content lives in
 `AGENTS.md` and `harness/`, in plain markdown that names no agent tool.
@@ -102,8 +103,8 @@ attention). The spec and clarify stages stay with the human and the
 orchestrating session, since the human's approval is the independent check
 on "is this what I want". Docs stay with the implementer, since docs are not
 a correctness check. Don't add a role without naming the bias it prevents.
-This reasoning comes from `til`'s `docs/SDLC.md`, where it was worked out on
-a running pipeline.
+This reasoning comes from the `til` project's pipeline (its `docs/SDLC.md`),
+where it was worked out on a running pipeline.
 
 ---
 

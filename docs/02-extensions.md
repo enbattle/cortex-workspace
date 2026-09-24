@@ -20,10 +20,10 @@ When you do implement an extension, follow the design rules (R1–R12 in `01-des
 - The team is about to onboard someone who will hold operational duties.
 
 **Implementation:**
-- Create `knowledge/runbooks/` (runbooks are system-specific — they belong in knowledge, never in harness).
+- Create `docs/knowledge/runbooks/` (runbooks are system-specific — they belong in knowledge, never in harness).
 - One file per procedure: `runbooks/<verb>-<object>.md` (e.g., `deploy-payments-service.md`, `rotate-db-credentials.md`).
 - Fixed format per runbook: **Purpose** (one line) · **When to run** · **Preconditions** (access, approvals, state checks) · **Steps** (numbered; every step has an explicit *verify* line — what you must observe before proceeding) · **Rollback** · **Escalation** (who/where when it goes sideways) · **Last verified** date.
-- Add a `runbooks` row to `knowledge/index.md` and a routing line to root `AGENTS.md`: "operational procedures → `knowledge/runbooks/`, follow steps exactly, never improvise around a failed verify step."
+- Add a `runbooks` row to `docs/knowledge/index.md` and a routing line to root `AGENTS.md`: "operational procedures → `knowledge/runbooks/`, follow steps exactly, never improvise around a failed verify step."
 - Optionally add `harness/commands/runbook-new.md`: interviews the operator, drafts in the fixed format, and — importantly — asks "what went wrong last time?" to capture failure knowledge, not just the happy path.
 
 **Pitfalls:**

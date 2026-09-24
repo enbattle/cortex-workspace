@@ -55,6 +55,28 @@ release:
   regression criteria.
 - First golden task: `evals/golden/review-maxlength/`.
 
+**Changed after the final review**, before release (spec Amendment 2):
+
+- The test lock moved to its own `lock.md`, committed once directly after
+  the tests and never touched again (`LOCK moved` otherwise): pointing
+  `Tests-locked-at:` at HEAD in `tasks.md` had defeated the lock.
+- `TEST_GLOBS` is read from the lock commit, and `.cortex/config` itself is
+  locked, which also freezes the gate commands for the change.
+- Non-ASCII and spaced paths lock correctly (`core.quotepath=off`).
+- `gates.sh` runs the other scripts through `bash`; the template ships a
+  `.gitattributes` (`*.sh text eol=lf`); commands say `bash scripts/cortex/…`.
+- `check.sh` C1 matches whole words; C8 allows only the generated marker
+  comment.
+- `install.sh` refuses a target that isn't a repository root or already has
+  a different cortex version, and notes when the repository ignores file
+  modes.
+- `adapt.sh` reports `unchanged` settings and `stale` adapters for tools
+  removed from `TOOLS`.
+- `implement` commits `tasks.md` after pasting gate output (review needs a
+  clean tree). README no longer claims reviewers can't edit (they have
+  Bash; the before/after `git status` is the real check). Fewer, broader
+  permission rules.
+
 **Fixed (design problems in v1):**
 
 - A repository's `AGENTS.md` "overriding workspace guidance" contradicted

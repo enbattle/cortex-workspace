@@ -3,7 +3,10 @@
 You are an AI coding agent. The user has asked you to install cortex into the
 repository you're working in. Follow these steps in order. Never invent
 project facts: anything the user doesn't know yet stays a visible
-`<!-- TODO -->`, listed for them at the end.
+`<!-- TODO -->`, listed for them at the end. The one exception is
+`AGENTS.md`, which every agent reads first: it must end with no `TODO`
+(`check.sh` C12), so write what is known and route the unknowns to a
+knowledge file that keeps the `TODO`.
 
 `<cortex>` below means the directory this file is in.
 
@@ -71,14 +74,14 @@ For each file `install.sh` skipped:
 ## 5. Generate adapters and check
 
 ```bash
-scripts/cortex/adapt.sh
-scripts/cortex/check.sh
+bash scripts/cortex/adapt.sh
+bash scripts/cortex/check.sh
 ```
 
 Fix every `FAIL` line (each names the rule it enforces) and re-run until it
 prints `check: ok`. On a fresh install it fails on purpose: C11 for each
 `.cortex/config` value still unset, and C12 while `AGENTS.md` has a `TODO`. If `.github/workflows/` exists, offer to add a CI step
-that runs `scripts/cortex/check.sh`.
+that runs `bash scripts/cortex/check.sh`.
 
 ## 6. Smoke test in a fresh context
 

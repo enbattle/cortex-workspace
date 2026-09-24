@@ -8,7 +8,9 @@
 # skipped for a human (or the INSTALL.md walkthrough) to merge.
 #
 # Usage: scripts/install.sh <target-dir>
-# Exit:  0 installed (even with skipped files), 2 usage or target error.
+# Exit:  0 installed (even with skipped files), 2 usage or target error,
+#        including a target that isn't a repository root or has a different
+#        cortex version installed (upgrades aren't supported yet).
 set -euo pipefail
 
 CORTEX_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -28,6 +30,19 @@ if ! git -C "$target" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   exit 2
 fi
 target="$(cd "$target" && pwd)"
+if [ -n "$(git -C "$target" rev-parse --show-prefix)" ]; then
+  echo "error: $target is not the root of its git repository; install at the root (the scripts resolve paths from it)" >&2
+  exit 2
+fi
+
+version="$(tr -d '\r\n' < "$CORTEX_ROOT/VERSION")"
+if [ -e "$target/.cortex/version" ]; then
+  installed="$(tr -d '\r\n' < "$target/.cortex/version")"
+  if [ "$installed" != "$version" ]; then
+    echo "error: this repository has cortex $installed installed; upgrading to $version is not supported yet (see docs/02-extensions.md §4)" >&2
+    exit 2
+  fi
+fi
 
 created=0
 unchanged=0
@@ -67,7 +82,6 @@ else
   skipped=$((skipped + 1))
 fi
 
-version="$(tr -d '\r\n' < "$CORTEX_ROOT/VERSION")"
 version_file="$target/.cortex/version"
 if [ ! -e "$version_file" ]; then
   mkdir -p "$target/.cortex"
@@ -75,13 +89,12 @@ if [ ! -e "$version_file" ]; then
   echo "created .cortex/version"
   created=$((created + 1))
 else
-  installed="$(tr -d '\r\n' < "$version_file")"
-  if [ "$installed" = "$version" ]; then
-    echo "unchanged .cortex/version"
-    unchanged=$((unchanged + 1))
-  else
-    echo "warning: installed version $installed, template version $version"
-  fi
+  echo "unchanged .cortex/version"
+  unchanged=$((unchanged + 1))
+fi
+
+if [ "$(git -C "$target" config --get core.filemode || true)" = "false" ]; then
+  echo "note: this repository ignores file modes; after committing, run git update-index --chmod=+x scripts/cortex/*.sh"
 fi
 
 echo "install: $created created, $unchanged unchanged, $skipped skipped"

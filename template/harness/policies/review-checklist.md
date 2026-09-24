@@ -13,7 +13,7 @@ stops being read.
 
 ## Tests
 
-- [ ] `scripts/cortex/gates.sh` passes, including the test lock: the tests are exactly as `test-first` committed them.
+- [ ] `bash scripts/cortex/gates.sh` passes, including the test lock: the tests are exactly as `test-first` committed them.
 - [ ] Each automatable criterion maps to a test in `tasks.md`; each manual-verify item is listed for the user.
 - [ ] Tests assert behavior a user or caller would see, not the implementation's internals.
 
@@ -34,7 +34,7 @@ stops being read.
 
 - [ ] The code follows the conventions in `AGENTS.md` (and a package's own `AGENTS.md`).
 - [ ] Docs the change made stale are updated; any spec deviation is in `design.md`'s `## As built`.
-- [ ] `scripts/cortex/check.sh` passes.
+- [ ] `bash scripts/cortex/check.sh` passes.
 
 ## Process rules only review can check
 

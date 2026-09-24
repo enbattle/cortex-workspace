@@ -5,8 +5,8 @@ repository (one package or a monorepo): spec-first changes, tests written by
 a separate agent before any implementation and then locked, isolated
 adversarial review, and a feedback loop that changes the process only on
 evidence. It is plain markdown and a few bash scripts, works with any agent
-tool, and ships a Claude Code adapter that enforces the isolation rules
-mechanically.
+tool, and ships a Claude Code adapter that enforces as much of the isolation
+as the tool allows.
 
 **Status:** v2.0.0. The scripts are covered by test suites written by a
 separate agent before the scripts were (`tests/`, 5 suites). The whole
@@ -56,7 +56,7 @@ Prerequisites: git and bash (Git Bash on Windows).
 
 ```bash
 git clone https://github.com/enbattle/cortex-workspace.git
-cortex-workspace/scripts/install.sh /path/to/your/repo
+bash cortex-workspace/scripts/install.sh /path/to/your/repo
 ```
 
 `install.sh` copies files only where none exist, so it is safe on an existing
@@ -79,11 +79,11 @@ and checks. Everything it can't know is left as a visible `TODO`.
 
 ## Supported agent tools
 
-Set `TOOLS` in `.cortex/config`, then run `scripts/cortex/adapt.sh`.
+Set `TOOLS` in `.cortex/config`, then run `bash scripts/cortex/adapt.sh`.
 
 | Tool | Generated | Isolation for test-first / implement / review |
 | --- | --- | --- |
-| Claude Code | `CLAUDE.md` (`@AGENTS.md`), `.claude/skills/cortex-*`, `.claude/agents/cortex-*`, `.claude/settings.json` if absent | enforced: separate subagents, reviewers without edit tools |
+| Claude Code | `CLAUDE.md` (`@AGENTS.md`), `.claude/skills/cortex-*`, `.claude/agents/cortex-*`, `.claude/settings.json` if absent | separate subagents (enforced); reviewers have no Edit/Write tools, but have Bash, so the real check is the before/after `git status` the skill runs |
 | Cursor | `.cursor/rules/cortex.mdc` | by instruction: start a new chat for each role |
 | GitHub Copilot | `.github/copilot-instructions.md` | by instruction |
 | Gemini CLI | `GEMINI.md` | by instruction |

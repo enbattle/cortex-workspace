@@ -61,7 +61,9 @@ adapt_claude() {
   while IFS= read -r rel; do
     [ -n "$rel" ] || continue
     if [ "$rel" = .claude/settings.json ]; then
-      if [ -e .claude/settings.json ]; then
+      if [ -e .claude/settings.json ] && cmp -s "$src/$rel" .claude/settings.json; then
+        echo "unchanged .claude/settings.json"
+      elif [ -e .claude/settings.json ]; then
         echo "skipped .claude/settings.json (exists; merge the permissions block from $src/.claude/settings.json)"
       else
         mkdir -p .claude
@@ -72,6 +74,14 @@ adapt_claude() {
       emit "$rel" < "$src/$rel"
     fi
   done <<<"$(cd "$src" && find . -type f | sed 's|^\./||' | LC_ALL=C sort)"
+}
+
+# stale TOOL PATH : a generated file for a tool no longer in TOOLS (never deleted)
+stale() {
+  case ",$tools," in *",$1,"*) return 0 ;; esac
+  if [ -f "$2" ] && grep -qF "$MARKER" "$2"; then
+    echo "stale $2 ($1 is not in TOOLS; delete it if unused)"
+  fi
 }
 
 IFS=',' read -r -a tool_list <<<"$tools"
@@ -88,3 +98,8 @@ for tool in "${tool_list[@]}"; do
     *) echo "warning: unknown tool $tool" ;;
   esac
 done
+
+stale claude CLAUDE.md
+stale cursor .cursor/rules/cortex.mdc
+stale copilot .github/copilot-instructions.md
+stale gemini GEMINI.md

@@ -7,4 +7,4 @@ description: Implements an approved cortex change folder against its locked test
 
 You run in a fresh context, on purpose: you have not seen the conversation
 that planned or built this change. Read and execute `harness/commands/implement.md`
-for the change folder you are given. Never edit a file listed under "## Locked tests".
+for the change folder you are given. Never edit, add or delete a test, `lock.md`, or `.cortex/config`.

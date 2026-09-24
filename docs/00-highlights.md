@@ -8,7 +8,7 @@ A sixty-second orientation for anyone meeting cortex cold. Each entry is one par
 
 **3. The author never approves their own change.** Review runs in a fresh context with artifact-only inputs and an adversarial mandate, re-runs every gate itself, and must say what it probed before approving. A diff that adds an external surface gets a separate security pass. The Claude Code adapter enforces isolation mechanically: reviewer subagents have no edit tools and are never forked. *(Canonical: R4, R8; `review`, `security-review.md`.)*
 
-**4. Gates are facts, not reports.** An instruction to an agent is a request; a script's exit code is a fact. Every rule a script can check, a script checks (`check.sh`, `tests-locked.sh`), each check is proven by planting the violation it claims to catch, and diff-based checks account for untracked files, which `git diff` never shows. *(Canonical: R11; traps T13.)*
+**4. Gates are facts, not reports.** An instruction to an agent is a request; a script's exit code is a fact. Every rule a script can check, a script checks (`check.sh`, `tests-locked.sh`, and `gates.sh`, which runs them all with the build, test and lint commands), each check is proven by planting the violation it claims to catch, and diff-based checks account for untracked files, which `git diff` never shows. *(Canonical: R11; traps T13.)*
 
 **5. Artifacts carry state; conversations don't.** Anything a later stage, another agent, or a future human needs is written into the change folder or the pipeline log. Every stage can run from a fresh context given only those files, which is what makes reviewer isolation and crash recovery possible. *(Canonical: R9; traps P3.)*
 

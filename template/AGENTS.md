@@ -12,7 +12,7 @@ Route yourself with the table below before doing any work.
 | Making a nontrivial change | The commands in order: `spec-new`, `spec-clarify`, `test-first`, `implement`, `review`, `retro` (in `harness/commands/`) |
 | Running any command | `docs/constitution.md`; it is non-negotiable. Rule IDs (R1–R12) are in `.cortex/design-rules.md` |
 | Reviewing | Only the inputs `harness/commands/review.md` names, in a fresh context |
-| Checking the harness itself | `scripts/cortex/check.sh` |
+| Checking the harness itself | `bash scripts/cortex/check.sh` |
 
 To run a command in any agent tool: *"Read and execute `harness/commands/<name>.md`."*
 
@@ -25,7 +25,7 @@ To run a command in any agent tool: *"Read and execute `harness/commands/<name>.
 ## Commands
 
 Build, test and lint commands live in `.cortex/config` (`BUILD_CMD`,
-`TEST_CMD`, `LINT_CMD`); `scripts/cortex/gates.sh <change-folder>` runs them
+`TEST_CMD`, `LINT_CMD`); `bash scripts/cortex/gates.sh <change-folder>` runs them
 with the test lock and the harness check.
 
 ## Rules

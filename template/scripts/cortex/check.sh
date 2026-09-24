@@ -63,7 +63,7 @@ project="$(config_get PROJECT_NAME)"
 if [ -n "$project" ]; then
   while IFS= read -r f; do
     [ -n "$f" ] || continue
-    if grep -qiF -- "$project" "$f"; then
+    if grep -qiwF -- "$project" "$f"; then
       report C1 "$f" "names the project (\"$project\"); harness files refer to roles and paths only"
     fi
   done <<<"$harness_files"
@@ -124,9 +124,11 @@ done <<<"$harness_files"
 
 # C8 — R8: CLAUDE.md only points at AGENTS.md.
 if [ -f CLAUDE.md ]; then
-  content="$(tr -d '\r' < CLAUDE.md | grep -vE '^[[:space:]]*$' | grep -vE '^[[:space:]]*<!--.*-->[[:space:]]*$' || true)"
+  # Only the generated marker may accompany the pointer: any other comment could
+  # carry instructions the canonical files don't.
+  content="$(tr -d '\r' < CLAUDE.md | grep -vE '^[[:space:]]*$' | grep -vxF '<!-- cortex:generated -->' || true)"
   if [ "$content" != "@AGENTS.md" ]; then
-    report C8 CLAUDE.md "must contain only '@AGENTS.md' (plus comments); content belongs in AGENTS.md"
+    report C8 CLAUDE.md "must contain only '@AGENTS.md' (and the generated marker); content belongs in AGENTS.md"
   fi
 fi
 

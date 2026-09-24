@@ -6,7 +6,8 @@
 #
 # The commands come from .cortex/config, the repository's own file: they are
 # read by parsing (the file is never sourced) and run with `bash -c` from the
-# repository root. Running them is the point of this script.
+# repository root. Running them is the point of this script. The other
+# scripts run through `bash`, so a lost executable bit can't break the gates.
 #
 # Usage: scripts/cortex/gates.sh <change-folder>
 # Exit:  0 all gates pass, 1 any gate failed, 2 usage error.
@@ -65,11 +66,11 @@ config_gate() { # name KEY
   fi
 }
 
-gate tests-locked "$here/tests-locked.sh" "$folder"
+gate tests-locked bash "$here/tests-locked.sh" "$folder"
 config_gate build BUILD_CMD
 config_gate test TEST_CMD
 config_gate lint LINT_CMD
-gate check "$here/check.sh" "$root"
+gate check bash "$here/check.sh" "$root"
 
 if [ "$failed" -eq 0 ]; then
   echo "gates: ok"
