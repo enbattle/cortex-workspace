@@ -51,8 +51,14 @@ case_fresh_install() {
   done <<<"$files"
   assert_file_exists "$d/changes/archive/.gitkeep" ".gitkeep is installed"
   assert_file_exists "$d/.cortex/config" ".cortex/config is installed"
-  for f in check.sh tests-locked.sh adapt.sh gates.sh; do
+  for f in check.sh tests-locked.sh adapt.sh gates.sh ci-gates.sh; do
     assert_true "scripts/cortex/$f is executable" test -x "$d/scripts/cortex/$f"
+  done
+  # Amendment 3 (C2): template CI workflow and ownership files
+  for f in .cortex/ci/github/cortex.yml .cortex/ci/github/CODEOWNERS; do
+    assert_file_exists "$ROOT/template/$f" "template ships $f (C2)"
+    assert_same_file "$ROOT/template/$f" "$d/$f" "$f installed (C2)"
+    assert_line "$OUT" "created $f" "reports created $f (C2)"
   done
   assert_same_file "$ROOT/VERSION" "$d/.cortex/version" ".cortex/version matches VERSION"
   assert_line "$OUT" "created .cortex/version" "reports created .cortex/version"
