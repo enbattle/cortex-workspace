@@ -4,7 +4,7 @@
 
 Write the failing tests for an approved change, before any implementation
 exists, and lock them. This runs as its own role in a fresh context (design
-rule R12): a context that already has the implementation in mind shapes the
+rule R12, in `.cortex/design-rules.md`): a context that already has the implementation in mind shapes the
 tests to fit it, so the tests stop encoding the spec.
 
 ## Preconditions
@@ -15,9 +15,9 @@ tests to fit it, so the tests stop encoding the spec.
 - A change folder whose `proposal.md` has a filled-in approval line written
   by the user, and a filled `tasks.md`. If either is missing, stop and name
   the step (`spec-clarify`, or the user's approval).
-- The work happens on a branch named for the change folder, not the default
-  branch. Create it if needed.
-- Load `harness/policies/constitution.md` and the repository's `AGENTS.md`
+- You are on the change branch, and its latest commit contains the approved
+  change folder (`spec-clarify` commits it). If not, stop and say so.
+- Load `docs/constitution.md` and the repository's `AGENTS.md`
   (for the test command and conventions).
 
 ## Procedure
@@ -30,12 +30,14 @@ tests to fit it, so the tests stop encoding the spec.
 3. Run the test command and confirm each new test **fails for the expected
    reason**: the behavior is missing, not a typo, an import error, or a
    broken fixture. A test that passes before the implementation exists tests
-   nothing; rewrite it.
-4. Commit the tests on the change branch. Record in `tasks.md`:
-   - a line `Tests-locked-at: <the commit's full sha>`;
-   - a `## Locked tests` heading followed by one `- <path>` line per test or
-     fixture file this command created or changed;
-   - the mapping from each criterion to its test(s).
+   nothing; rewrite it. The exception is a criterion that guards existing
+   behavior ("inputs without the new option behave as before"): its test is
+   expected to pass now. Say so in the criterion-to-test mapping.
+4. Commit the tests on the change branch. In `tasks.md`'s `## Lock`
+   section, fill in `Tests-locked-at:` with that commit's full sha, and under
+   `## Locked tests` add one `- <path>` line per test or fixture file this
+   command created or changed. Fill in `## Criteria to tests`. (Existing
+   tests matching `TEST_GLOBS` are locked automatically.) Commit `tasks.md`.
 5. Record each **manual-verify** criterion in `tasks.md` as an item that
    needs the user's sign-off after implementation.
 6. Run `scripts/cortex/tests-locked.sh <change-folder>` and confirm it passes.

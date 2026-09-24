@@ -9,12 +9,13 @@ unknown size, a refactor) and draft its proposal with the user.
 
 - A description of the work from the user. If the request is trivial by the
   rule in `AGENTS.md`, say so and stop: it doesn't need a change folder.
-- Load `harness/policies/constitution.md`.
+- Load `docs/constitution.md`.
 
 ## Procedure
 
-1. Create `changes/<yyyymmdd>-<slug>/` (today's date, a short kebab-case
-   slug) and copy the three files from `harness/templates/change-folder/`
+1. Create a branch named for the change from an up-to-date default branch,
+   then create `changes/<yyyymmdd>-<slug>/` (today's date, a short kebab-case
+   slug) on it and copy the three files from `harness/templates/change-folder/`
    into it. In a monorepo the folder still lives at the root; list the
    packages it touches in the proposal.
 2. Read `docs/knowledge/index.md` and only the knowledge files it points to

@@ -14,10 +14,11 @@ evidence (`02-extensions.md`, "Multi-repo systems"), not the default.
 
 **R1 — Harness/project separation.** Nothing under `harness/` names the
 project, its domain terms, or any fact specific to it. Harness files refer to
-roles and paths only: "the constitution" (`harness/policies/constitution.md`),
+roles and paths only: "the constitution" (`docs/constitution.md`),
 "the architecture overview" (`docs/knowledge/architecture.md`), "the
 repository's `AGENTS.md`". Project facts live in `AGENTS.md`,
-`docs/knowledge/`, the constitution's project section, and `.cortex/config`.
+`docs/knowledge/`, the constitution (`docs/constitution.md`, owned by the
+project and never overwritten by an upgrade), and `.cortex/config`.
 This boundary is what lets a harness upgrade be a file copy instead of a
 merge, and what would let the harness be shared later.
 *Check: C1.*
@@ -87,7 +88,7 @@ escalate, not retry.
 the *next* stage (or the human) runs, not by the producing agent's report.
 An instruction to an agent is a request; a script's exit code is a fact.
 Where a rule can be checked by a script, it is (`check.sh`,
-`tests-locked.sh`), and every new check is proven by planting the violation
+`tests-locked.sh`, and `gates.sh`, which runs every gate from the config), and every new check is proven by planting the violation
 it claims to catch and watching it fail. Checks built on `git diff` must
 account for untracked files, which `git diff` never shows: use
 `git add -N .` before diffing, compare against a commit, or hash files.

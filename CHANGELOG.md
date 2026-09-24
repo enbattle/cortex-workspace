@@ -34,6 +34,27 @@ that generates a multi-repo workspace.
   without edit tools, skills that delegate instead of forking.
 - Test suites for all scripts (`tests/`), written before the scripts, and CI.
 
+**Changed after pilot 1** (`evals/pilots/2026-09-23-toy-repo.md`), before
+release:
+
+- `tests-locked.sh` locks every existing test matching `TEST_GLOBS`, not only
+  the listed ones (a weakened regression test had passed).
+- `check.sh` C11/C12 fail an unfilled install; `adapt.sh` warns when `TOOLS`
+  is unset.
+- New `scripts/cortex/gates.sh` runs the lock, build, test, lint and harness
+  check from `.cortex/config`; `implement` and `review` use it.
+- `install.sh` installs the design rules as `.cortex/design-rules.md`.
+- The constitution moved to `docs/constitution.md` (project-owned, E/S/R/P
+  numbering, open project section).
+- `spec-new` creates the branch; `spec-clarify` commits the approved folder
+  and asks about compatibility with existing callers.
+- `review.md`: base commit via merge-base, a clean-tree precondition instead
+  of a throwaway index, a High/Medium/Low scale, `## Round <n>` sections, and
+  the calling session writes findings for a read-only reviewer.
+- `tasks.md` has fixed Lock sections; `test-first` has a carve-out for
+  regression criteria.
+- First golden task: `evals/golden/review-maxlength/`.
+
 **Fixed (design problems in v1):**
 
 - A repository's `AGENTS.md` "overriding workspace guidance" contradicted

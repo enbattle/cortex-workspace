@@ -32,6 +32,10 @@ tools="$(tr -d '\r' < .cortex/config | awk '
     if (key != "TOOLS") next
     val = substr($0, eq + 1); gsub(/[[:space:]]/, "", val); print val; exit }')"
 case "$tools" in "<"*">") tools="" ;; esac
+if [ -z "$tools" ]; then
+  echo "warning: TOOLS is not set in .cortex/config; no adapters written"
+  exit 0
+fi
 
 # emit PATH : writes stdin to PATH under the marker rule.
 emit() {

@@ -8,28 +8,28 @@ against the change before approving it.
 
 ## Preconditions
 
-- **Isolation (design rule R4).** You are running in a fresh context. Your
-  only inputs are: the diff, the change folder, `harness/policies/constitution.md`,
+- **Isolation (design rule R4, in `.cortex/design-rules.md`).** You are running in a fresh context. Your
+  only inputs are: the diff, the change folder, `docs/constitution.md`,
   `harness/policies/review-checklist.md`, and knowledge files the change
   folder names. If this conversation contains the change's planning or
   implementation, refuse and tell the user to start a fresh context. A
   command or skill invoked inside the implementing session is not a fresh
   context.
-- `tasks.md` shows every task checked off with the implementer's gate output.
-  If not, stop and tell the user to finish `implement`.
+- `tasks.md` shows every task checked off, and the working tree is clean
+  (`implement` commits every task). If tasks are open, stop and tell the user
+  to finish `implement`. Missing gate output under `## Gate output` is a
+  finding, not a reason to stop: you run the gates yourself anyway.
 
 ## Procedure
 
 1. Record the working tree's state before you start
    (`git status --porcelain -uall`). Review never edits anything.
-2. Build the full diff from the branch point, including files git isn't
-   tracking yet (plain `git diff` never shows those): run
-   `git diff <base>...HEAD`, and for uncommitted work use a throwaway index,
-   `GIT_INDEX_FILE=<tmp copy of .git/index> git add -N . && GIT_INDEX_FILE=... git diff HEAD`,
-   so the real index is untouched.
+2. Find the base, the commit the change branch started from:
+   `git merge-base HEAD <default branch>`. The diff under review is
+   `git diff <base>...HEAD`. Because the tree is clean, every new file is
+   committed and appears in it (plain `git diff` would miss untracked files).
 3. Re-run the gates yourself rather than trusting `tasks.md`:
-   `scripts/cortex/tests-locked.sh <change-folder>`, then the build, test and
-   lint commands from `AGENTS.md`. A failing gate is a finding.
+   `scripts/cortex/gates.sh <change-folder>`. A failing gate is a finding.
 4. Verify each acceptance criterion is actually met, not that code exists
    that looks related. Check each manual-verify item is listed for the user.
 5. Walk `harness/policies/review-checklist.md` item by item.
@@ -43,6 +43,14 @@ against the change before approving it.
    the same inputs. Its findings join yours.
 8. Label every finding as introduced by this diff or already present. Only
    introduced findings block approval; list the rest separately for the user.
+   Rate each on this scale:
+   - **High**: breaks an acceptance criterion, the constitution, security,
+     or existing callers (an incompatible change to a public interface);
+     blocks approval.
+   - **Medium**: a real defect or gap outside the criteria (an unhandled
+     edge case, a missing test for a risky path); blocks approval unless the
+     user waives it.
+   - **Low**: polish that doesn't change behavior; never blocks.
 9. Confirm the working tree is exactly as it was in step 1.
 
 Budget: this review runs once. After two request-changes rounds on the same
@@ -57,10 +65,15 @@ severity; each has the file and line, why it matters, and a concrete fix. An
 approval includes a paragraph on what was probed and found sound, so an
 empty approval is visible as one. On request-changes, write the findings to
 `review-findings.md` in the change folder with the round number (the folder
-carries them to the next `implement`, not this conversation).
+carries them to the next `implement`, not this conversation). Each round is
+a section headed `## Round <n>`, so the round count is mechanical. If you
+are running read-only (an adapter may take away your write tools), return
+the findings in that format instead; the session that started the review
+writes the file and does nothing else.
 
 ## Autonomy
 
-Runs unattended. Read-only apart from `review-findings.md`. The verdict is
+Runs unattended. Read-only apart from `review-findings.md`, which the
+calling session writes if the reviewer has no write access. The verdict is
 advisory: merging, waiving a finding, or holding the round-three conference
 are the user's decisions.

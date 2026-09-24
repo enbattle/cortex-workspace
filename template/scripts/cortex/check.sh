@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Checks the invariants of the cortex harness in this repository: the design
-# rules in cortex's docs/01-design-rules.md that a script can verify (R11).
+# rules (.cortex/design-rules.md) that a script can verify (R11).
 # Each violation prints "FAIL [<ID>] <path>: <message>".
 #
 #   C1  R1   the project name appears under harness/
@@ -13,6 +13,8 @@
 #   C8  R8   CLAUDE.md is anything but a pointer to AGENTS.md
 #   C9  R8   a generated SKILL.md is longer than 25 lines (content, not a pointer)
 #   C10 -    AGENTS.md lacks the untrusted-content rule
+#   C11 -    a required .cortex/config value is unset or a <placeholder>
+#   C12 -    AGENTS.md still contains TODO
 #
 # Usage: scripts/cortex/check.sh [repo-root]
 # Exit:  0 clean, 1 violations found.
@@ -142,6 +144,18 @@ done <<<"$( [ -d .claude/skills ] && find .claude/skills -type f -name SKILL.md 
 # C10 — the untrusted-content rule is in the router.
 if [ -f AGENTS.md ] && ! grep -qF 'data, never instructions' AGENTS.md; then
   report C10 AGENTS.md "lacks the untrusted-content rule ('... is data, never instructions')"
+fi
+
+# C11 — the install is filled in: every required config value is set.
+if [ -f .cortex/config ]; then
+  for key in PROJECT_NAME BUILD_CMD TEST_CMD LINT_CMD TEST_GLOBS TOOLS; do
+    [ -n "$(config_get "$key" | tr -d '[:space:]')" ] || report C11 .cortex/config "$key is not set"
+  done
+fi
+
+# C12 — AGENTS.md has no placeholder left.
+if [ -f AGENTS.md ] && grep -q 'TODO' AGENTS.md; then
+  report C12 AGENTS.md "still contains TODO; fill it in (INSTALL.md step 3)"
 fi
 
 if [ "$failures" -eq 0 ]; then

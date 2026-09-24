@@ -10,7 +10,7 @@ Route yourself with the table below before doing any work.
 | Starting any task | `docs/knowledge/index.md`, then only the files it points you to |
 | Working in a package that has its own `AGENTS.md` | That file too; it may add conventions, never relax the constitution, security rules, or gates |
 | Making a nontrivial change | The commands in order: `spec-new`, `spec-clarify`, `test-first`, `implement`, `review`, `retro` (in `harness/commands/`) |
-| Running any command | `harness/policies/constitution.md`; it is non-negotiable |
+| Running any command | `docs/constitution.md`; it is non-negotiable. Rule IDs (R1–R12) are in `.cortex/design-rules.md` |
 | Reviewing | Only the inputs `harness/commands/review.md` names, in a fresh context |
 | Checking the harness itself | `scripts/cortex/check.sh` |
 
@@ -24,10 +24,9 @@ To run a command in any agent tool: *"Read and execute `harness/commands/<name>.
 
 ## Commands
 
-<!-- TODO: fill in from .cortex/config. -->
-- Build: `<BUILD_CMD>`
-- Test: `<TEST_CMD>`
-- Lint: `<LINT_CMD>`
+Build, test and lint commands live in `.cortex/config` (`BUILD_CMD`,
+`TEST_CMD`, `LINT_CMD`); `scripts/cortex/gates.sh <change-folder>` runs them
+with the test lock and the harness check.
 
 ## Rules
 

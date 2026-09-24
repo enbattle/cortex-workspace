@@ -4,7 +4,7 @@
 
 Make the locked tests pass and complete the approved change, including the
 docs it makes stale. Runs as its own role in a fresh context (design rule
-R12), separate from the test writer and the reviewer.
+R12, in `.cortex/design-rules.md`), separate from the test writer and the reviewer.
 
 ## Preconditions
 
@@ -13,7 +13,7 @@ R12), separate from the test writer and the reviewer.
   not, stop and name the missing step (`test-first`).
 - `scripts/cortex/tests-locked.sh <change-folder>` passes before you start.
 - You are on the change branch.
-- Load `harness/policies/constitution.md`, the repository's `AGENTS.md`, and
+- Load `docs/constitution.md`, the repository's `AGENTS.md`, and
   only the knowledge files the change folder names.
 
 ## Procedure
@@ -22,8 +22,8 @@ R12), separate from the test writer and the reviewer.
    findings are this run's task list. Otherwise work through `tasks.md` in
    order.
 2. **The locked tests are the specification.** Never edit, delete, or add a
-   file listed under `## Locked tests`, and never add new test files: that is
-   the test writer's job. If a test looks wrong, stop and report it. A wrong
+   test: not one listed under `## Locked tests`, not an existing test, not a
+   new one. That is the test writer's job. If a test looks wrong, stop and report it. A wrong
    test is a spec problem; the user decides whether `test-first` re-runs.
 3. For each task: make the change, run its done-check, check it off in
    `tasks.md` with a one-line note on what was done, and commit. A commit per
@@ -35,11 +35,10 @@ R12), separate from the test writer and the reviewer.
    the folder.
 5. Update any doc the change makes stale: `AGENTS.md`, `docs/knowledge/`,
    a README. Only what actually changed.
-6. Before handing off, run the gates yourself and include their output in
-   `tasks.md`:
-   - `scripts/cortex/tests-locked.sh <change-folder>` (the locked tests are untouched);
-   - the build, test and lint commands from `AGENTS.md`, all passing;
-   - `scripts/cortex/check.sh` (the harness is intact).
+6. Before handing off, run `scripts/cortex/gates.sh <change-folder>` (the
+   test lock, the build, test and lint commands from `.cortex/config`, and
+   the harness check) and paste its output under `## Gate output` in
+   `tasks.md`. It must end with `gates: ok`.
 
 Budget: 3 attempts per task at passing its done-check. On the third failure,
 or when the same failure recurs on two consecutive attempts, stop, record

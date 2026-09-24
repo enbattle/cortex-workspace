@@ -13,7 +13,7 @@ stops being read.
 
 ## Tests
 
-- [ ] `scripts/cortex/tests-locked.sh` passes: the locked tests are exactly as `test-first` committed them.
+- [ ] `scripts/cortex/gates.sh` passes, including the test lock: the tests are exactly as `test-first` committed them.
 - [ ] Each automatable criterion maps to a test in `tasks.md`; each manual-verify item is listed for the user.
 - [ ] Tests assert behavior a user or caller would see, not the implementation's internals.
 

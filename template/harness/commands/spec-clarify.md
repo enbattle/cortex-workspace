@@ -10,7 +10,7 @@ toward the spec, not polite to it.
 
 - A change folder with a drafted `proposal.md` (from `spec-new`). If there is
   none, stop and tell the user to run `spec-new`.
-- Load `harness/policies/constitution.md`, `docs/knowledge/glossary.md`, and
+- Load `docs/constitution.md`, `docs/knowledge/glossary.md`, and
   only the knowledge files the proposal's affected areas point to.
 
 ## Procedure
@@ -21,6 +21,10 @@ toward the spec, not polite to it.
      behavior);
    - missing error and edge behavior (empty, huge, concurrent, repeated,
      partial failure);
+   - compatibility with existing callers and data: who uses the code this
+     changes today, and what happens to them (a new parameter, a stricter
+     validation, a changed default can all break a caller that the proposal
+     never mentions);
    - conflicts with the constitution;
    - acceptance criteria that aren't objectively checkable.
 2. Ask the user in batches of at most 5 questions. Update the proposal with
@@ -36,6 +40,9 @@ toward the spec, not polite to it.
    each with a done-check that can be run or observed.
 6. Ask the user to review the folder and approve it by writing the approval
    line in `proposal.md` themselves. Don't write it, fill it in, or draft it.
+7. Once the approval line is filled in, commit the change folder on the
+   change branch, so the approved spec is in history before any test is
+   written against it.
 
 Budget: at most 4 rounds of questions. If the proposal still isn't clear
 enough after 4 rounds, stop and tell the user the scope is too uncertain to
@@ -43,7 +50,7 @@ specify yet (a spike or a smaller first change may be needed).
 
 ## Output
 
-The same change folder with an updated `proposal.md` (criteria marked
+A commit on the change branch containing the approved change folder: an updated `proposal.md` (criteria marked
 automatable or manual-verify), a filled `design.md` and `tasks.md`, and a
 request for the user's approval. End by telling the user to run `test-first`
 once they have approved.

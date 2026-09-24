@@ -28,25 +28,28 @@ Ask, in one batch where you can:
 2. The build, test and lint commands. Detect candidates first (`package.json`
    scripts, a `Makefile`, `pyproject.toml`, `Cargo.toml`, CI workflows) and
    ask the user to confirm them rather than asking from scratch.
-3. How test files are named (for `TEST_GLOBS`, e.g. `*.test.ts tests/**`).
+3. What the test runner loads (for `TEST_GLOBS`): not just how test files
+   are named, but every helper, fixture and setup file it picks up. Check the
+   runner's discovery rules; for example `node --test` loads more than
+   `*.test.js` from a `test/` directory. When unsure, lock the whole test
+   directory (`test/**`).
 4. Which agent tools the team uses (`claude`, `cursor`, `copilot`, `gemini`,
    `codex`).
-5. Five to eight non-negotiable engineering principles for the constitution's
-   TODO slots. If they have none, propose some from the stack you've seen and
+5. The project's own non-negotiable principles, for the constitution's
+   Project section (as many as it needs; the generic ones are already there). If they have none, propose some from the stack you've seen and
    get explicit approval for each.
 6. Terms that are overloaded or confused in this codebase (glossary seeds),
    and the main components and who owns them (architecture seeds).
 
 Then fill in `.cortex/config`, the placeholders in `AGENTS.md` (keep it at 60
-lines or fewer), the constitution's project lines, `docs/knowledge/glossary.md`
+lines or fewer), the project section of `docs/constitution.md` (P1, P2, ...), `docs/knowledge/glossary.md`
 and `docs/knowledge/architecture.md`. Delete any entry in
 `docs/deferred-practices.md` that can never apply here, with a one-line reason.
 
 Rules while filling in: nothing under `harness/` may name the project, and
 nothing under `harness/` or `docs/knowledge/` may name an agent tool
-(`check.sh` enforces both). Project-specific principles go in the
-constitution as principles ("no database access across module boundaries"),
-not as project names.
+(`check.sh` enforces both). Project principles go in `docs/constitution.md`,
+which the project owns; a harness upgrade never touches it.
 
 ## 4. Merge what already existed
 
@@ -73,7 +76,8 @@ scripts/cortex/check.sh
 ```
 
 Fix every `FAIL` line (each names the rule it enforces) and re-run until it
-prints `check: ok`. If `.github/workflows/` exists, offer to add a CI step
+prints `check: ok`. On a fresh install it fails on purpose: C11 for each
+`.cortex/config` value still unset, and C12 while `AGENTS.md` has a `TODO`. If `.github/workflows/` exists, offer to add a CI step
 that runs `scripts/cortex/check.sh`.
 
 ## 6. Smoke test in a fresh context
@@ -86,7 +90,9 @@ missing something: fix it now.
 
 ## 7. Hand off
 
-Commit on the `cortex-install` branch, but don't push or merge. Tell the user:
+Commit on the `cortex-install` branch, but don't push or merge; the user
+merges it. Every change after this starts from the default branch with the
+install merged. Tell the user:
 
 - what was created, merged, and skipped;
 - every remaining `TODO`, by file;

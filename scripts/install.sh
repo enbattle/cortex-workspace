@@ -51,6 +51,22 @@ while IFS= read -r rel; do
   fi
 done < <(cd "$TEMPLATE" && find . -type f | sed 's|^\./||' | LC_ALL=C sort)
 
+# The design rules the installed commands cite by ID (R1-R12), copied from
+# their one source in this repository, under the same never-overwrite rule.
+rules_rel=.cortex/design-rules.md
+if [ ! -e "$target/$rules_rel" ]; then
+  mkdir -p "$target/.cortex"
+  cp "$CORTEX_ROOT/docs/01-design-rules.md" "$target/$rules_rel"
+  echo "created $rules_rel"
+  created=$((created + 1))
+elif cmp -s "$CORTEX_ROOT/docs/01-design-rules.md" "$target/$rules_rel"; then
+  echo "unchanged $rules_rel"
+  unchanged=$((unchanged + 1))
+else
+  echo "skipped $rules_rel (exists, differs)"
+  skipped=$((skipped + 1))
+fi
+
 version="$(tr -d '\r\n' < "$CORTEX_ROOT/VERSION")"
 version_file="$target/.cortex/version"
 if [ ! -e "$version_file" ]; then

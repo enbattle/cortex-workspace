@@ -9,9 +9,11 @@ BUILD_CMD=<build command>
 TEST_CMD=<test command>
 LINT_CMD=<lint command>
 
-# Space-separated git pathspecs matching this repo's test files, e.g.
+# Space-separated git pathspecs matching every file the test runner loads:
+# test files AND their helpers, fixtures and setup, e.g.
 #   *.test.ts *.spec.ts tests/**
-# tests-locked.sh fails if a new matching file appears after the tests were locked.
+# All of them are locked once test-first commits the tests: an existing one
+# may not change, and a new one may not appear, until the change is done.
 TEST_GLOBS=<test file globs>
 
 # Comma-separated agent tools to generate adapters for (adapt.sh):

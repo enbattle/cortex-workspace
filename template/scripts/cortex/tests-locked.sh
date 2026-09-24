@@ -2,11 +2,12 @@
 # Verifies that the tests the test-first command locked are untouched (R11).
 #
 # Reads <change-folder>/tasks.md: the "Tests-locked-at: <sha>" line and the
-# "## Locked tests" list. Every listed file must be identical in the working
-# tree to its content at that commit: committed, staged and unstaged edits and
-# deletions all count. If TEST_GLOBS is set in .cortex/config, a test file
-# matching it that didn't exist at the sha (committed later, staged, or
-# untracked) fails too: adding tests is the test writer's job.
+# "## Locked tests" list. Every listed file, and every file matching
+# TEST_GLOBS in .cortex/config as of that commit (so existing tests can't be
+# weakened either), must be identical in the working tree to its content at
+# that commit: committed, staged and unstaged edits and deletions all count.
+# A test file matching TEST_GLOBS that didn't exist at the sha (committed
+# later, staged, or untracked) fails too: adding tests is the test writer's job.
 #
 # It compares against a commit rather than using `git diff` alone, because
 # `git diff` never shows untracked files.
@@ -42,7 +43,7 @@ locked_paths="$(tr -d '\r' < "$tasks" | awk '
   /^#/ { inside = 0 }
   inside && /^- / { p = substr($0, 3); gsub(/`/, "", p); gsub(/^[[:space:]]+|[[:space:]]+$/, "", p); if (p != "") print p }')"
 
-[ -n "$sha" ] || lock missing "no 'Tests-locked-at:' line in $tasks"
+[ -n "$sha" ] || lock missing "no 'Tests-locked-at:' line with a sha in $tasks"
 [ -n "$locked_paths" ] || lock missing "no paths listed under '## Locked tests' in $tasks"
 finish
 
@@ -56,19 +57,6 @@ if ! git merge-base --is-ancestor "$sha" HEAD; then
   finish
 fi
 
-count=0
-while IFS= read -r path; do
-  [ -n "$path" ] || continue
-  count=$((count + 1))
-  if ! git cat-file -e "$sha:$path" 2>/dev/null; then
-    lock not-locked "$path (not in commit $sha)"
-  elif [ ! -e "$path" ]; then
-    lock deleted "$path"
-  elif ! git diff --quiet "$sha" -- "$path" || ! git diff --quiet --cached "$sha" -- "$path"; then
-    lock modified "$path"
-  fi
-done <<<"$locked_paths"
-
 # TEST_GLOBS from .cortex/config (parsed, never sourced).
 globs=""
 if [ -f .cortex/config ]; then
@@ -80,16 +68,39 @@ if [ -f .cortex/config ]; then
       val = substr($0, eq + 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", val); print val; exit }')"
   case "$globs" in "<"*">") globs="" ;; esac
 fi
+
+# The lock set: the listed files, plus every file matching TEST_GLOBS at the
+# sha (a diff from git's empty tree lists a commit's files through a pathspec).
+matched_at_sha=""
+current_matches=""
 if [ -n "$globs" ]; then
+  empty_tree="$(git hash-object -t tree /dev/null)"
   set -f # the globs are for git, not the shell
   # shellcheck disable=SC2086 # word-splitting the glob list is intended
-  current="$(git ls-files -co --exclude-standard -- $globs)"
+  matched_at_sha="$(git diff --name-only "$empty_tree" "$sha" -- $globs)"
+  # shellcheck disable=SC2086
+  current_matches="$(git ls-files -co --exclude-standard -- $globs)"
   set +f
-  while IFS= read -r path; do
-    [ -n "$path" ] || continue
-    git cat-file -e "$sha:$path" 2>/dev/null || lock added "$path"
-  done <<<"$current"
 fi
+lock_set="$(printf '%s\n%s\n' "$locked_paths" "$matched_at_sha" | awk 'NF && !seen[$0]++')"
+
+count=0
+while IFS= read -r path; do
+  [ -n "$path" ] || continue
+  count=$((count + 1))
+  if ! git cat-file -e "$sha:$path" 2>/dev/null; then
+    lock not-locked "$path (not in commit $sha)"
+  elif [ ! -e "$path" ]; then
+    lock deleted "$path"
+  elif ! git diff --quiet "$sha" -- "$path" || ! git diff --quiet --cached "$sha" -- "$path"; then
+    lock modified "$path"
+  fi
+done <<<"$lock_set"
+
+while IFS= read -r path; do
+  [ -n "$path" ] || continue
+  git cat-file -e "$sha:$path" 2>/dev/null || lock added "$path"
+done <<<"$current_matches"
 
 finish
 echo "tests-locked: $count file(s) unchanged since $(git rev-parse --short=7 "$sha")"
