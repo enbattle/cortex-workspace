@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Tests for scripts/cortex/gates.sh (spec Amendment 1, A4; acceptance
-# criterion 12). gates.sh runs tests-locked, BUILD_CMD, TEST_CMD, LINT_CMD and
-# check.sh, every one of them even after a failure.
+# Tests for scripts/cortex/gates.sh (spec Amendment 1, A4, and Amendment 2,
+# B2/B3; acceptance criteria 12 and 17). gates.sh runs tests-locked, BUILD_CMD,
+# TEST_CMD, LINT_CMD and check.sh, every one of them even after a failure.
 set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
@@ -12,26 +12,35 @@ commit_all() { # dir msg
   git -C "$1" commit -q -m "$2"
 }
 
-# gated_repo -> a filled install (check: ok; BUILD/TEST/LINT_CMD=true,
-# TEST_GLOBS=*.test.sh) with tests/a.test.sh locked in changes/x/tasks.md
+# gated_repo [KEY=VALUE...] -> a filled install (check: ok; BUILD/TEST/LINT_CMD
+# =true, TEST_GLOBS=*.test.sh) with tests/a.test.sh locked in the Amendment 2
+# layout: the tests are committed (T), then changes/x/lock.md naming T in its
+# own commit (L). Each KEY=VALUE is set in .cortex/config BEFORE the lock,
+# because the config is itself locked (B2): editing it afterwards would fail
+# the tests-locked gate.
 gated_repo() {
-  local d sha
+  local d sha kv
   d="$(filled_install Zqxproj)" || return 1
-  mkdir -p "$d/tests"
+  for kv in "$@"; do
+    case "$kv" in
+      +*) append "$d/.cortex/config" "${kv#+}" ;;
+      *) set_config "$d/.cortex/config" "${kv%%=*}" "${kv#*=}" ;;
+    esac
+  done
+  mkdir -p "$d/tests" "$d/src"
   printf 'echo a\n' > "$d/tests/a.test.sh"
-  commit_all "$d" "lock tests"
+  printf 'app\n' > "$d/src/app.txt"
+  commit_all "$d" "add tests"
   sha="$(git -C "$d" rev-parse HEAD)"
   mkdir -p "$d/changes/x"
-  cat > "$d/changes/x/tasks.md" <<EOF
-# Tasks
-
+  cat > "$d/changes/x/lock.md" <<EOF2
 Tests-locked-at: $sha
 
 ## Locked tests
 
 - tests/a.test.sh
-EOF
-  commit_all "$d" "tasks"
+EOF2
+  commit_all "$d" "lock tests"
   printf '%s\n' "$d"
 }
 
@@ -87,8 +96,7 @@ case_all_pass() {
 }
 
 case_failing_test_runs_the_rest() {
-  local d; d="$(gated_repo)"
-  set_config "$d/.cortex/config" TEST_CMD "false"
+  local d; d="$(gated_repo "TEST_CMD=false")"
   gates "$d" changes/x
   assert_exit 1 "$CODE" "a failing gate -> exit 1"
   assert_line "$OUT" "gate tests-locked: ok" "tests-locked ok"
@@ -102,9 +110,7 @@ case_failing_test_runs_the_rest() {
 }
 
 case_failing_build_runs_the_rest() {
-  local d; d="$(gated_repo)"
-  set_config "$d/.cortex/config" BUILD_CMD "exit 4"
-  set_config "$d/.cortex/config" LINT_CMD "false"
+  local d; d="$(gated_repo "BUILD_CMD=exit 4" "LINT_CMD=false")"
   gates "$d" changes/x
   assert_exit 1 "$CODE" "failing gates -> exit 1"
   assert_line "$OUT" "gate build: FAIL (exit 4)" "exit code of the failing build"
@@ -115,8 +121,8 @@ case_failing_build_runs_the_rest() {
 }
 
 case_failing_output_shown_above() {
-  local d m f; d="$(gated_repo)"
-  set_config "$d/.cortex/config" TEST_CMD "echo boom-marker-out; echo boom-marker-err >&2; exit 3"
+  local d m f
+  d="$(gated_repo "TEST_CMD=echo boom-marker-out; echo boom-marker-err >&2; exit 3")"
   gates "$d" changes/x
   assert_exit 1 "$CODE" "failing gate -> exit 1"
   assert_line "$OUT" "gate test: FAIL (exit 3)" "failing step reported"
@@ -129,8 +135,7 @@ case_failing_output_shown_above() {
 }
 
 case_unset_lint() {
-  local d; d="$(gated_repo)"
-  set_config "$d/.cortex/config" LINT_CMD "<lint command>"
+  local d; d="$(gated_repo "LINT_CMD=<lint command>")"
   gates "$d" changes/x
   assert_exit 1 "$CODE" "unset LINT_CMD -> exit 1"
   assert_line "$OUT" "gate lint: FAIL (not set in .cortex/config)" "unset command fails as not set"
@@ -142,8 +147,7 @@ case_unset_lint() {
 }
 
 case_empty_build() {
-  local d; d="$(gated_repo)"
-  set_config "$d/.cortex/config" BUILD_CMD ""
+  local d; d="$(gated_repo "BUILD_CMD=")"
   gates "$d" changes/x
   assert_exit 1 "$CODE" "empty BUILD_CMD -> exit 1"
   assert_line "$OUT" "gate build: FAIL (not set in .cortex/config)" "empty command fails as not set"
@@ -162,19 +166,70 @@ case_broken_lock() {
 }
 
 case_commands_run_from_repo_root() {
-  local d; d="$(gated_repo)"
-  set_config "$d/.cortex/config" BUILD_CMD "test -f AGENTS.md && test -d .cortex"
+  local d; d="$(gated_repo "BUILD_CMD=test -f AGENTS.md && test -d .cortex")"
   gates "$d" changes/x
   assert_line "$OUT" "gate build: ok" "commands run with cwd = repo root"
 }
 
 case_config_not_sourced() {
-  local d; d="$(gated_repo)"
-  append "$d/.cortex/config" 'ZZ_SOURCED=$(touch sourced-marker)'
-  append "$d/.cortex/config" 'touch sourced-marker-2'
+  local d
+  d="$(gated_repo '+ZZ_SOURCED=$(touch sourced-marker)' '+touch sourced-marker-2')"
+  assert_file_contains "$d/.cortex/config" 'ZZ_SOURCED=$(touch sourced-marker)' "fixture: plant is in the config"
   gates "$d" changes/x
   assert_file_absent "$d/sourced-marker" "config is parsed, never sourced"
   assert_file_absent "$d/sourced-marker-2" "config lines are never executed"
+}
+
+# ---- Amendment 2 --------------------------------------------------------------
+
+case_config_edited_after_lock() {
+  # B2: the gate commands are frozen for the change; weakening TEST_CMD after
+  # the lock fails the tests-locked gate (the edited command still runs)
+  local d; d="$(gated_repo)"
+  set_config "$d/.cortex/config" TEST_CMD "true # weakened"
+  gates "$d" changes/x
+  assert_exit 1 "$CODE" "config edited after the lock -> exit 1"
+  assert_line "$OUT" "gate tests-locked: FAIL (exit 1)" "tests-locked gate fails"
+  assert_contains "$OUT$ERR" "LOCK modified: .cortex/config" "the config edit is named"
+  assert_line "$OUT" "gate test: ok" "later gates still run"
+  assert_line "$OUT" "gates: 1 failed" "one failure counted"
+}
+
+case_no_exec_bit() {
+  # AC17 (B3): gates.sh invokes the other scripts through bash, so a lost
+  # executable bit (e.g. a Windows commit with core.filemode=false) is harmless.
+  # (On filesystems without exec bits chmod is a no-op and this still passes.)
+  local d g; d="$(gated_repo)"
+  chmod -x "$d"/scripts/cortex/*.sh
+  run bash -c 'cd "$1" && bash scripts/cortex/gates.sh changes/x' _ "$d"
+  assert_exit 0 "$CODE" "gates pass with non-executable scripts"
+  for g in $GATE_NAMES; do
+    assert_line "$OUT" "gate $g: ok" "gate $g: ok without exec bits"
+  done
+  assert_line "$OUT" "gates: ok" "gates: ok without exec bits"
+  assert_not_contains "$OUT$ERR" "Permission denied" "no permission errors"
+}
+
+case_from_subdir_relative() {
+  # AC17: run from a subdirectory with a relative change-folder path
+  local d g
+  d="$(gated_repo "BUILD_CMD=test -f AGENTS.md && test -d .cortex")"
+  run bash -c 'cd "$1/src" && ../scripts/cortex/gates.sh ../changes/x' _ "$d"
+  assert_exit 0 "$CODE" "gates pass from a subdirectory"
+  for g in $GATE_NAMES; do
+    assert_line "$OUT" "gate $g: ok" "gate $g: ok from a subdirectory"
+  done
+  assert_line "$OUT" "gates: ok" "gates: ok from a subdirectory"
+}
+
+case_from_subdir_relative_broken_lock() {
+  # the relative folder really is the one checked: a broken lock still fails
+  local d; d="$(gated_repo)"
+  printf 'echo weakened\n' > "$d/tests/a.test.sh"
+  run bash -c 'cd "$1/src" && bash ../scripts/cortex/gates.sh ../changes/x' _ "$d"
+  assert_exit 1 "$CODE" "broken lock from a subdirectory -> exit 1"
+  assert_line "$OUT" "gate tests-locked: FAIL (exit 1)" "tests-locked fails from a subdirectory"
+  assert_contains "$OUT$ERR" "LOCK modified: tests/a.test.sh" "the modified test is named"
 }
 
 run_case "gates.sh shipped and installed executable" case_installed_executable
@@ -188,4 +243,8 @@ run_case "empty BUILD_CMD fails as not set" case_empty_build
 run_case "broken lock fails gate tests-locked" case_broken_lock
 run_case "commands run from the repo root" case_commands_run_from_repo_root
 run_case "config is never sourced" case_config_not_sourced
+run_case "B2 config edited after the lock fails tests-locked" case_config_edited_after_lock
+run_case "AC17 scripts without exec bit still work" case_no_exec_bit
+run_case "AC17 from a subdirectory, relative folder" case_from_subdir_relative
+run_case "AC17 subdirectory + relative folder, broken lock" case_from_subdir_relative_broken_lock
 summary

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Tests for scripts/install.sh (spec: docs/specs/2026-09-23-v2-scripts.md,
-# acceptance criteria 1-3 and 13).
+# acceptance criteria 1-3, 13 and 19).
 set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
@@ -92,17 +92,6 @@ case_existing_differing_file_skipped() {
   assert_file_exists "$d/scripts/cortex/check.sh" "other files still installed"
 }
 
-case_version_mismatch_warns() {
-  local d new
-  d="$(fresh_install)"
-  printf '0.0.1\n' > "$d/.cortex/version"
-  new="$(cat "$ROOT/VERSION" | tr -d '\r\n')"
-  run "$INSTALL" "$d"
-  assert_exit 0 "$CODE" "version mismatch still exits 0"
-  assert_contains "$OUT$ERR" "warning: installed version 0.0.1, template version $new" "warns about version mismatch"
-  assert_true ".cortex/version left as-is" test "$(cat "$d/.cortex/version")" = "0.0.1"
-}
-
 case_never_deletes() {
   local d
   d="$(new_git_repo)"
@@ -115,15 +104,6 @@ case_never_deletes() {
   assert_file_contains "$d/unrelated.txt" "keep" "unrelated file kept"
   run "$INSTALL" "$d"
   assert_file_exists "$d/harness/commands/zz-local.md" "user file survives second run"
-}
-
-case_subdir_of_git_repo() {
-  local d
-  d="$(new_git_repo)"
-  mkdir -p "$d/sub"
-  run "$INSTALL" "$d/sub"
-  assert_exit 0 "$CODE" "a directory inside a git work tree is accepted"
-  assert_file_exists "$d/sub/AGENTS.md" "installed at the given path"
 }
 
 case_design_rules_not_in_template() {
@@ -156,16 +136,116 @@ case_design_rules_idempotent() {
   assert_same_file "$ROOT/docs/01-design-rules.md" "$d/.cortex/design-rules.md" "still identical after second run"
 }
 
+# ---- AC19 (B3, B6) ---------------------------------------------------------------
+
+FILEMODE_NOTE="note: this repository ignores file modes; after committing, run git update-index --chmod=+x scripts/cortex/*.sh"
+
+# tree_files DIR -> every file under DIR outside .git/, relative, sorted
+tree_files() {
+  (cd "$1" && find . -path ./.git -prune -o -type f -print | sed 's|^\./||' | LC_ALL=C sort)
+}
+
+case_version_mismatch_refused() {
+  local d new before
+  d="$(new_git_repo)"
+  mkdir -p "$d/.cortex"
+  printf '0.0.1\n' > "$d/.cortex/version"
+  printf 'mine\n' > "$d/README.md"
+  before="$(tree_files "$d")"
+  new="$(tr -d '\r\n' < "$ROOT/VERSION")"
+  run "$INSTALL" "$d"
+  assert_exit 2 "$CODE" "version mismatch exits 2"
+  assert_contains "$ERR" "error: this repository has cortex 0.0.1 installed; upgrading to $new is not supported yet (see docs/02-extensions.md §4)" "mismatch error on stderr"
+  assert_true "nothing copied on a version mismatch" test "$(tree_files "$d")" = "$before"
+  assert_file_absent "$d/AGENTS.md" "no template file created"
+  assert_true ".cortex/version left as-is" test "$(cat "$d/.cortex/version")" = "0.0.1"
+  assert_not_contains "$OUT" "created " "no created lines"
+}
+
+case_version_mismatch_partial_install() {
+  # an existing older install with a template file removed: still refused,
+  # the missing file is not restored
+  local d before
+  d="$(fresh_install)"
+  printf '1.9.9\n' > "$d/.cortex/version"
+  rm "$d/AGENTS.md"
+  before="$(tree_files "$d")"
+  run "$INSTALL" "$d"
+  assert_exit 2 "$CODE" "mismatch over an existing install exits 2"
+  assert_contains "$ERR" "error: this repository has cortex 1.9.9 installed" "names the installed version"
+  assert_true "nothing copied" test "$(tree_files "$d")" = "$before"
+  assert_file_absent "$d/AGENTS.md" "removed file not restored"
+}
+
+case_version_equal_accepted() {
+  local d
+  d="$(new_git_repo)"
+  mkdir -p "$d/.cortex"
+  cp "$ROOT/VERSION" "$d/.cortex/version"
+  run "$INSTALL" "$d"
+  assert_exit 0 "$CODE" "matching version is accepted"
+  assert_line "$OUT" "unchanged .cortex/version" "version reported unchanged"
+  assert_file_exists "$d/AGENTS.md" "template installed"
+}
+
+case_non_root_target_refused() {
+  local d before
+  d="$(new_git_repo)"
+  mkdir -p "$d/sub"
+  printf 'keep\n' > "$d/sub/file.txt"
+  before="$(tree_files "$d")"
+  run "$INSTALL" "$d/sub"
+  assert_exit 2 "$CODE" "a subdirectory of a work tree exits 2"
+  assert_true "error goes to stderr" test -n "$ERR"
+  assert_true "nothing copied anywhere in the repo" test "$(tree_files "$d")" = "$before"
+  assert_file_absent "$d/sub/AGENTS.md" "no AGENTS.md in the subdirectory"
+  assert_file_absent "$d/AGENTS.md" "no AGENTS.md at the root"
+}
+
+case_filemode_false_note() {
+  local d
+  d="$(new_git_repo)"
+  git -C "$d" config core.filemode false
+  run "$INSTALL" "$d"
+  assert_exit 0 "$CODE" "install exits 0 with core.filemode=false"
+  assert_contains "$OUT$ERR" "$FILEMODE_NOTE" "prints the filemode note"
+}
+
+case_filemode_true_no_note() {
+  local d
+  d="$(new_git_repo)"
+  git -C "$d" config core.filemode true
+  run "$INSTALL" "$d"
+  assert_exit 0 "$CODE" "install exits 0 with core.filemode=true"
+  assert_not_contains "$OUT$ERR" "ignores file modes" "no filemode note when modes are tracked"
+}
+
+case_gitattributes() {
+  local d
+  assert_file_exists "$ROOT/template/.gitattributes" "template ships .gitattributes"
+  if grep -qxF '*.sh text eol=lf' "$ROOT/template/.gitattributes" 2>/dev/null; then pass
+  else fail "template .gitattributes has the line '*.sh text eol=lf'"; fi
+  d="$(new_git_repo)"
+  run "$INSTALL" "$d"
+  assert_line "$OUT" "created .gitattributes" "reports created .gitattributes"
+  assert_same_file "$ROOT/template/.gitattributes" "$d/.gitattributes" "installed .gitattributes identical"
+}
+
 run_case "no argument -> exit 2" case_no_argument
 run_case "missing target dir -> exit 2" case_missing_dir
 run_case "non-git dir -> exit 2" case_non_git_dir
 run_case "fresh install creates every template file (AC1)" case_fresh_install
 run_case "second run is idempotent (AC1)" case_second_run_idempotent
 run_case "differing existing file is skipped (AC2)" case_existing_differing_file_skipped
-run_case "version mismatch warns, keeps file" case_version_mismatch_warns
 run_case "never deletes or modifies user files" case_never_deletes
-run_case "target inside a git work tree" case_subdir_of_git_repo
 run_case "design rules come from docs/, not template/ (A5)" case_design_rules_not_in_template
 run_case "differing design rules skipped (A5)" case_existing_differing_design_rules_skipped
 run_case "design rules idempotent (AC13)" case_design_rules_idempotent
+run_case "AC19 version mismatch: exit 2, nothing copied" case_version_mismatch_refused
+run_case "AC19 version mismatch over an old install" case_version_mismatch_partial_install
+run_case "matching version accepted" case_version_equal_accepted
+run_case "AC19 non-root target: exit 2, nothing copied" case_non_root_target_refused
+run_case "AC19 filemode note when core.filemode=false" case_filemode_false_note
+run_case "no filemode note when core.filemode=true" case_filemode_true_no_note
+run_case "AC19 .gitattributes installed" case_gitattributes
 summary

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for scripts/cortex/adapt.sh (spec acceptance criteria 7, 8 and 11).
+# Tests for scripts/cortex/adapt.sh (spec acceptance criteria 7, 8, 11 and 20).
 set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
@@ -214,6 +214,60 @@ case_tools_absent() {
   expect_no_adapters "$d" "TOOLS absent"
 }
 
+# ---- AC20 (B7): unchanged settings.json; stale adapters reported, not deleted ----
+
+stale_line() { # path tool
+  printf 'stale %s (%s is not in TOOLS; delete it if unused)' "$1" "$2"
+}
+
+case_settings_unchanged_on_rerun() {
+  local d; d="$(tools_install claude)"
+  adapt "$d"
+  assert_exit 0 "$CODE" "first run exits 0"
+  assert_same_file "$d/$ADAPTERS/.claude/settings.json" "$d/.claude/settings.json" "fixture: settings.json copied"
+  adapt "$d"
+  assert_exit 0 "$CODE" "second run exits 0"
+  assert_line "$OUT" "unchanged .claude/settings.json" "identical settings.json reported unchanged"
+  assert_not_contains "$OUT" "$SETTINGS_SKIP" "no merge message for an identical settings.json"
+}
+
+case_stale_cursor() {
+  local d; d="$(tools_install claude,cursor)"
+  adapt "$d"
+  assert_file_exists "$d/.cursor/rules/cortex.mdc" "fixture: cursor rule written"
+  set_config "$d/.cortex/config" TOOLS claude
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0 with a stale adapter"
+  assert_line "$OUT" "$(stale_line .cursor/rules/cortex.mdc cursor)" "stale cursor rule reported"
+  assert_file_exists "$d/.cursor/rules/cortex.mdc" "stale cursor rule not deleted"
+  assert_not_contains "$OUT" "stale CLAUDE.md" "claude is still in TOOLS"
+}
+
+case_stale_all_known() {
+  local d; d="$(tools_install claude,cursor,copilot,gemini)"
+  adapt "$d"
+  set_config "$d/.cortex/config" TOOLS codex
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0"
+  assert_line "$OUT" "$(stale_line CLAUDE.md claude)" "stale CLAUDE.md reported"
+  assert_line "$OUT" "$(stale_line .cursor/rules/cortex.mdc cursor)" "stale cursor rule reported"
+  assert_line "$OUT" "$(stale_line .github/copilot-instructions.md copilot)" "stale copilot file reported"
+  assert_line "$OUT" "$(stale_line GEMINI.md gemini)" "stale GEMINI.md reported"
+  assert_file_exists "$d/CLAUDE.md" "CLAUDE.md kept"
+  assert_file_exists "$d/.cursor/rules/cortex.mdc" "cursor rule kept"
+  assert_file_exists "$d/.github/copilot-instructions.md" "copilot file kept"
+  assert_file_exists "$d/GEMINI.md" "GEMINI.md kept"
+}
+
+case_stale_ignores_handwritten() {
+  local d; d="$(tools_install claude)"
+  printf '# my gemini notes\n' > "$d/GEMINI.md"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0"
+  assert_not_contains "$OUT" "stale GEMINI.md" "a hand-written (unmarked) file is not reported stale"
+  assert_true "hand-written GEMINI.md untouched" test "$(cat "$d/GEMINI.md")" = "# my gemini notes"
+}
+
 run_case "missing .cortex/config -> exit 2" case_missing_config
 run_case "AC11 TOOLS placeholder warns, writes nothing" case_tools_placeholder
 run_case "AC11 TOOLS empty warns, writes nothing" case_tools_empty
@@ -229,4 +283,8 @@ run_case "claude only" case_claude_only
 run_case "unknown tool warns" case_unknown_tool
 run_case "repo-root argument" case_root_argument
 run_case "check ok after install + adapt (AC8)" case_check_ok_after_adapt
+run_case "AC20 settings.json unchanged on re-run" case_settings_unchanged_on_rerun
+run_case "AC20 stale cursor rule reported, kept" case_stale_cursor
+run_case "AC20 every removed tool reported stale" case_stale_all_known
+run_case "stale ignores hand-written files" case_stale_ignores_handwritten
 summary
