@@ -148,7 +148,7 @@ set_config() {
   local f="$1" k="$2" v="$3"
   mkdir -p "$(dirname "$f")"
   [ -f "$f" ] || : > "$f"
-  if grep -q "^[[:space:]]*$k[[:space:]]*=" "$f"; then
+  if grep -q "^[[:space:]]*${k}[[:space:]]*=" "$f"; then
     filter_file "$f" awk -v k="$k" -v v="$v" '
       $0 ~ "^[[:space:]]*" k "[[:space:]]*=" { print k "=" v; next } { print }'
   else

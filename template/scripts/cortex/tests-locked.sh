@@ -81,8 +81,8 @@ if [ -f .cortex/config ]; then
   case "$globs" in "<"*">") globs="" ;; esac
 fi
 if [ -n "$globs" ]; then
+  set -f # the globs are for git, not the shell
   # shellcheck disable=SC2086 # word-splitting the glob list is intended
-  set -f
   current="$(git ls-files -co --exclude-standard -- $globs)"
   set +f
   while IFS= read -r path; do
