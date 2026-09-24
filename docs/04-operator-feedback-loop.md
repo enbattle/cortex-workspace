@@ -1,6 +1,6 @@
 # The Feedback Loop — Operator's Field Guide
 
-**This document is personal.** It is for the human running the workspace, meant to be re-read regularly — before a work session, after a rough one, at each retro. It is deliberately *not* part of the agent-loaded document set: pointing agents at operator pedagogy is the T8 trap (context as landfill). The highlights doc orients newcomers, the bootstrap doc says what to build, the extensions doc says what to build later, the traps doc says how to think about structure — this one trains the skill none of those can encode: *recognizing a signal while it is happening*.
+**This document is personal.** It is for the human running the workspace, meant to be re-read regularly — before a work session, after a rough one, at each retro. It is deliberately *not* part of the agent-loaded document set: pointing agents at operator pedagogy is the T8 trap (context as landfill). The highlights doc orients newcomers, the design rules and template say what gets installed, the extensions doc says what to build later, the traps doc says how to think about structure — this one trains the skill none of those can encode: *recognizing a signal while it is happening*.
 
 Once the workspace is running, everything changes through this loop. Not through inspiration, not through "while I'm at it," not through another completeness audit. Signal → change. That is the whole discipline.
 
@@ -43,7 +43,7 @@ The skill to build: treat the *feeling* as a loggable event. Feelings about proc
 - **The highest-severity signal in the system: a defect that shipped after review approved it.**
 
 ### 4. The calendar notices (staleness)
-- Template-version warnings from bootstrap.
+- A version warning from `install.sh` (the repository runs an older template than cortex now ships).
 - "Last verified" dates aging on runbooks (once they exist).
 - A quarter passing — the horizon scan and retro-review are calendar-triggered on purpose, because some signals never announce themselves.
 

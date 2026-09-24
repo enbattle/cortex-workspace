@@ -1,6 +1,6 @@
-# Workspace-AI Workflows — Mental Traps and Best Practices
+# cortex — Mental Traps and Best Practices
 
-This document exists to help anyone building or maintaining an AI workspace avoid re-learning, the expensive way, lessons that have already been paid for. It is the "why" layer of the set: the highlights document orients newcomers at a glance, the bootstrap document describes what to build, the extensions document describes what to build later, the operator's field guide trains the running of the feedback loop, and this one describes how to *think* while deciding. It is written for humans making design decisions. Agents are best pointed at it only when explicitly asked to evaluate or change the workspace's structure, never during routine execution — loading philosophy into an implementation session is itself one of the traps described below (T8).
+This document exists to help anyone building or maintaining an AI workspace avoid re-learning, the expensive way, lessons that have already been paid for. It is the "why" layer of the set: the highlights document orients newcomers at a glance, the design rules and the template define what gets installed, the extensions document describes what to build later, the operator's field guide trains the running of the feedback loop, and this one describes how to *think* while deciding. It is written for humans making design decisions. Agents are best pointed at it only when explicitly asked to evaluate or change the workspace's structure, never during routine execution — loading philosophy into an implementation session is itself one of the traps described below (T8).
 
 A note about this document, in its own spirit: it earned its existence by having a distinct job no other document performs, and it does not get to grow into a dumping ground for every insight. New entries should be traps that were actually encountered (or demonstrably nearly encountered), written with the standard anatomy below. Wisdom collected speculatively tends to be trivia.
 
@@ -40,7 +40,7 @@ Each trap follows the same anatomy: **the pull** (why capable people fall in), *
 *The pull:* a central knowledge repo feels organized; one place for everything.
 *The cost:* spec updates and code updates can never land in the same PR, so nothing can enforce their sync. This is how wikis die and how "documentation" becomes a synonym for "claims about the previous version."
 *The tell:* a document about a repo living *outside* that repo, with no possible CI check that could catch it going stale.
-*The antidote:* specs and local conventions travel with code, in-repo, through PRs. The central workspace holds only what is genuinely cross-cutting — contracts, system map, glossary, cross-repo changes — plus an index pointing into the repos.
+*The antidote:* specs and local conventions travel with code, in-repo, through PRs. When a system does span repositories, a central workspace holds only what is genuinely cross-cutting — contracts, system map, glossary, cross-repo changes — plus an index pointing into the repos (extensions, §7).
 
 ### T4 — Building what already exists
 *The pull:* "these requirements are specific"; building is more fun than evaluating; not-invented-here dressed as diligence.
@@ -76,7 +76,7 @@ Each trap follows the same anatomy: **the pull** (why capable people fall in), *
 *The pull:* the agent that wrote the code has all the context — surely it reviews fastest.
 *The cost:* the reviewer inherits the writer's assumptions and blind spots, producing a rubber stamp with extra steps and the *feeling* of review — which is worse than no review, because it discharges the vigilance.
 *The tell:* review happening in the same session as implementation; approvals that never articulate what was probed.
-*The antidote:* fresh context, artifact-only inputs (P3), an adversarial mandate ("find the strongest case against before approving"), and approvals that must show their work, so empty ones are visible. The same logic applies one level down: verifiers are locked before generation — tests derived from acceptance criteria get written, confirmed failing, and committed before implementation begins, so the code is graded against a standard it cannot quietly rewrite. An implementer permitted to edit its own tests is a writer reviewing its own work by another name.
+*The antidote:* fresh context, artifact-only inputs (P3), an adversarial mandate ("find the strongest case against before approving"), and approvals that must show their work, so empty ones are visible. The same logic applies one level down: verifiers are locked before generation — tests derived from acceptance criteria get written, confirmed failing, and committed before implementation begins, so the code is graded against a standard it cannot quietly rewrite. An implementer permitted to edit its own tests is a writer reviewing its own work by another name. And a test writer that already holds the implementation plan writes tests shaped to fit it, which is why the test writer is its own fresh context (R12). The incident behind the wording: in `til`, a review command invoked as a skill from inside the implementing session ran with that session's whole context, so it was a fresh-looking review with none of the independence; the pipeline now spawns reviewers as separate agents and says why.
 
 ### T10 — Unbounded loops
 *The pull:* retrying feels like diligence; the agent is so close; one more attempt.
@@ -94,13 +94,13 @@ Each trap follows the same anatomy: **the pull** (why capable people fall in), *
 *The pull:* an "ontology" or elaborate classification feels like deep understanding; structure feels like rigor.
 *The cost:* an elaborate scheme nobody maintains and no agent reads, standing in for the three plain files that would have answered every actual question.
 *The tell:* difficulty naming three concrete queries the structure answers that simpler files couldn't.
-*The antidote:* start with the artifacts that answer real questions — glossary, system map, contracts. Formalize only when a real retrieval failure demands it, with the failure as the spec.
+*The antidote:* start with the artifacts that answer real questions — glossary, architecture overview, interface descriptions. Formalize only when a real retrieval failure demands it, with the failure as the spec.
 
 ### T13 — Trusting generation
 *The pull:* the agent (or the expert, or the author) produced it confidently; verifying feels like distrust.
 *The cost:* stale references, broken seams, and hallucinated claims ship inside otherwise-good work — including work produced by whoever wrote the surrounding documents.
 *The tell:* no mechanical check exists for a property being relied on; "it looked right" is the whole verification story.
-*The antidote:* make invariants greppable and check them (naming rules, tool-name bans, budget declarations); read generated core prompts critically before trusting the machinery; run one real change through any new pipeline before believing in it. The stale references in an earlier version of this document set were caught only by grepping — that is best treated as the norm, not the anecdote.
+*The antidote:* make invariants greppable and check them (naming rules, tool-name bans, budget declarations); read generated core prompts critically before trusting the machinery; run one real change through any new pipeline before believing in it. The stale references in an earlier version of this document set were caught only by grepping — that is best treated as the norm, not the anecdote. So was a gate: `til`'s locked-test check used `git diff`, which never shows untracked files, so the brand-new tests an implementer could weaken were exactly the ones it couldn't see. It had passed every run. Reproducing it in a scratch repository found the hole in minutes; reading it never had. The same review found that `til`'s deploy ran only the build, so two commits whose tests failed had gone live. A check that has only ever passed hasn't been tested: plant the violation and watch it fail (R11).
 
 ### T14 — Growth as the only direction
 *The pull:* additions are visible contributions; deletions feel like admitting mistakes.
@@ -115,7 +115,7 @@ Each trap follows the same anatomy: **the pull** (why capable people fall in), *
 Before adding *anything* — a practice, a document, a command, a knowledge file, a tool — a recommended discipline is to answer these six questions in writing (two sentences each is plenty):
 
 1. **What observed condition demands this?** (Cite the retro log or a concrete incident. "Best practice" and "future-proofing" are not conditions — see T1, T2.)
-2. **Does it already exist** — in the workspace under another name, or in a maintained external tool? (T4, T5)
+2. **Does it already exist** — in the harness under another name, or in a maintained external tool? (T4, T5)
 3. **Who or what will read it, and when?** If the answer is "agents, always," it is probably landfill (T8). If the answer is "nobody, specifically," that answers the larger question too.
 4. **What keeps it true?** Name the mechanism — CI check, retro category, stamped version, greppable invariant — or accept that the addition will silently rot (T3, T13).
 5. **What could be removed to make room?** Not always literally — but if the answer is never anything, that is a T14 signal.
