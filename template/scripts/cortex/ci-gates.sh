@@ -69,7 +69,8 @@ else
 fi
 
 # 4. Every change folder whose lock was added or changed on this branch.
-folders="$(g diff --name-only "$base...HEAD" -- 'changes/*/lock.md' | sed 's|/lock\.md$||' | LC_ALL=C sort -u)"
+# Archived changes (changes/archive/) finished earlier and are not gated.
+folders="$(g diff --name-only "$base...HEAD" -- 'changes/*/lock.md' | grep -v '^changes/archive/' | sed 's|/lock\.md$||' | LC_ALL=C sort -u || true)"
 while IFS= read -r folder; do
   [ -n "$folder" ] || continue
   [ -f "$folder/lock.md" ] || continue

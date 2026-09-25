@@ -75,7 +75,7 @@ When you do implement an extension, follow the design rules (R1–R12 in `01-des
 - **Task-state check (optional, later):** if `tasks.md` in the touched change folder has unchecked tasks but the PR description claims completion, fail with a message pointing at the folder.
 
 - **Test-lock check on the pull request (shipped in 2.0.0 as `scripts/cortex/ci-gates.sh` with a GitHub workflow and a CODEOWNERS template under `.cortex/ci/github/`; INSTALL.md step 5b sets them up; what follows is the reasoning):** run the gates in CI from a fresh checkout of the branch as pushed, with every checker (including `ci-gates.sh`) taken from the base branch, and require Code Owners review of tests, harness files and the workflow. This is the boundary against deliberate tampering that the local check can't be: a fresh checkout ignores `--skip-worktree`, the base branch's scripts can't be edited by the change, and a person approves what the tests assert. *Not implemented:* recording the lock commit outside the branch (a PR comment or a tag) so a rewritten history is detected mechanically; today the reviewer of the pull request sees the tests as submitted, which covers the same risk by review. *Trigger:* the first change whose tests were weakened in a way the local check missed, or the first repository where agents run unattended.
-- **Harness check:** run `scripts/cortex/check.sh` in CI. It is fast, needs only git and bash, and turns a harness invariant broken by a hand edit into a red build instead of a surprise in the next session.
+- **Harness check:** run `scripts/cortex/check.sh` in CI (shipped: `ci-gates.sh` runs it on every pull request). It is fast, needs only git and bash, and turns a harness invariant broken by a hand edit into a red build instead of a surprise in the next session.
 - **Interface-drift check:** for each external interface `docs/knowledge/architecture.md` lists with a machine-readable definition (OpenAPI, schema, proto), a script that fails when the definition changes without a change folder naming it as interface-affecting. For prose-only interfaces, fall back to a staleness rule (the description is older than the code that implements it, by git log).
 
 **Pitfalls:**
@@ -150,7 +150,7 @@ The pipeline (spec-new → spec-clarify → test-first → implement → review,
 
 ## Suggested adoption order
 
-If triggers fire in the expected sequence for a single-team workspace, the natural order is: **runbooks → CI harness check → CI presence-check → Tier-2 evals → sandboxed execution → multi-agent orchestration → (much later) multi-repo and distribution**. Tier-1 metrics are built in. But the triggers, not this list, are the authority — evidence over roadmap.
+If triggers fire in the expected sequence for a single-team workspace, the natural order is: **runbooks → CI presence-check → Tier-2 evals → sandboxed execution → multi-agent orchestration → (much later) multi-repo and distribution**. Tier-1 metrics are built in. But the triggers, not this list, are the authority — evidence over roadmap.
 
 ---
 

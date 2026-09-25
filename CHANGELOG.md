@@ -10,7 +10,9 @@ are done. Still open before release:
 - Pilot 2's remaining friction (`evals/pilots/2026-09-24-pilot-2.md`): F1
   (subagents chain shell commands that permission rules can't match; the
   skills now say not to, but the agent definitions don't), F4 (the review
-  skill's before/after check misses edits made after its Agent call). Then
+  skill's before/after check misses edits made after its Agent call), F5
+  (nothing yet shows, from the run records, that the reviewer subagent is
+  denied Edit/Write; the tools allowlist says so, but it is unobserved). Then
   one interactive run to count real permission prompts. (F6, the stale golden
   bundle, was fixed on 2026-09-24: the bundle is rebuilt from the current
   template and passes 3/3.)
@@ -109,6 +111,15 @@ release:
   SHAs) and a CODEOWNERS template; INSTALL.md step 5b sets them up and lists
   the branch-protection settings that make them binding. The local scripts
   remain guardrails.
+
+**Changed after the pre-merge audit** (spec Amendment 4):
+
+- A locked branch may merge its base: a locked file that took the base's
+  version through a merge is accepted, anything else still fails, and
+  rebasing after the lock stays unsupported (the audit had reproduced a
+  locked branch that could never be brought up to date).
+- Archived change folders (`changes/archive/`) are not gated; `retro` says
+  how to archive.
 
 **Fixed (design problems in v1):**
 

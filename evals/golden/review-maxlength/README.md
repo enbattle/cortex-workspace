@@ -31,7 +31,7 @@ format (Amendment 2's `lock.md`).
 Rebuilt on 2026-09-24 from the template at commit `15de2ea`, with that
 commit's `scripts/install.sh` and by following its command texts. The
 source, tests, proposal and planted change are the first build's (from
-`33464b7`); the install, the branch name and the commit shas (so
+`1f9e92d`); the install, the branch name and the commit shas (so
 `lock.md`'s sha) are new. Its installed `harness/commands/review.md` and
 `scripts/cortex/gates.sh` will predate later template edits, so after
 changing either in `template/`, refresh the fixture

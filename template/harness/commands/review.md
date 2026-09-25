@@ -72,7 +72,7 @@ carries them to the next `implement`, not this conversation). Each round is
 a section headed `## Round <n>`, so the round count is mechanical. If you
 are running read-only (an adapter may take away your write tools), return
 the findings in that format instead; the session that started the review
-writes the file and does nothing else. Either way, `review-findings.md` is
+writes the file and makes no other change. Either way, `review-findings.md` is
 committed on its own, so the next `implement` round starts from a clean tree.
 
 ## Autonomy

@@ -1,6 +1,6 @@
 # Pilot log (working notes)
 
-cortex state used: branch v2-single-repo-template at cd98457 PLUS uncommitted working-tree edits
+cortex state used: branch v2-single-repo-template at 91d7c36 PLUS uncommitted working-tree edits
 (README, docs, tests-locked.sh, tests/lib.sh modified; INSTALL.md, AGENTS.md, CHANGELOG.md untracked). Pilot ran against the working tree.
 
 ## Step 1

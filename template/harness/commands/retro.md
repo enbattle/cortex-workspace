@@ -39,6 +39,9 @@ This is the maintenance loop for everything under `harness/` and
    applied (its header defines the columns). An **escaped defect** (a bug
    found after review approved the change that introduced it) is recorded
    in that change's row and gets a retro immediately.
+7. Once the change has merged, archive its folder: `git mv` it under
+   `changes/archive/`, alone in its own commit. The CI gates skip archived
+   folders, so the lock record stays in history without being gated again.
 
 Budget: one pass over the evidence; no loop. Proposals the user declines are
 logged in the row, not re-proposed in the same retro.

@@ -13,6 +13,13 @@
 # matching TEST_GLOBS that didn't exist at T (committed later, staged, or
 # untracked) fails too: adding tests is the test writer's job.
 #
+# A branch may bring itself up to date by merging its base: a locked file
+# whose current content is exactly the base's version, as taken by a merge
+# after the lock, is accepted (likewise a new test file that came in whole
+# from the base). Anything else, including a merge resolved to content
+# matching neither side, still fails. Rebasing after the lock is not
+# supported: the lock commit stops being an ancestor.
+#
 # It compares against commits rather than using `git diff` alone, because
 # `git diff` never shows untracked files.
 #
@@ -122,6 +129,27 @@ config_at_sha=""
 g cat-file -e "$sha:.cortex/config" 2>/dev/null && config_at_sha=.cortex/config
 lock_set="$(printf '%s\n%s\n%s\n' "$locked_paths" "$matched_at_sha" "$config_at_sha" | awk 'NF && !seen[$0]++')"
 
+# The base versions a merge after the lock brought in: the non-first
+# parents of every merge commit on the branch's first-parent line.
+base_parents="$(g log --first-parent --merges --format='%P' "$sha..HEAD" | awk '{ for (i = 2; i <= NF; i++) print $i }')"
+
+# from_base PATH : true if PATH's working-tree and index content are both
+# exactly its content at one of those merged base commits.
+from_base() {
+  local path="$1" parent want worktree index
+  [ -n "$base_parents" ] && [ -e "$path" ] || return 1
+  worktree="$(g hash-object -- "$path")"
+  index="$(g rev-parse --verify --quiet ":$path" || true)"
+  while IFS= read -r parent; do
+    [ -n "$parent" ] || continue
+    want="$(g rev-parse --verify --quiet "$parent:$path" || true)"
+    if [ -n "$want" ] && [ "$want" = "$worktree" ] && [ "$want" = "$index" ]; then
+      return 0
+    fi
+  done <<<"$base_parents"
+  return 1
+}
+
 count=0
 while IFS= read -r path; do
   [ -n "$path" ] || continue
@@ -131,13 +159,13 @@ while IFS= read -r path; do
   elif [ ! -e "$path" ]; then
     lock deleted "$path"
   elif ! g diff --quiet "$sha" -- "$path" || ! g diff --quiet --cached "$sha" -- "$path"; then
-    lock modified "$path"
+    from_base "$path" || lock modified "$path"
   fi
 done <<<"$lock_set"
 
 while IFS= read -r path; do
   [ -n "$path" ] || continue
-  g cat-file -e "$sha:$path" 2>/dev/null || lock added "$path"
+  g cat-file -e "$sha:$path" 2>/dev/null || from_base "$path" || lock added "$path"
 done <<<"$current_matches"
 
 finish

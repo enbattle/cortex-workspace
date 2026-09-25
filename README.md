@@ -8,8 +8,9 @@ evidence. It is plain markdown and a few bash scripts, works with any agent
 tool, and ships a Claude Code adapter that enforces as much of the isolation
 as the tool allows.
 
-**Status:** v2.0.0. The scripts are covered by test suites written by a
-separate agent before the scripts were (`tests/`, 5 suites). The whole
+**Status:** 2.0.0, not yet released (see [CHANGELOG.md](CHANGELOG.md)). The
+scripts are covered by test suites written by a separate agent before the
+scripts were (`tests/`, 6 suites). The whole
 pipeline has run end to end once, on a toy repository
 ([pilot 1](evals/pilots/2026-09-23-toy-repo.md)): review caught a real
 compatibility break, and a fresh reviewer caught a planted bug the tests
@@ -59,6 +60,8 @@ Prerequisites: git and bash (Git Bash on Windows).
 
 ```bash
 git clone https://github.com/enbattle/cortex-workspace.git
+# once 2.0.0 is tagged, install from the tag rather than main:
+# git -C cortex-workspace checkout v2.0.0
 ```
 
 Then open your repository in your agent tool and say: *"Read and execute
@@ -95,7 +98,7 @@ Set `TOOLS` in `.cortex/config`, then run `bash scripts/cortex/adapt.sh`.
 ## Developing cortex
 
 See [AGENTS.md](AGENTS.md). `bash tests/run.sh` runs every suite; CI runs
-them plus shellcheck on each push.
+them plus shellcheck on every pull request and every push to `main`.
 
 ## License
 
