@@ -365,6 +365,59 @@ ci-gates: FAIL changes/x
 ci-gates: 2 failed" "all steps run and both failures count"
 }
 
+# ---- AC29 (Amendment 4): archived folders not gated; a base merge passes ---------
+
+case_archived_on_branch() {
+  local d; d="$(ci_repo)"
+  git -C "$d" mv changes/x changes/archive/x
+  git -C "$d" commit -q -m "archive changes/x"
+  assert_file_exists "$d/changes/archive/x/lock.md" "fixture: lock.md now under changes/archive/"
+  ci_gates "$d" "$BASE"
+  assert_exit 0 "$CODE" "archived folder on the branch -> exit 0"
+  expect_ci_lines "ci-gates: using scripts from $BASE
+ci-gates: check ok
+ci-gates: ok" "archived folder is not gated"
+  assert_not_contains "$OUT" "LOCK " "the archived lock.md was not checked"
+}
+
+case_archived_after_merge() {
+  # the usual order: changes/x merged into the base, then a later branch
+  # archives it
+  local d; d="$(ci_repo)"
+  git -C "$d" update-ref "refs/remotes/$BASE" HEAD
+  git -C "$d" checkout -q -b archive-x
+  git -C "$d" mv changes/x changes/archive/x
+  git -C "$d" commit -q -m "archive changes/x"
+  ci_gates "$d" "$BASE"
+  assert_exit 0 "$CODE" "archiving a merged change -> exit 0"
+  expect_ci_lines "ci-gates: using scripts from $BASE
+ci-gates: check ok
+ci-gates: ok" "archived folder is not gated after the merge"
+  assert_not_contains "$OUT" "LOCK " "the archived lock.md was not checked"
+}
+
+case_base_merged_into_locked_branch() {
+  # the base moves on (edits a TEST_GLOBS-matched test and .cortex/config,
+  # adds a new matched test); the locked branch merges it, taking its versions
+  local d; d="$(ci_repo)"
+  git -C "$d" checkout -q -B main "$BASE"
+  printf 'echo a from base\n' > "$d/tests/a.test.sh"
+  append "$d/.cortex/config" "# base: a later config line"
+  printf 'echo c from base\n' > "$d/tests/c.test.sh"
+  commit_all "$d" "base moves on"
+  git -C "$d" update-ref "refs/remotes/$BASE" HEAD
+  git -C "$d" checkout -q feature
+  git -C "$d" merge -q --no-edit "$BASE"
+  assert_true "fixture: merge took base's test" grep -qF "echo a from base" "$d/tests/a.test.sh"
+  ci_gates "$d" "$BASE"
+  assert_exit 0 "$CODE" "locked branch with the base merged in -> exit 0"
+  expect_ci_lines "ci-gates: using scripts from $BASE
+ci-gates: check ok
+ci-gates: changes/x ok
+ci-gates: ok" "the folder is gated and passes after a base merge"
+  assert_not_contains "$OUT" "LOCK " "no LOCK lines after a base merge"
+}
+
 run_case "ci-gates.sh shipped and installed executable" case_installed
 run_case "AC25 no argument -> exit 2" case_usage_no_argument
 run_case "AC25 unresolvable ref -> exit 2" case_usage_bad_ref
@@ -385,4 +438,7 @@ run_case "AC24 skip-worktree -> FAIL hidden" case_skip_worktree
 run_case "AC24 assume-unchanged -> FAIL hidden" case_assume_unchanged
 run_case "AC24 two hidden files counted separately" case_two_hidden
 run_case "AC24 hidden + broken lock: both counted" case_hidden_plus_lock_failure
+run_case "AC29 folder archived on the branch is not gated" case_archived_on_branch
+run_case "AC29 folder archived after its change merged" case_archived_after_merge
+run_case "AC29 base merged into a locked branch -> ok" case_base_merged_into_locked_branch
 summary

@@ -629,6 +629,164 @@ case_crlf_globs_unlisted() {
   expect_lock modified tests/old.test.sh "CRLF config: matched unlisted test locked"
 }
 
+# ---- AC26-28 (Amendment 4, D1): merging the base is allowed; rebasing is not ---
+
+# merge_repo -> a locked branch whose base has moved on, not yet merged:
+#   B0 (branch "base"): installed, TEST_GLOBS=*.test.sh, tests/a.test.sh,
+#     tests/b.test.sh, tests/old.test.sh (matched, unlisted), src/app.txt
+#   feature (checked out): T adds src/feature.txt, L locks a and b
+#   B1 on "base": edits tests/a.test.sh (listed), tests/old.test.sh (matched,
+#     unlisted) and .cortex/config, and adds tests/new.test.sh (matched)
+merge_repo() {
+  local d
+  d="$(base_repo)" || return 1
+  printf 'echo old regression\n' > "$d/tests/old.test.sh"
+  commit_all "$d" "base B0"
+  git -C "$d" branch base
+  git -C "$d" checkout -q -b feature
+  printf 'feature\n' > "$d/src/feature.txt"
+  lock_it "$d"
+  git -C "$d" checkout -q base
+  printf 'echo a from base\n' > "$d/tests/a.test.sh"
+  printf 'echo old from base\n' > "$d/tests/old.test.sh"
+  append "$d/.cortex/config" "# base: a later config line"
+  printf 'echo new from base\n' > "$d/tests/new.test.sh"
+  commit_all "$d" "base B1"
+  git -C "$d" checkout -q feature
+  printf '%s\n' "$d"
+}
+
+# merged_repo -> merge_repo with "base" merged into feature (no conflicts:
+# the merge takes the base's version of every locked or matched file)
+merged_repo() {
+  local d
+  d="$(merge_repo)" || return 1
+  git -C "$d" merge -q --no-edit base
+  if [ "$(git -C "$d" rev-parse HEAD^2)" != "$(git -C "$d" rev-parse base)" ]; then
+    fail "fixture: HEAD is not a merge of base"; return 1
+  fi
+  if [ -n "$(git -C "$d" status --porcelain)" ]; then
+    fail "fixture: merged repo is not clean"; return 1
+  fi
+  printf '%s\n' "$d"
+}
+
+case_D1_merge_base_passes() {
+  local d sha; d="$(merged_repo)"; sha="$(git -C "$d" rev-parse 'HEAD^1~1')"
+  assert_true "fixture: the lock names T" \
+    grep -qF "Tests-locked-at: $sha" "$d/$LOCK_REL"
+  assert_file_contains "$d/tests/a.test.sh" "echo a from base" "fixture: merge took base's listed test"
+  assert_file_contains "$d/tests/old.test.sh" "echo old from base" "fixture: merge took base's matched test"
+  assert_file_contains "$d/.cortex/config" "# base: a later config line" "fixture: merge took base's config"
+  assert_file_exists "$d/tests/new.test.sh" "fixture: merge brought base's new test"
+  locked "$d"
+  assert_exit 0 "$CODE" "merge of the base taking its versions: exits 0"
+  assert_contains "$OUT" "file(s) unchanged since $(printf '%s' "$sha" | cut -c1-7)" \
+    "merge of the base: success line unchanged in form"
+  assert_not_contains "$OUT$ERR" "LOCK " "merge of the base: no LOCK lines"
+}
+
+case_D1_merge_then_implementation() {
+  local d; d="$(merged_repo)"
+  printf 'app v2\n' > "$d/src/app.txt"
+  commit_all "$d" "implementation after the merge"
+  locked "$d"
+  assert_exit 0 "$CODE" "implementation commits after a base merge still pass"
+  assert_not_contains "$OUT$ERR" "LOCK " "no LOCK lines"
+}
+
+case_D1_edit_after_merge_committed() {
+  local d; d="$(merged_repo)"
+  printf 'echo a weakened\n' > "$d/tests/a.test.sh"
+  commit_all "$d" "weaken after merge"
+  locked "$d"
+  expect_lock modified tests/a.test.sh "listed test edited on top of a base merge"
+}
+
+case_D1_edit_after_merge_unstaged() {
+  local d; d="$(merged_repo)"
+  printf 'echo old weakened\n' > "$d/tests/old.test.sh"
+  locked "$d"
+  expect_lock modified tests/old.test.sh "matched test edited (unstaged) on top of a base merge"
+}
+
+case_D1_edit_after_merge_staged() {
+  local d; d="$(merged_repo)"
+  printf 'echo a weakened\n' > "$d/tests/a.test.sh"
+  git -C "$d" add tests/a.test.sh
+  locked "$d"
+  expect_lock modified tests/a.test.sh "listed test edited (staged) on top of a base merge"
+}
+
+case_D1_config_edit_after_merge() {
+  local d; d="$(merged_repo)"
+  set_config "$d/.cortex/config" TEST_GLOBS 'tests/a.test.sh'
+  commit_all "$d" "narrow globs after merge"
+  locked "$d"
+  expect_lock modified .cortex/config "config edited on top of a base merge"
+}
+
+case_D1_new_test_edit_after_merge() {
+  local d; d="$(merged_repo)"
+  printf 'echo new weakened\n' > "$d/tests/new.test.sh"
+  commit_all "$d" "edit the base's new test"
+  locked "$d"
+  expect_lock added tests/new.test.sh "base's new test edited on the branch after the merge"
+}
+
+case_D1_added_after_merge() {
+  local d; d="$(merged_repo)"
+  printf 'echo c\n' > "$d/tests/c.test.sh"
+  locked "$d"
+  expect_lock added tests/c.test.sh "a test not on the base, added after a base merge"
+}
+
+# merge_resolving DIR PATH CONTENT : merge base into feature, but commit the
+# merge with PATH resolved to CONTENT (neither the sha's nor the base's)
+merge_resolving() {
+  git -C "$1" merge -q --no-commit --no-ff base >/dev/null 2>&1
+  printf '%s\n' "$3" > "$1/$2"
+  git -C "$1" add -- "$2"
+  git -C "$1" commit -q --no-edit
+}
+
+case_D1_merge_resolved_to_neither() {
+  local d; d="$(merge_repo)"
+  merge_resolving "$d" tests/a.test.sh 'echo a from neither'
+  assert_true "fixture: HEAD is a merge of base" \
+    test "$(git -C "$d" rev-parse HEAD^2)" = "$(git -C "$d" rev-parse base)"
+  locked "$d"
+  expect_lock modified tests/a.test.sh "merge resolving a listed test to neither side"
+}
+
+case_D1_merge_resolved_to_neither_matched() {
+  local d; d="$(merge_repo)"
+  merge_resolving "$d" tests/old.test.sh 'echo old from neither'
+  locked "$d"
+  expect_lock modified tests/old.test.sh "merge resolving a matched test to neither side"
+}
+
+case_D1_merge_resolved_config_to_neither() {
+  local d; d="$(merge_repo)"
+  git -C "$d" merge -q --no-commit --no-ff base >/dev/null 2>&1
+  set_config "$d/.cortex/config" TEST_GLOBS 'tests/a.test.sh'
+  git -C "$d" add .cortex/config
+  git -C "$d" commit -q --no-edit
+  locked "$d"
+  expect_lock modified .cortex/config "merge resolving the config to neither side"
+}
+
+case_D1_rebase_onto_moved_base() {
+  local d; d="$(merge_repo)"
+  git -C "$d" rebase -q base
+  assert_true "fixture: base is now an ancestor of HEAD" git -C "$d" merge-base --is-ancestor base HEAD
+  locked "$d"
+  assert_exit 1 "$CODE" "rebase onto a moved base: exits 1"
+  if grep -qE 'LOCK (bad-sha|moved):' <<<"$OUT$ERR"; then pass
+  else fail "rebase onto a moved base: reports LOCK bad-sha or LOCK moved"; show_output; fi
+  assert_not_contains "$OUT" "tests-locked: " "rebase onto a moved base: no success line"
+}
+
 run_case "fixture: T, then lock.md in its own commit L" case_fixture_layout
 run_case "pass: untouched locked set" case_pass_untouched
 run_case "pass: non-test changes" case_pass_non_test_changes
@@ -685,4 +843,16 @@ run_case "AC16 pass: CRLF lock.md and config" case_crlf_untouched
 run_case "AC16 modified under CRLF lock.md" case_crlf_modified
 run_case "AC16 added under CRLF config" case_crlf_globs_added
 run_case "AC16 unlisted matched test under CRLF config" case_crlf_globs_unlisted
+run_case "AC26 merge of the base taking its versions passes" case_D1_merge_base_passes
+run_case "AC26 implementation after a base merge passes" case_D1_merge_then_implementation
+run_case "AC27 listed test edited after a merge, committed" case_D1_edit_after_merge_committed
+run_case "AC27 matched test edited after a merge, unstaged" case_D1_edit_after_merge_unstaged
+run_case "AC27 listed test edited after a merge, staged" case_D1_edit_after_merge_staged
+run_case "AC27 config edited after a merge" case_D1_config_edit_after_merge
+run_case "AC27 base's new test edited after a merge" case_D1_new_test_edit_after_merge
+run_case "AC27 new test added after a merge" case_D1_added_after_merge
+run_case "AC27 merge resolving a listed test to neither side" case_D1_merge_resolved_to_neither
+run_case "AC27 merge resolving a matched test to neither side" case_D1_merge_resolved_to_neither_matched
+run_case "AC27 merge resolving the config to neither side" case_D1_merge_resolved_config_to_neither
+run_case "AC28 rebase onto a moved base fails" case_D1_rebase_onto_moved_base
 summary
