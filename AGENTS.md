@@ -23,8 +23,15 @@ repositories. Route yourself with the table below.
   changes (see git history for the v2 scripts). Never edit a test to make a
   script pass; a wrong test is a spec question.
 - Every new check gets a planted-violation test before it is trusted.
-- Run `bash tests/run.sh` before calling anything done. CI runs it plus
-  shellcheck.
+- **Changes land through a branch and a pull request**, and merge only when
+  CI passes. Nothing is committed directly to `main`.
+- While iterating, run only the suites you touched
+  (`bash tests/run.sh ci-gates tests-locked`); run the full
+  `bash tests/run.sh` before opening the pull request. CI runs the full set
+  plus shellcheck on Linux and is the authority. On a multi-core Linux
+  machine, `bash tests/run.sh --parallel` is faster; on Windows run the
+  suites sequentially (the default), or use WSL. A change to the test
+  helpers must leave the suites' assertion counts unchanged.
 - A change users will notice gets a `CHANGELOG.md` entry; a breaking change
   to a command's contract, a template field, or a required file bumps the
   major version in `VERSION`.

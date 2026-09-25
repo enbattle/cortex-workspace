@@ -125,14 +125,26 @@ new_git_repo() {
 }
 
 # fresh_install -> prints path of a fresh git repo with the template installed
+#
+# install.sh runs once per suite, into a cached repository; every call then
+# gets its own copy of that cache. A copy is byte-for-byte what a fresh
+# install produces (files, modes, .git), and one `cp` replaces the dozens of
+# processes an install spawns per file, which dominated the suite's run time
+# on Windows. install.test.sh still calls install.sh directly where install
+# behavior is what's under test.
 fresh_install() {
-  local d
-  d="$(new_git_repo)"
-  if ! "$ROOT/scripts/install.sh" "$d" >/dev/null 2>"$TEST_TMP/.install.err"; then
-    echo "install.sh failed for $d:" >&2
-    sed 's/^/    /' "$TEST_TMP/.install.err" >&2
-    return 1
+  local cache="$TEST_TMP/.installed-cache" d
+  if [ ! -d "$cache/.git" ]; then
+    d="$(new_git_repo)"
+    if ! "$ROOT/scripts/install.sh" "$d" >/dev/null 2>"$TEST_TMP/.install.err"; then
+      echo "install.sh failed for $d:" >&2
+      sed 's/^/    /' "$TEST_TMP/.install.err" >&2
+      return 1
+    fi
+    mv "$d" "$cache"
   fi
+  d="$(mktemp -d "$TEST_TMP/repo.XXXXXX")"
+  cp -Rp "$cache/." "$d/"
   printf '%s\n' "$d"
 }
 
