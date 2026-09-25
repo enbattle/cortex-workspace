@@ -1,0 +1,22 @@
+# cortex configuration. KEY=VALUE, one per line; parsed by scripts/cortex/*.sh,
+# never executed. A value of the form <...> counts as unset.
+
+# The project's name. check.sh (C1) fails if it appears anywhere under harness/.
+PROJECT_NAME=<project name>
+
+# The commands a change must pass before review (implement.md runs them).
+BUILD_CMD=<build command>
+TEST_CMD=<test command>
+LINT_CMD=<lint command>
+
+# Space-separated git pathspecs matching every file the test runner loads:
+# test files AND their helpers, fixtures and setup, AND the runner's own
+# config (package.json if its scripts choose the tests, jest.config.*, ...), e.g.
+#   *.test.ts *.spec.ts tests/**
+# All of them are locked once test-first commits the tests: an existing one
+# may not change, and a new one may not appear, until the change is done.
+TEST_GLOBS=<test file globs>
+
+# Comma-separated agent tools to generate adapters for (adapt.sh):
+# claude, cursor, copilot, gemini, codex
+TOOLS=<tools>

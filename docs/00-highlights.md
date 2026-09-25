@@ -1,0 +1,23 @@
+# cortex at a Glance — The Practices That Define This Harness
+
+A sixty-second orientation for anyone meeting cortex cold. Each entry is one paragraph and a pointer. **This document is non-normative**: it summarizes rules that live canonically in `01-design-rules.md`, the commands under `template/harness/commands/`, the extensions catalog, and the traps document. On any conflict the canonical source wins and this file gets corrected. Entries are capped at ten; anything demanding an eleventh should displace a weaker one.
+
+**1. Specs before code, with an interrogation gate.** Every nontrivial change starts as a change folder (proposal, design, tasks, and later a test lock) in the same repository as the code, so spec and code land in one pull request. `spec-clarify` adversarially interrogates the proposal (undefined terms, unstated assumptions, missing error behavior, untestable criteria) before any test is written, and only a human writes the approval line. *(Canonical: R3, R6; `spec-new`, `spec-clarify`.)*
+
+**2. Tests are written first, by someone else, then locked.** `test-first` runs in a fresh context that has never seen an implementation plan, because a context already holding the implementation shapes the tests to fit it. The failing tests are committed and their commit recorded; `tests-locked.sh` then checks that no later stage edited, deleted, or added a test: a guardrail against accidental or lazy weakening. Against deliberate tampering (rewriting history, editing the checker) the boundary is CI on the pull request, from a fresh checkout. A test that looks wrong is a spec problem for a human. *(Canonical: R12, R11; `test-first`, `tests-locked.sh`.)*
+
+**3. The author never approves their own change.** Review runs in a fresh context with artifact-only inputs and an adversarial mandate, re-runs every gate itself, and must say what it probed before approving. A diff that adds an external surface gets a separate security pass. The Claude Code adapter enforces what the tool allows: reviewer subagents are never forked and have no Edit/Write tools (they still have a shell, so the calling session compares `git status` before and after). *(Canonical: R4, R8; `review`, `security-review.md`.)*
+
+**4. Gates are facts, not reports.** An instruction to an agent is a request; a script's exit code is a fact. Every rule a script can check, a script checks (`check.sh`, `tests-locked.sh`, and `gates.sh`, which runs them all with the build, test and lint commands), each check is proven by planting the violation it claims to catch, and diff-based checks account for untracked files, which `git diff` never shows. *(Canonical: R11; traps T13.)*
+
+**5. Artifacts carry state; conversations don't.** Anything a later stage, another agent, or a future human needs is written into the change folder or the pipeline log. Every stage can run from a fresh context given only those files, which is what makes reviewer isolation and crash recovery possible. *(Canonical: R9; traps P3.)*
+
+**6. Every loop has a budget and an exit.** Each command declares a `Budget:` line: a stop condition, a concrete attempt limit (three tries per task; two review rounds per change), and an escalation path. Repeated identical failure means stop and ask, not retry harder. *(Canonical: R10; traps T10, P5.)*
+
+**7. A constitution every change command loads.** A short file of numbered engineering, security, and process principles. A spec that conflicts with it stops and asks; raising standards is an edit to that file, not surgery on prompts. *(Canonical: `docs/constitution.md`.)*
+
+**8. Untrusted content is data, never instructions.** Instructions come only from the user, the harness, and the repository's own `AGENTS.md` files, and a package's nested `AGENTS.md` may add conventions but never relax a gate. Directives found in dependencies, fetched pages, or issue text are reported, never followed. *(Canonical: design rules "Trust", R3; `check.sh` C10.)*
+
+**9. Small context, precisely routed; one canon, thin adapters.** A 60-line router points to small single-purpose files, and nothing says "read everything". Canonical files name no agent tool; each tool gets generated adapters that point at the canon or enforce it, never copies of it. *(Canonical: R2, R5, R8; traps T6, T8.)*
+
+**10. The system changes only on evidence.** Every change appends a row to the pipeline log; `retro` turns real friction into specific diffs a human approves, preferring a mechanical check over more prose. New practices wait in a trigger-gated catalog until an observable condition fires, and deletions count as improvements. *(Canonical: `retro`; extensions operating rule; traps P1, P2, T1, T14.)*

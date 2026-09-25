@@ -1,0 +1,22 @@
+# Human review for the files that decide whether a change is judged fairly.
+# Copy to .github/CODEOWNERS, replace @OWNER with a person or team, and turn
+# on "Require review from Code Owners" for the default branch; without that
+# setting this file only suggests reviewers.
+#
+# Tests and their locks: an agent may add tests through test-first, but a
+# person approves what they assert.
+changes/**/lock.md      @OWNER
+# TODO(install): add this repository's test paths, the same ones as
+# TEST_GLOBS in .cortex/config, e.g.
+# /test/                @OWNER
+# *.test.ts             @OWNER
+
+# The harness, its configuration and the gates that enforce it.
+/.cortex/               @OWNER
+/scripts/cortex/        @OWNER
+/harness/               @OWNER
+/docs/constitution.md   @OWNER
+/AGENTS.md              @OWNER
+
+# CI, including this file.
+/.github/               @OWNER

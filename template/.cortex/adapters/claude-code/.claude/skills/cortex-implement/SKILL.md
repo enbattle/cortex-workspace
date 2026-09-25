@@ -1,0 +1,12 @@
+---
+name: cortex-implement
+description: Implement an approved change against its locked tests (cortex implement), in a fresh subagent.
+---
+
+<!-- cortex:generated -->
+
+Don't run the command in this session, and never fork: spawn the
+`cortex-implementer` subagent (Agent tool, `subagent_type: cortex-implementer`) and give it
+only the change folder's path. When it returns, run `bash scripts/cortex/gates.sh <change-folder>` yourself, as a
+command of its own (not chained);
+a failure goes back to the user, not to a retry.

@@ -1,0 +1,3 @@
+# Test suites source tests/lib.sh through a computed path, and lib.sh sets
+# variables (CODE, OUT, ERR, ALL) that the sourcing suites read.
+disable=SC1091,SC2034
