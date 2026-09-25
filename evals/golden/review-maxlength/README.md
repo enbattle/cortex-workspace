@@ -9,9 +9,12 @@ editing the Claude Code reviewer adapter.
 ## Contents
 
 - `fixture.bundle`: a git bundle of `slugkit`, a small Node library with
-  cortex 2.0.0 installed and one change taken through the current flow
-  (`spec-new`, `spec-clarify`, `test-first` with its three commits and
-  `lock.md`, `implement` with gate output in `tasks.md`). Tags:
+  cortex 2.0.0 installed (on a `cortex-install` branch merged into `main`,
+  per `INSTALL.md`; step 5b, the CI setup, is skipped because the fixture
+  isn't hosted) and one change taken through the current flow on branch
+  `change/20260924-slugify-maxlength` (`spec-new`, `spec-clarify` committing
+  the approved folder, `test-first` with its three commits and `lock.md`,
+  `implement` with a commit per task and gate output in `tasks.md`). Tags:
   `golden-clean` (the correct change) and `golden-planted` (one planted
   commit on top). Node 18+ and Git Bash are all it needs.
 - `rubric.md`: the planted defect, its reproductions, and how to grade.
@@ -25,9 +28,13 @@ format (Amendment 2's `lock.md`).
 
 ## Which template this fixture matches
 
-Built on 2026-09-24 from the template at commit `33464b7`. Its installed
-`harness/commands/review.md` and `scripts/cortex/gates.sh` predate later
-template edits, so after changing either in `template/`, refresh the fixture
+Rebuilt on 2026-09-24 from the template at commit `15de2ea`, with that
+commit's `scripts/install.sh` and by following its command texts. The
+source, tests, proposal and planted change are the first build's (from
+`33464b7`); the install, the branch name and the commit shas (so
+`lock.md`'s sha) are new. Its installed `harness/commands/review.md` and
+`scripts/cortex/gates.sh` will predate later template edits, so after
+changing either in `template/`, refresh the fixture
 first: rebuild it with the current `install.sh` following the same steps
 (install, the approved change folder, test-first's three commits, the
 implementation, tag `golden-clean`, add the planted commit, tag
@@ -47,7 +54,7 @@ clone and by its own fresh agent.
    git clone -q <cortex>/evals/golden/review-maxlength/fixture.bundle <run-dir>/slugkit
    cd <run-dir>/slugkit
    git switch -q main
-   git switch -q -C slugify-maxlength "$TAG"
+   git switch -q -C change/20260924-slugify-maxlength "$TAG"
    git tag -d golden-clean golden-planted >/dev/null
    git remote remove origin
    bash scripts/cortex/gates.sh changes/20260924-slugify-maxlength   # must end: gates: ok
