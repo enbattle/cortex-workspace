@@ -48,23 +48,72 @@ created=0
 unchanged=0
 skipped=0
 
+# The work is done in bulk, so the number of processes doesn't grow with the
+# template (spec Amendment 5): starting a process costs 10-50 ms on Windows,
+# and one cp/cmp/mkdir per file made a 45-file install take 20 s there.
+# Plain indexed arrays only: macOS still ships bash 3.2.
+rels=()
 while IFS= read -r rel; do
-  src="$TEMPLATE/$rel"
-  dest="$target/$rel"
-  if [ ! -e "$dest" ]; then
-    mkdir -p "$(dirname "$dest")"
-    cp "$src" "$dest"
-    case "$rel" in *.sh) chmod +x "$dest" ;; esac
-    echo "created $rel"
-    created=$((created + 1))
-  elif cmp -s "$src" "$dest"; then
-    echo "unchanged $rel"
-    unchanged=$((unchanged + 1))
-  else
-    echo "skipped $rel (exists, differs)"
-    skipped=$((skipped + 1))
-  fi
+  [ -n "$rel" ] && rels+=("$rel")
 done < <(cd "$TEMPLATE" && find . -type f | sed 's|^\./||' | LC_ALL=C sort)
+
+# Classify with shell builtins only: status[i] is new, same or differs.
+status=()
+present=()
+present_at=()
+for i in "${!rels[@]}"; do
+  if [ -e "$target/${rels[$i]}" ]; then
+    status[$i]=differs
+    present+=("${rels[$i]}")
+    present_at+=("$i")
+  else
+    status[$i]=new
+  fi
+done
+
+# Present files: one hash call per side, byte for byte, in the same order.
+if [ "${#present[@]}" -gt 0 ]; then
+  src_hashes=()
+  while IFS= read -r h; do src_hashes+=("$h"); done \
+    < <(cd "$TEMPLATE" && git hash-object --no-filters -- "${present[@]}")
+  dest_hashes=()
+  while IFS= read -r h; do dest_hashes+=("$h"); done \
+    < <(cd "$target" && git hash-object --no-filters -- "${present[@]}")
+  for j in "${!present[@]}"; do
+    [ "${src_hashes[$j]}" = "${dest_hashes[$j]}" ] && status[${present_at[$j]}]=same
+  done
+fi
+
+# Absent files: one tar pass creates them with their directories, then one
+# chmod makes the scripts executable (a template checked out on Windows may
+# not carry the bit).
+to_create=()
+scripts=()
+for i in "${!rels[@]}"; do
+  if [ "${status[$i]}" = new ]; then
+    to_create+=("${rels[$i]}")
+    case "${rels[$i]}" in *.sh) scripts+=("$target/${rels[$i]}") ;; esac
+  fi
+done
+if [ "${#to_create[@]}" -gt 0 ]; then
+  (cd "$TEMPLATE" && tar -cf - "${to_create[@]}") | (cd "$target" && tar -xf -)
+  [ "${#scripts[@]}" -eq 0 ] || chmod +x "${scripts[@]}"
+fi
+
+# Report every file in the template's sorted order, as before.
+for i in "${!rels[@]}"; do
+  case "${status[$i]}" in
+    new)
+      echo "created ${rels[$i]}"
+      created=$((created + 1)) ;;
+    same)
+      echo "unchanged ${rels[$i]}"
+      unchanged=$((unchanged + 1)) ;;
+    *)
+      echo "skipped ${rels[$i]} (exists, differs)"
+      skipped=$((skipped + 1)) ;;
+  esac
+done
 
 # The design rules the installed commands cite by ID (R1-R12), copied from
 # their one source in this repository, under the same never-overwrite rule.

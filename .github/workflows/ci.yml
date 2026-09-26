@@ -21,4 +21,4 @@ jobs:
       - name: shellcheck
         run: shellcheck --severity=warning scripts/*.sh template/scripts/cortex/*.sh tests/*.sh
       - name: test suites
-        run: bash tests/run.sh
+        run: bash tests/run.sh --parallel
