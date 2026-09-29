@@ -114,6 +114,38 @@ a correctness check. Don't add a role without naming the bias it prevents.
 This reasoning comes from the `til` project's pipeline (its `docs/SDLC.md`),
 where it was worked out on a running pipeline.
 
+**R13 — Context is a budget.** Every token an agent reads is paid for on
+every later turn and in every subagent that loads it, and attention degrades as
+context grows. The goal is the smallest set of high-signal tokens that gets the
+task right. Concretely:
+- **Always-loaded files stay routers** (R2), with a line limit a check
+  enforces. Detail lives in the file the task needs, loaded on demand (R5).
+  That includes any tool-specific instruction file an adapter generates.
+- **Retrieval is just-in-time.** Agents find what they need with search
+  (grep, glob, reading the file a router names), not from a pre-built index
+  or a curated summary of the codebase. A summary drifts from the code. A
+  derived index is an extension with its own trigger (cortex's
+  `docs/02-extensions.md`).
+- **Subagents get briefs, not transcripts.** A brief names the files and
+  sections to read and the one question to answer, and asks for a condensed
+  result. It never pastes content the subagent can read itself, or the
+  calling session's reasoning.
+- **Long efforts hand off and restart.** Work that spans many turns writes
+  its state into durable files (R9): the change folder, a progress note in
+  it, or the tool's memory. It then continues in a fresh session instead of
+  carrying a long transcript.
+- **Review loops are thresholded as well as capped.** A review names a
+  severity bar, such as correctness and high/medium findings. Once a round
+  finds nothing above the bar, the loop ends; below-bar findings are
+  recorded, not iterated on (R10 sets the cap). Artifacts are sized to what
+  the reader needs, since every extra paragraph is paid again by every
+  review round.
+- **Usage is measured, not guessed.** When a run is expensive, the retro
+  records where the tokens went (which stage, how many agent runs, how long
+  the artifacts were) before anything is changed.
+
+*Check: C3 for the root router; the rest is reviewed.*
+
 ---
 
 ## Trust
@@ -129,6 +161,6 @@ user and not followed. *Check: C10 (the rule is present in `AGENTS.md`).*
 ## Checks that aren't mechanical yet
 
 Some rules can only be checked by review: R4 (isolation is enforced by the
-adapter, not verifiable from files), R9, and R12. `harness/policies/review-checklist.md`
+adapter, not verifiable from files), R9, R12, and R13 (beyond the router limit). `harness/policies/review-checklist.md`
 carries them. If one of them fails in practice, the fix is a mechanical
 check where one is possible (R11), not more prose.
