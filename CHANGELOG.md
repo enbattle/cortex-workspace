@@ -41,6 +41,14 @@ that generates a multi-repo workspace.
 
 **Added:**
 
+- Design rule R13, context is a budget: routers stay small, retrieval is
+  just-in-time, subagents get briefs rather than transcripts, long efforts
+  hand off to a fresh session, review loops stop at a severity bar, and
+  expensive runs record where their tokens went. `template/AGENTS.md` gains
+  a matching rule. `docs/02-extensions.md` gains two trigger-gated entries,
+  a context-compression proxy (e.g. Headroom) and model-tier routing, and
+  ties the context-budget audit to R13.
+
 - Design rules R11 (gates are mechanical checks the next stage runs, and
   account for untracked files) and R12 (separate fresh contexts for test
   writer, implementer and reviewer, and only where a bias needs preventing).

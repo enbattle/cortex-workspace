@@ -77,7 +77,7 @@ and checks. Everything it can't know is left as a visible `TODO`.
 | Document | For | When |
 | --- | --- | --- |
 | [docs/00-highlights.md](docs/00-highlights.md) | anyone | first: the ten practices in sixty seconds |
-| [docs/01-design-rules.md](docs/01-design-rules.md) | maintainers, installers | the normative rules R1–R12 |
+| [docs/01-design-rules.md](docs/01-design-rules.md) | maintainers, installers | the normative rules R1–R13 |
 | [docs/02-extensions.md](docs/02-extensions.md) | maintainers | before adding anything: what's deferred, and each one's trigger |
 | [docs/03-mental-traps.md](docs/03-mental-traps.md) | humans deciding structure | never loaded by agents during routine work |
 | [docs/04-operator-feedback-loop.md](docs/04-operator-feedback-loop.md) | the person running it | re-read at each retro |
