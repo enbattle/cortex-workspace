@@ -46,7 +46,11 @@ against the change before approving it.
    the same inputs. Its findings join yours.
 8. Label every finding as introduced by this diff or already present. Only
    introduced findings block approval; list the rest separately for the user.
-   Rate each on this scale:
+   Each finding names a realistic trigger: a real caller or input, a
+   plausible edit, or a documented threat. A finding with none is labelled
+   *theoretical* and rated Low. Severity weighs impact against likelihood,
+   but a severe class (security, data loss, money or data created or
+   destroyed) is not downgraded for rarity alone. Rate each on this scale:
    - **High**: breaks an acceptance criterion, the constitution, security,
      or existing callers (an incompatible change to a public interface);
      blocks approval.
