@@ -40,10 +40,11 @@ the same history rewrite: commits `golden-clean` `c5ba08f`, `golden-planted`
 prints `gates: ok` at both, and the reproductions below give their expected
 values at `golden-clean` and their wrong ones at `golden-planted`.
 Refreshed again on 2026-09-30 for the triage-waiver text in
-`harness/commands/implement.md` and `review.md`, by the same rewrite:
-`golden-clean` `c8abbdb`, `golden-planted` `4a1f8bd`, base `176ab7e`, and
-`Tests-locked-at` `4a9112d`. Only those two files and that sha changed at
-both tags; `gates: ok` and the reproductions hold as before.
+`harness/commands/implement.md` and `review.md`, by the same rewrite, then
+once more for `implement.md`'s High-finding rule: `golden-clean` `6571f1b`,
+`golden-planted` `84d80ab`, base `6831eb4`, and `Tests-locked-at`
+`7fcebf8`. Only those files and that sha changed at both tags;
+`gates: ok` and the reproductions hold as before.
 
 The installed copies that must match their source byte for byte, at
 `golden-clean`, with `golden-planted` leaving them unchanged:

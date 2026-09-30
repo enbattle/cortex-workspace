@@ -27,10 +27,11 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    `test-first` re-runs, as in step 2); **known limitation**; or
    **disputed**. A disputed finding stops for the user, who decides: you
    are biased toward rejecting it, the reviewer toward inflating it. So
-   does a known limitation on a Medium or High finding: it is a waiver
-   request, and you can't change the reviewer's rating. A finding that
-   breaks the constitution can't be waived; only the user explicitly
-   amending `docs/constitution.md` changes that. The **fix** outcomes are then this run's task list. Otherwise
+   does a known limitation on a Medium finding: it is a waiver request, and
+   you can't change the reviewer's rating. A High finding, including any
+   that breaks the constitution, can't be a known limitation: fix it, or
+   stop for the user to change the spec or explicitly amend
+   `docs/constitution.md` so it is no longer a High. The **fix** outcomes are then this run's task list. Otherwise
    work through `tasks.md` in order.
 2. **The locked tests are the specification.** Never edit, delete, or add a
    test: not one listed in `lock.md`, not an existing test, not a new one.

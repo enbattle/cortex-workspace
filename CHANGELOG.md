@@ -41,9 +41,10 @@ that generates a multi-repo workspace.
 
 **Added:**
 
-- Triage waivers: in `implement`, a known limitation on a Medium or High
-  finding is a waiver request that stops for the user. `review` doesn't
-  block on a finding the user waived; a constitution breach can't be waived.
+- Triage waivers: in `implement`, a known limitation on a Medium finding is
+  a waiver request that stops for the user; a High can't be a known
+  limitation. `review` doesn't block on a finding the user waived; a
+  constitution breach can't be waived.
 
 - R11 covers loosening a check: a change that can make a check pass where it
   failed before keeps every planted-violation test and adds a planted case for
