@@ -27,7 +27,9 @@ This is the maintenance loop for everything under `harness/` and
 2. For each, propose a specific file edit, at the strongest level that fits:
    a mechanical check (a script or test) first, then a correction to the file
    that already covers it, then new text only if neither applies. A new
-   check gets a planted-violation test before it's trusted.
+   check gets a planted-violation test before it's trusted. Prefer a
+   deletion or simplification; an addition says what it replaces or why
+   nothing could go.
 3. A recurring review finding (the same kind across changes) means something
    upstream leaks: propose moving the check earlier (the constitution, the
    clarify questions, the repository's conventions).

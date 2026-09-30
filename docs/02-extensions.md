@@ -150,6 +150,10 @@ The pipeline (spec-new → spec-clarify → test-first → implement → review,
 
 **Deletion pass.** *Trigger:* same as pipeline-log mining, and standing thereafter. *Do:* every structural review must nominate at least one thing to delete — a command nobody invokes, a knowledge file nothing routes to, a checklist item that has never produced a finding. A harness that only grows is decaying in slow motion.
 
+**One role, several agents over disjoint files.** *Trigger:* a change's content is more than one agent can read in full (seen once, in `til`'s 16-case-study change). *Do:* split that role (reviewer, usually) across fresh agents, each given a disjoint set of files and the same brief, and merge their findings into one round.
+
+**Encoding guard.** *Trigger:* a contributor edits with Windows PowerShell 5.1, or mojibake (double-encoded UTF-8) has shipped once, as it did in `til`. *Do:* a check that fails on double-encoded UTF-8 sequences in text files, with a planted-violation test.
+
 ---
 
 ## Suggested adoption order

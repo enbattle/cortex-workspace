@@ -41,6 +41,11 @@ that generates a multi-repo workspace.
 
 **Added:**
 
+- Review findings are triaged (R13): `review` rates a finding with no
+  realistic trigger as theoretical (Low); `implement` checks each against
+  the code and records an outcome, the user deciding disputed ones. `retro`
+  prefers deletions; two new entries in `docs/02-extensions.md` §6.
+
 - Design rule R13, context is a budget: routers stay small, retrieval is
   just-in-time, subagents get briefs rather than transcripts, long efforts
   hand off to a fresh session, review loops stop at a severity bar, and

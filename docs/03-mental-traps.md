@@ -105,7 +105,7 @@ Each trap follows the same anatomy: **the pull** (why capable people fall in), *
 ### T14 — Growth as the only direction
 *The pull:* additions are visible contributions; deletions feel like admitting mistakes.
 *The cost:* a workspace that only accretes is decaying in slow motion — every unused command, unrouted file, and never-firing checklist item is context spent and credibility eroded.
-*The tell:* nothing deleted since creation; a catalog that has grown every quarter.
+*The tell:* nothing deleted since creation; a catalog that has grown every quarter; review findings converted wholesale into tests and rules. In `til`, four fix rounds on one feature each turned a reviewer's theoretical markdown or SVG edge case into a permanent test; a later audit found about 3,000 removable lines of tests and tooling, much of it from that habit.
 *The antidote:* deletion discipline — every structural review nominates at least one removal; retro treats "this step added no value" as a first-class finding; aliases over duplicates when novelty turns out to be renaming.
 
 ---

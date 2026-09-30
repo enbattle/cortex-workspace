@@ -134,10 +134,13 @@ task right. Concretely:
   its state into durable files (R9): the change folder, a progress note in
   it, or the tool's memory. It then continues in a fresh session instead of
   carrying a long transcript.
-- **Review loops are thresholded as well as capped.** A review names a
+- **Review loops are thresholded as well as capped, and triaged.** A review names a
   severity bar, such as correctness and high/medium findings. Once a round
   finds nothing above the bar, the loop ends; below-bar findings are
-  recorded, not iterated on (R10 sets the cap). Artifacts are sized to what
+  recorded, not iterated on (R10 sets the cap). A finding is confirmed
+  against the code before it becomes work, and a below-bar or theoretical
+  finding is recorded as a known limitation, not turned into a test or a
+  rule. Artifacts are sized to what
   the reader needs, since every extra paragraph is paid again by every
   review round.
 - **Usage is measured, not guessed.** When a run is expensive, the retro
