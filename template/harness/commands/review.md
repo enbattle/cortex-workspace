@@ -58,6 +58,10 @@ against the change before approving it.
      edge case, a missing test for a risky path); blocks approval unless the
      user waives it.
    - **Low**: polish that doesn't change behavior; never blocks.
+
+   A Medium or Low finding the user waived, recorded in
+   `review-findings.md`, doesn't block approval; no waiver covers a
+   constitution breach.
 9. Confirm the working tree is exactly as it was in step 1.
 
 Budget: this review runs once. After two request-changes rounds on the same

@@ -45,9 +45,11 @@ repositories. Route yourself with the table below.
 - Before a release, and after any effort spanning many commits, run a
   completeness audit: a fresh agent given only the plan or specs and the
   branch diff maps every planned item to evidence (implemented, deliberately
-  changed, partial, missing) and checks the docs against the code. Record it
-  in `evals/audits/<date>.md`. On 2026-09-24 it found a flow-breaking bug
-  and stale docs that every per-change review had passed.
+  changed, partial, missing) and checks the docs against the code. It also
+  nominates at least one thing to delete or merge, or says why nothing
+  qualifies; the maintainer decides. Record it in `evals/audits/<date>.md`.
+  On 2026-09-24 it found a flow-breaking bug and stale docs that every
+  per-change review had passed.
 - A release needs the "Before release" list in `CHANGELOG.md` done, a date
   on its CHANGELOG entry, and a tag.
 - Never push, merge, or tag a release without the maintainer's go-ahead.

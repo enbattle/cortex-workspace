@@ -26,7 +26,11 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    behavior; you never write it: report it, and the user decides whether
    `test-first` re-runs, as in step 2); **known limitation**; or
    **disputed**. A disputed finding stops for the user, who decides: you
-   are biased toward rejecting it, the reviewer toward inflating it. The **fix** outcomes are then this run's task list. Otherwise
+   are biased toward rejecting it, the reviewer toward inflating it. So
+   does a known limitation on a Medium or High finding: it is a waiver
+   request, and you can't change the reviewer's rating. A finding that
+   breaks the constitution can't be waived; only the user explicitly
+   amending `docs/constitution.md` changes that. The **fix** outcomes are then this run's task list. Otherwise
    work through `tasks.md` in order.
 2. **The locked tests are the specification.** Never edit, delete, or add a
    test: not one listed in `lock.md`, not an existing test, not a new one.
@@ -62,5 +66,6 @@ context** that has not seen this conversation.
 ## Autonomy
 
 May work through in-budget tasks unattended. Must stop for the user on a
-test that looks wrong, spec divergence, a constitution conflict, or budget
-exhaustion. Never pushes or merges.
+test that looks wrong, a disputed finding or waiver request, spec
+divergence, a constitution conflict, or budget exhaustion. Never pushes or
+merges.
