@@ -31,15 +31,43 @@ format (Amendment 2's `lock.md`).
 Rebuilt on 2026-09-24 from the template at commit `15de2ea`, with that
 commit's `scripts/install.sh` and by following its command texts. The
 source, tests, proposal and planted change are the first build's (from
-`1f9e92d`); the install, the branch name and the commit shas (so
-`lock.md`'s sha) are new. Its installed `harness/commands/review.md` and
-`scripts/cortex/gates.sh` will predate later template edits, so after
-changing either in `template/`, refresh the fixture
-first: rebuild it with the current `install.sh` following the same steps
-(install, the approved change folder, test-first's three commits, the
-implementation, tag `golden-clean`, add the planted commit, tag
-`golden-planted`), then run the procedure below. Otherwise the run tests
-the old text.
+`1f9e92d`). Refreshed on 2026-09-29 to the template at commit `3080b70`
+(the same template and design rules as `c2088a2`): commits `golden-clean`
+`8193031`, `golden-planted` `5bab4dc`, base `f2c45cf`, and `lock.md`'s
+`Tests-locked-at` `e6f5c89`.
+
+The installed copies that must match their source byte for byte, at
+`golden-clean`, with `golden-planted` leaving them unchanged:
+
+- every file `install.sh` copies from `template/`, at the same path, except
+  the ones filled in when the fixture was built (`.cortex/config`,
+  `AGENTS.md`, `docs/**`, `changes/**`);
+- `.cortex/design-rules.md` (from `docs/01-design-rules.md`) and
+  `.cortex/version` (from `VERSION`);
+- `.claude/**`, which `adapt.sh` copies from
+  `.cortex/adapters/claude-code/.claude/`.
+
+`tests/golden-fixture.test.sh` fails, naming each file, when one differs or
+is missing, so after an edit to any of them in `template/` the suites fail
+until the fixture is refreshed. Otherwise a run tests the old text.
+
+To refresh, either rebuild it with the current `install.sh` following the
+same steps (install, the approved change folder, test-first's three
+commits, the implementation, tag `golden-clean`, add the planted commit, tag
+`golden-planted`), or, when only those copies changed, rewrite the history
+as the 2026-09-29 refresh did. In a clone of the bundle with
+`core.autocrlf=false` and local `main`, `cortex-install` and
+`change/20260924-slugify-maxlength` branches, run
+`git filter-branch --tree-filter <filter> --tag-name-filter cat -- --branches --tags`,
+where the filter, at every commit that has `harness/commands/review.md`,
+copies each file in the list above from the cortex checkout, and in
+`changes/20260924-slugify-maxlength/lock.md` replaces the old
+`Tests-locked-at` sha with `$(map <old sha>)`. Source, tests, planted
+content, commit messages, authors and dates stay as they are. Then
+`git bundle create fixture.bundle HEAD --branches --tags`, check that
+`gates.sh` prints `gates: ok` at both tags and that the rubric's
+reproductions still give their expected values at `golden-clean` and their
+wrong ones at `golden-planted`, and update the shas above.
 
 ## Procedure
 
