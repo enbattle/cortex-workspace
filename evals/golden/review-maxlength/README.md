@@ -32,9 +32,13 @@ Rebuilt on 2026-09-24 from the template at commit `15de2ea`, with that
 commit's `scripts/install.sh` and by following its command texts. The
 source, tests, proposal and planted change are the first build's (from
 `1f9e92d`). Refreshed on 2026-09-29 to the template at commit `3080b70`
-(the same template and design rules as `c2088a2`): commits `golden-clean`
-`8193031`, `golden-planted` `5bab4dc`, base `f2c45cf`, and `lock.md`'s
-`Tests-locked-at` `e6f5c89`.
+(the same template and design rules as `c2088a2`). Refreshed again on
+2026-09-30 for the design rules only (R11 now covers loosening a check), by
+the same history rewrite: commits `golden-clean` `c5ba08f`, `golden-planted`
+`25eb14e`, base `ede3d24`, and `lock.md`'s `Tests-locked-at` `dac3016`. Only
+`.cortex/design-rules.md` and that sha changed at both tags; `gates.sh`
+prints `gates: ok` at both, and the reproductions below give their expected
+values at `golden-clean` and their wrong ones at `golden-planted`.
 
 The installed copies that must match their source byte for byte, at
 `golden-clean`, with `golden-planted` leaving them unchanged:

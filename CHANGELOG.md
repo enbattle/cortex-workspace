@@ -41,6 +41,13 @@ that generates a multi-repo workspace.
 
 **Added:**
 
+- R11 covers loosening a check: a change that can make a check pass where it
+  failed before keeps every planted-violation test and adds a planted case for
+  each newly accepted input, preferring a named exception over a rewritten
+  rule. `docs/02-extensions.md` gains a trigger-gated entry for known
+  limitations that outlive their change, a data point and adoption pitfalls
+  for splitting a review across agents, and evidence for sandboxed execution.
+
 - Review findings are triaged (R13): `review` rates a finding with no
   realistic trigger as theoretical (Low); `implement` checks each against
   the code and records an outcome, the user deciding disputed ones. `retro`

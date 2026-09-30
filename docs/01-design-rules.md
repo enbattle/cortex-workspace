@@ -90,7 +90,13 @@ the *next* stage (or the human) runs, not by the producing agent's report.
 An instruction to an agent is a request; a script's exit code is a fact.
 Where a rule can be checked by a script, it is (`check.sh`,
 `tests-locked.sh`, and `gates.sh`, which runs every gate from the config), and every new check is proven by planting the violation
-it claims to catch and watching it fail. Checks built on `git diff` must
+it claims to catch and watching it fail. Loosening a check gets the same
+proof: a change that can make a check pass where it failed before, including
+a refactor that shifts what it accepts, keeps every existing planted-violation
+test and adds a planted case for each input it now accepts, with the reason
+that input is safe. Prefer a named exception over a rewritten rule: a rule
+narrowed by reasoning about input shapes tends to open bypasses that only
+probing finds. Checks built on `git diff` must
 account for untracked files, which `git diff` never shows: use
 `git add -N .` before diffing, compare against a commit, or hash files.
 *Limit:* a check that runs on the same machine as the agent it checks is a
