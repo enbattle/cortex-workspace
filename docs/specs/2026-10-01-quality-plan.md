@@ -17,7 +17,7 @@ Sources, in brackets: **[audit]** the first DRY/YAGNI review;
 **[tests/evals]** the follow-up review of tests and evals; **[standards]**
 the codification and testing discussion; **[rigidity]** the review of
 over-rigid rules; **[seams]** the plan's own cohesion review; **[pstack]**
-the comparison with pstack.
+the comparison with pstack; **[routing]** the final check that each standard reaches the agent that needs it.
 
 ## PR 1: DRY/YAGNI cleanup (branch `refactor/dry-yagni`)
 
@@ -60,12 +60,18 @@ golden runs happen once. [seams]
 
 Judgment over proxies [rigidity]:
 
-- [ ] 12. **diff first** The rigidity line above, as a principle in
-  `docs/03-mental-traps.md` beside P5.
-- [ ] 13. **diff first** Evidence defined once, in P2: an observed incident,
-  or a well-understood failure that can occur here, passed through the four
-  checks (mechanism, fit, cost here, reversibility). These point to it
-  instead of restating it: T1's antidote and pre-addition question 1, T5,
+- [ ] 12. **diff first** A design rule, R14, in `docs/01-design-rules.md`:
+  the rigidity line above, and what counts as evidence for adopting a
+  practice (an observed incident, or a well-understood failure that can
+  occur here, passed through the four checks: mechanism, fit, cost here,
+  reversibility), with the answers recorded. It is a design rule, not only
+  a traps-document principle, because `install.sh` copies the design rules
+  into every installed repository as `.cortex/design-rules.md`; the traps
+  document is never installed, so a retro there could not read it.
+  `docs/03-mental-traps.md` explains the reasoning beside P5 and points to
+  R14. [routing]
+- [ ] 13. **diff first** Every restatement points to R14 instead of
+  defining evidence itself: P2, T1's antidote and pre-addition question 1, T5,
   the traps document's own entry rule, `docs/02-extensions.md`'s operating
   rule, `docs/04-operator-feedback-loop.md`'s judgment rules ("act on
   second" becomes cost-dependent: a cheap, reversible fix may act on the
@@ -83,6 +89,10 @@ Judgment over proxies [rigidity]:
   `docs/04-operator-feedback-loop.md` (it contradicts the root `AGENTS.md`).
 - [ ] 19. R7 says it limits the harness's own requirements, not the
   project's development tools.
+- [ ] 19a. Drop the hard-coded rule range "R1–R13" (in `template/AGENTS.md`,
+  `README.md`, `docs/02-extensions.md`, and a comment in
+  `scripts/install.sh`), so adding R14 doesn't mean editing four places:
+  say "the design rules" or "rule IDs (R1, R2, ...)". [routing]
 
 Review text, all in this PR so golden runs happen once [seams]:
 
@@ -97,14 +107,19 @@ Review text, all in this PR so golden runs happen once [seams]:
 
 Test and verification quality:
 
-- [ ] 23. A test-quality bar in `test-first.md`: deterministic and isolated;
-  boundary and error cases; never mock the unit under test; assert against
-  literal expected values [pstack]; property-based tests where the input
-  space is large. [standards]
+- [ ] 23. A test-quality bar: deterministic and isolated; boundary and
+  error cases; never mock the unit under test; assert against literal
+  expected values [pstack]; property-based tests where the input space is
+  large. [standards] It lives once, in the Tests section of
+  `review-checklist.md`, which the reviewer already loads (R4); `test-first.md`
+  tells the test writer to meet that section, instead of a copy the
+  reviewer can't see. [routing]
 - [ ] 24. Verification on the real artifact, matched to what changed:
   `implement` runs the changed thing the way a user would (the command, the
   endpoint, the flow) and pastes the evidence into `tasks.md`; `review`
-  repeats it. [pstack]
+  repeats it. [pstack] What counts as evidence for each kind of change is
+  defined once, in `review-checklist.md`; both commands point to it.
+  [routing]
 - [ ] 25. A mutation audit of the five gate scripts (break one condition at
   a time; record what no test catches) in `evals/audits/`; automate only if
   it finds survivors. [standards]
@@ -115,7 +130,11 @@ Catalog (`docs/02-extensions.md`), each with a trigger:
 
 - [ ] 27. Mutation-testing tools for installed repositories (stack-specific,
   so not shipped); flaky-test quarantine (a scale problem); coverage
-  reported, never gated (a gate gets gamed). [standards]
+  reported, never gated (a gate gets gamed). [standards] These three are
+  practices for the project, so each is also seeded as a short entry in
+  `template/docs/deferred-practices.md`, which installed repositories read
+  at every retro; items 28 and 29 change the harness, so they stay in the
+  cortex catalog only. [routing]
 - [ ] 28. Process weight scaled to stakes: a middle tier between trivial
   and the full pipeline, chosen by the human or a fixed rule, never the
   agent; designed from the first real project's data. [pstack]
