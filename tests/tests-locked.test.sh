@@ -787,6 +787,65 @@ case_D1_rebase_onto_moved_base() {
   assert_not_contains "$OUT" "tests-locked: " "rebase onto a moved base: no success line"
 }
 
+# ---- AC32/AC34 (Amendment 6, F1/F2): one config parser --------------------------
+
+# config_lines FILE KEY LINE... : drop every KEY= line, then append LINEs
+config_lines() {
+  local f="$1" k="$2" l; shift 2
+  filter_file "$f" awk -v k="$k" '!($0 ~ "^[[:space:]]*" k "[[:space:]]*=")'
+  for l in "$@"; do
+    append "$f" "$l"
+    grep -qxF -- "$l" "$f" || { fail "fixture: line not planted: $l"; return 1; }
+  done
+}
+
+# config_variant FILE KIND KEY REAL OTHER : write KEY per one AC32 variation;
+# a correct parser reads REAL, never OTHER
+config_variant() {
+  local f="$1" kind="$2" k="$3" real="$4" other="$5"
+  case "$kind" in
+    spaced) config_lines "$f" "$k" "$k = $real" ;;
+    comment) config_lines "$f" "$k" "# $k=$other" "$k=$real" ;;
+    no-equals) config_lines "$f" "$k" "$k $other" "$k=$real" ;;
+    twice) config_lines "$f" "$k" "$k=$real" "$k=$other" ;;
+    *) fail "unknown variant $kind"; return 1 ;;
+  esac
+}
+
+# write_stub_parser DIR : an installed _config.sh whose config_value prints nothing
+write_stub_parser() {
+  mkdir -p "$1/scripts/cortex"
+  printf '%s\n' '# stub: config_value reads its input and prints nothing' \
+    'config_value() { cat > /dev/null; }' > "$1/scripts/cortex/_config.sh"
+}
+
+# ac32_locked KIND : TEST_GLOBS at the lock written per KIND (real *.test.sh,
+# other *.spec.sh); a new *.test.sh is added, a new *.spec.sh is not
+ac32_locked() {
+  local kind="$1" d; d="$(base_repo)"
+  config_variant "$d/.cortex/config" "$kind" TEST_GLOBS '*.test.sh' '*.spec.sh'
+  lock_it "$d"
+  printf 'echo c\n' > "$d/tests/c.test.sh"
+  printf 'echo d\n' > "$d/tests/d.spec.sh"
+  locked "$d"
+  expect_lock added tests/c.test.sh "$kind: the real TEST_GLOBS"
+  assert_not_contains "$OUT$ERR" "LOCK added: tests/d.spec.sh" "$kind: the other value is not read as TEST_GLOBS"
+}
+
+case_AC32_spaced() { ac32_locked spaced; }
+case_AC32_comment() { ac32_locked comment; }
+case_AC32_no_equals() { ac32_locked no-equals; }
+case_AC32_twice() { ac32_locked twice; }
+
+case_AC34_stub_parser() {
+  local d; d="$(locked_repo)"
+  write_stub_parser "$d"
+  printf 'echo c\n' > "$d/tests/c.test.sh"
+  locked "$d"
+  assert_not_contains "$OUT$ERR" "LOCK added: tests/c.test.sh" "tests-locked.sh reads TEST_GLOBS through _config.sh"
+  assert_exit 0 "$CODE" "nothing else is broken -> exit 0"
+}
+
 run_case "fixture: T, then lock.md in its own commit L" case_fixture_layout
 run_case "pass: untouched locked set" case_pass_untouched
 run_case "pass: non-test changes" case_pass_non_test_changes
@@ -855,4 +914,9 @@ run_case "AC27 merge resolving a listed test to neither side" case_D1_merge_reso
 run_case "AC27 merge resolving a matched test to neither side" case_D1_merge_resolved_to_neither_matched
 run_case "AC27 merge resolving the config to neither side" case_D1_merge_resolved_config_to_neither
 run_case "AC28 rebase onto a moved base fails" case_D1_rebase_onto_moved_base
+run_case "AC32 TEST_GLOBS with spaces around =" case_AC32_spaced
+run_case "AC32 TEST_GLOBS after a commented-out line" case_AC32_comment
+run_case "AC32 TEST_GLOBS after a line without =" case_AC32_no_equals
+run_case "AC32 TEST_GLOBS twice: the first wins" case_AC32_twice
+run_case "AC34 a stub _config.sh changes what tests-locked.sh reads" case_AC34_stub_parser
 summary

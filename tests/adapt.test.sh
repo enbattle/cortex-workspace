@@ -268,6 +268,73 @@ case_stale_ignores_handwritten() {
   assert_true "hand-written GEMINI.md untouched" test "$(cat "$d/GEMINI.md")" = "# my gemini notes"
 }
 
+# ---- AC32-34 (Amendment 6, F1/F2): one config parser ----------------------------
+
+# config_lines FILE KEY LINE... : drop every KEY= line, then append LINEs
+config_lines() {
+  local f="$1" k="$2" l; shift 2
+  filter_file "$f" awk -v k="$k" '!($0 ~ "^[[:space:]]*" k "[[:space:]]*=")'
+  for l in "$@"; do
+    append "$f" "$l"
+    grep -qxF -- "$l" "$f" || { fail "fixture: line not planted: $l"; return 1; }
+  done
+}
+
+# config_variant FILE KIND KEY REAL OTHER : write KEY per one AC32 variation;
+# a correct parser reads REAL, never OTHER
+config_variant() {
+  local f="$1" kind="$2" k="$3" real="$4" other="$5"
+  case "$kind" in
+    spaced) config_lines "$f" "$k" "$k = $real" ;;
+    comment) config_lines "$f" "$k" "# $k=$other" "$k=$real" ;;
+    no-equals) config_lines "$f" "$k" "$k $other" "$k=$real" ;;
+    twice) config_lines "$f" "$k" "$k=$real" "$k=$other" ;;
+    *) fail "unknown variant $kind"; return 1 ;;
+  esac
+}
+
+# write_stub_parser DIR : an installed _config.sh whose config_value prints nothing
+write_stub_parser() {
+  mkdir -p "$1/scripts/cortex"
+  printf '%s\n' '# stub: config_value reads its input and prints nothing' \
+    'config_value() { cat > /dev/null; }' > "$1/scripts/cortex/_config.sh"
+}
+
+ac32_adapt() { # KIND : TOOLS parsed per the format section (real gemini, other cursor)
+  local kind="$1" d; d="$(fresh_install)"
+  config_variant "$d/.cortex/config" "$kind" TOOLS gemini cursor
+  adapt "$d"
+  assert_exit 0 "$CODE" "$kind: adapt exits 0"
+  assert_line "$OUT" "wrote GEMINI.md" "$kind: the real TOOLS value is used"
+  assert_file_contains "$d/GEMINI.md" "$MARKER" "$kind: GEMINI.md written"
+  assert_file_absent "$d/.cursor" "$kind: the other value is not read as TOOLS"
+  assert_not_contains "$OUT$ERR" "$TOOLS_WARNING" "$kind: TOOLS is set"
+  assert_not_contains "$OUT$ERR" "unknown tool" "$kind: no unknown tool"
+}
+
+case_AC32_spaced() { ac32_adapt spaced; }
+case_AC32_comment() { ac32_adapt comment; }
+case_AC32_no_equals() { ac32_adapt no-equals; }
+case_AC32_twice() { ac32_adapt twice; }
+
+case_AC33_spaced_list() {
+  local d; d="$(tools_install "claude , cursor")"
+  assert_file_contains "$d/.cortex/config" "TOOLS=claude , cursor" "fixture: TOOLS has spaces around the comma"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0"
+  assert_line "$OUT" "wrote CLAUDE.md" "claude adapter written"
+  assert_file_exists "$d/CLAUDE.md" "CLAUDE.md written"
+  assert_line "$OUT" "wrote .cursor/rules/cortex.mdc" "cursor adapter written"
+  assert_file_exists "$d/.cursor/rules/cortex.mdc" "cursor rule written"
+  assert_not_contains "$OUT$ERR" "unknown tool" "whitespace is not part of a tool name"
+}
+
+case_AC34_stub_parser() {
+  local d; d="$(tools_install claude,cursor,copilot,gemini)"
+  write_stub_parser "$d"
+  expect_no_adapters "$d" "stub _config.sh"
+}
+
 run_case "missing .cortex/config -> exit 2" case_missing_config
 run_case "AC11 TOOLS placeholder warns, writes nothing" case_tools_placeholder
 run_case "AC11 TOOLS empty warns, writes nothing" case_tools_empty
@@ -287,4 +354,10 @@ run_case "AC20 settings.json unchanged on re-run" case_settings_unchanged_on_rer
 run_case "AC20 stale cursor rule reported, kept" case_stale_cursor
 run_case "AC20 every removed tool reported stale" case_stale_all_known
 run_case "stale ignores hand-written files" case_stale_ignores_handwritten
+run_case "AC32 TOOLS with spaces around =" case_AC32_spaced
+run_case "AC32 TOOLS after a commented-out line" case_AC32_comment
+run_case "AC32 TOOLS after a line without =" case_AC32_no_equals
+run_case "AC32 TOOLS twice: the first wins" case_AC32_twice
+run_case "AC33 TOOLS=claude , cursor writes both" case_AC33_spaced_list
+run_case "AC34 a stub _config.sh changes what adapt.sh reads" case_AC34_stub_parser
 summary
