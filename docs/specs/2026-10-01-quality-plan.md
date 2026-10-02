@@ -155,7 +155,21 @@ Then:
 Rejected after discussion: lint hooks in the Claude Code adapter (`gates.sh`
 and review already run lint; a hook would be a third copy). [standards]
 
-## After PR 2
+## PR 3: test gaps and a faster check.sh
+
+Agreed 2026-10-02, from the test-suite audit (`evals/audits/2026-10-02-test-suites.md`).
+
+- [ ] 33. Spec Amendment 7: `check.sh` starts a bounded number of processes
+  (behavior unchanged), and acceptance criteria for the tests the mutation
+  audit asked for.
+- [ ] 34. Tests by a separate agent, before the change: planted violations
+  for the survivors c7 and t6 (rigid rules) and c2, c6, c9, c10, c12
+  (low severity; one line each), and the process-count criterion.
+- [ ] 35. `check.sh` with a bounded number of processes; refresh the golden
+  fixture; re-time a suite against the audit's numbers.
+- [ ] 36. `CHANGELOG.md` entry; CI passes.
+
+## After PR 3
 
 - [ ] 32. A completeness audit (root `AGENTS.md`): a fresh agent maps every
   item in this plan to evidence, checks the docs against the code, and
