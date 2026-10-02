@@ -148,8 +148,9 @@ Catalog (`docs/02-extensions.md`), each with a trigger:
 
 Then:
 
-- [ ] 31. Refresh the fixture; run the golden task twice with fresh
-  reviewers and record it; `CHANGELOG.md` entry; the full suites pass.
+- [x] 31. Refresh the fixture; run the golden task twice with fresh
+  reviewers and record it; `CHANGELOG.md` entry; the full suites pass (CI
+  run 37072785977 at `5b107a4`).
 
 Rejected after discussion: lint hooks in the Claude Code adapter (`gates.sh`
 and review already run lint; a hook would be a third copy). [standards]
