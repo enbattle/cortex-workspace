@@ -120,7 +120,7 @@ Test and verification quality:
   repeats it. [pstack] What counts as evidence for each kind of change is
   defined once, in `review-checklist.md`; both commands point to it.
   [routing]
-- [ ] 25. A mutation audit of the five gate scripts (break one condition at
+- [x] 25. A mutation audit of the five gate scripts (break one condition at
   a time; record what no test catches) in `evals/audits/`; automate only if
   it finds survivors. [standards]
 - [x] 26. Measure the suites' time and memory before changing them (a run
