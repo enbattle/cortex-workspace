@@ -128,19 +128,19 @@ Test and verification quality:
 
 Catalog (`docs/02-extensions.md`), each with a trigger:
 
-- [ ] 27. Mutation-testing tools for installed repositories (stack-specific,
+- [x] 27. Mutation-testing tools for installed repositories (stack-specific,
   so not shipped); flaky-test quarantine (a scale problem); coverage
   reported, never gated (a gate gets gamed). [standards] These three are
   practices for the project, so each is also seeded as a short entry in
   `template/docs/deferred-practices.md`, which installed repositories read
   at every retro; items 28 and 29 change the harness, so they stay in the
   cortex catalog only. [routing]
-- [ ] 28. Process weight scaled to stakes: a middle tier between trivial
+- [x] 28. Process weight scaled to stakes: a middle tier between trivial
   and the full pipeline, chosen by the human or a fixed rule, never the
   agent; designed from the first real project's data. [pstack]
-- [ ] 29. A second reviewer on a different model for high-risk changes,
+- [x] 29. A second reviewer on a different model for high-risk changes,
   next to model-tier routing. [pstack]
-- [ ] 30. The horizon scan records pstack, with what was adopted (items 7,
+- [x] 30. The horizon scan records pstack, with what was adopted (items 7,
   22, 23, 24, 28, 29) and what was rejected and why: its size, the
   maintained feature map (a curated summary drifts, R13), "never block on
   the human" (conflicts with the human gates), competing prototypes by

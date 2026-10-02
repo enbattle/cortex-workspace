@@ -52,3 +52,19 @@ this one.
 parallel and joins them. *Deferred:* orchestration amplifies whatever quality
 exists. *Revisit when:* latency, not quality, is the recurring complaint in
 the pipeline log.
+
+**Mutation testing.** A tool that makes small changes to the code and reports
+the ones no test catches, run on the changed files as review input.
+*Deferred:* the locked tests and the review checklist's Tests bar are the
+first checks of test strength. *Revisit when:* a defect escapes in code a
+passing test exercised.
+
+**Flaky-test quarantine.** A dated list of tests the test command skips until
+fixed or deleted. *Deferred:* no flaky test yet. *Revisit when:* a test fails
+and then passes on a rerun with nothing changed, twice.
+
+**Coverage reporting.** Which changed lines no test executes, as review
+input; never a threshold, which gets met by tests that assert nothing.
+*Deferred:* the criterion-to-test mapping in `tasks.md` is the check.
+*Revisit when:* a criterion's test turns out not to execute the code it was
+meant to verify.
