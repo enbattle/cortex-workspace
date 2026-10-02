@@ -29,7 +29,7 @@ the comparison with pstack; **[routing]** the final check that each standard rea
 - [x] 4. Amendment 6 tests, by a separate agent, before the change. `6df5d05`
 - [x] 5. `template/scripts/cortex/_config.sh`; `check.sh`, `gates.sh`,
   `tests-locked.sh` and `adapt.sh` source it. [audit]
-- [ ] 6. `tests/lib.sh` gains the helpers copied across suites, with
+- [x] 6. `tests/lib.sh` gains the helpers copied across suites, with
   assertion counts unchanged: `commit_all` (3 copies) [audit];
   `config_lines`, `config_variant`, `write_stub_parser` (4 copies each); one
   lock-fixture helper for `gated_repo`, `variant_gated_repo` and

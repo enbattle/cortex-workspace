@@ -15,27 +15,9 @@ set -euo pipefail
 
 BASE="origin/main"
 
-commit_all() { # dir msg
-  git -C "$1" add -A
-  git -C "$1" commit -q -m "$2"
-}
-
 # lock_folder DIR FOLDER : commit everything as T, then FOLDER/lock.md naming
 # T (locking tests/b.test.sh) as its own commit L
-lock_folder() {
-  local d="$1" f="$2" sha
-  commit_all "$d" "add tests for $f"
-  sha="$(git -C "$d" rev-parse HEAD)"
-  mkdir -p "$d/$f"
-  cat > "$d/$f/lock.md" <<EOF2
-Tests-locked-at: $sha
-
-## Locked tests
-
-- tests/b.test.sh
-EOF2
-  commit_all "$d" "lock tests for $f"
-}
+lock_folder() { lock_tests "$1" "$2" tests/b.test.sh; }
 
 # base_only -> filled install committed as the base (origin/main), checked out
 # on branch "feature" at the same commit; nothing locked yet

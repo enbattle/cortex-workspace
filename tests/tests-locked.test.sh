@@ -13,11 +13,6 @@ set -euo pipefail
 
 LOCK_REL="changes/x/lock.md"
 
-commit_all() { # dir msg
-  git -C "$1" add -A
-  git -C "$1" commit -q -m "$2"
-}
-
 # write_lock DIR SHA [LIST-LINE...] : changes/x/lock.md naming SHA ("-" omits
 # the Tests-locked-at line). With no list lines, locks tests/a.test.sh and
 # tests/b.test.sh (the second wrapped in backticks). A "## Notes" section
@@ -788,36 +783,6 @@ case_D1_rebase_onto_moved_base() {
 }
 
 # ---- AC32/AC34 (Amendment 6, F1/F2): one config parser --------------------------
-
-# config_lines FILE KEY LINE... : drop every KEY= line, then append LINEs
-config_lines() {
-  local f="$1" k="$2" l; shift 2
-  filter_file "$f" awk -v k="$k" '!($0 ~ "^[[:space:]]*" k "[[:space:]]*=")'
-  for l in "$@"; do
-    append "$f" "$l"
-    grep -qxF -- "$l" "$f" || { fail "fixture: line not planted: $l"; return 1; }
-  done
-}
-
-# config_variant FILE KIND KEY REAL OTHER : write KEY per one AC32 variation;
-# a correct parser reads REAL, never OTHER
-config_variant() {
-  local f="$1" kind="$2" k="$3" real="$4" other="$5"
-  case "$kind" in
-    spaced) config_lines "$f" "$k" "$k = $real" ;;
-    comment) config_lines "$f" "$k" "# $k=$other" "$k=$real" ;;
-    no-equals) config_lines "$f" "$k" "$k $other" "$k=$real" ;;
-    twice) config_lines "$f" "$k" "$k=$real" "$k=$other" ;;
-    *) fail "unknown variant $kind"; return 1 ;;
-  esac
-}
-
-# write_stub_parser DIR : an installed _config.sh whose config_value prints nothing
-write_stub_parser() {
-  mkdir -p "$1/scripts/cortex"
-  printf '%s\n' '# stub: config_value reads its input and prints nothing' \
-    'config_value() { cat > /dev/null; }' > "$1/scripts/cortex/_config.sh"
-}
 
 # ac32_locked KIND : TEST_GLOBS at the lock written per KIND (real *.test.sh,
 # other *.spec.sh); a new *.test.sh is added, a new *.spec.sh is not

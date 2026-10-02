@@ -429,36 +429,6 @@ case_C8_exact_marker_ok() {
 # parser must NOT pick.
 OTHER_NAME="Qzvother"
 
-# config_lines FILE KEY LINE... : drop every KEY= line, then append LINEs
-config_lines() {
-  local f="$1" k="$2" l; shift 2
-  filter_file "$f" awk -v k="$k" '!($0 ~ "^[[:space:]]*" k "[[:space:]]*=")'
-  for l in "$@"; do
-    append "$f" "$l"
-    grep -qxF -- "$l" "$f" || { fail "fixture: line not planted: $l"; return 1; }
-  done
-}
-
-# config_variant FILE KIND KEY REAL OTHER : write KEY per one AC32 variation;
-# a correct parser reads REAL, never OTHER
-config_variant() {
-  local f="$1" kind="$2" k="$3" real="$4" other="$5"
-  case "$kind" in
-    spaced) config_lines "$f" "$k" "$k = $real" ;;
-    comment) config_lines "$f" "$k" "# $k=$other" "$k=$real" ;;
-    no-equals) config_lines "$f" "$k" "$k $other" "$k=$real" ;;
-    twice) config_lines "$f" "$k" "$k=$real" "$k=$other" ;;
-    *) fail "unknown variant $kind"; return 1 ;;
-  esac
-}
-
-# write_stub_parser DIR : an installed _config.sh whose config_value prints nothing
-write_stub_parser() {
-  mkdir -p "$1/scripts/cortex"
-  printf '%s\n' '# stub: config_value reads its input and prints nothing' \
-    'config_value() { cat > /dev/null; }' > "$1/scripts/cortex/_config.sh"
-}
-
 # ac32_check KIND : PROJECT_NAME parsed per the format section; C1 fires for
 # the real name only
 ac32_check() {
