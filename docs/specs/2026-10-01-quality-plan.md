@@ -123,7 +123,7 @@ Test and verification quality:
 - [ ] 25. A mutation audit of the five gate scripts (break one condition at
   a time; record what no test catches) in `evals/audits/`; automate only if
   it finds survivors. [standards]
-- [ ] 26. Measure the suites' time and memory before changing them (a run
+- [x] 26. Measure the suites' time and memory before changing them (a run
   was killed for memory on 2026-09-30). [standards]
 
 Catalog (`docs/02-extensions.md`), each with a trigger:
