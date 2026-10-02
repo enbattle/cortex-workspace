@@ -9,7 +9,9 @@ here.
 
 Each entry: **what it is**, **why deferred** (the actual reasoning, not "not
 needed"), **revisit when** (a condition that can be checked true or false).
-"It's a best practice" is not a trigger.
+"It's a best practice" is not a trigger. An entry can also be adopted
+before its trigger fires when it passes the four checks of R14
+(`.cortex/design-rules.md`); the retro records the answers.
 
 The entries below are seeded from cortex's extensions catalog; the catalog
 (cortex `docs/02-extensions.md`) has how to build each one and its pitfalls.

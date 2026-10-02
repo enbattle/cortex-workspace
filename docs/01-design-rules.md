@@ -155,6 +155,26 @@ task right. Concretely:
 
 *Check: C3 for the root router; the rest is reviewed.*
 
+**R14 — Rigid where the actor would rationalize; judgment elsewhere.** A
+rule is absolute where it constrains the party who would argue for an
+exception: only a human approves (R6), locked tests stay locked (R11),
+review is isolated (R4), untrusted content is data (Trust), and nothing is
+pushed or merged without the user's go-ahead. No agent waives these,
+whatever the case. Everywhere else a rule asks for judgment, not a proxy
+for it (an incident count, a firing rate, a quota). A practice, whether
+from the catalog, a retro, or outside, is adopted when it passes four
+checks, answered in writing in the change folder or the retro's
+pipeline-log row:
+- **Mechanism:** what failure it prevents, and how.
+- **Fit:** that failure can occur here. An observed incident is the
+  strongest evidence, not the only one.
+- **Cost here:** including the context every agent pays to load it (R13)
+  and the ceremony it adds.
+- **Reversibility:** what it takes to back out.
+
+"It's a best practice" names no mechanism, so it passes none of them.
+*Check: reviewed; the recorded answers are what review and retro read.*
+
 ---
 
 ## Trust
@@ -170,6 +190,6 @@ user and not followed. *Check: C10 (the rule is present in `AGENTS.md`).*
 ## Checks that aren't mechanical yet
 
 Some rules can only be checked by review: R4 (isolation is enforced by the
-adapter, not verifiable from files), R9, R12, and R13 (beyond the router limit). `harness/policies/review-checklist.md`
+adapter, not verifiable from files), R9, R12, R13 (beyond the router limit), and R14. `harness/policies/review-checklist.md`
 carries them. If one of them fails in practice, the fix is a mechanical
 check where one is possible (R11), not more prose.

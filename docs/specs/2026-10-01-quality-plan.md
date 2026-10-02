@@ -60,7 +60,7 @@ golden runs happen once. [seams]
 
 Judgment over proxies [rigidity]:
 
-- [ ] 12. **diff first** A design rule, R14, in `docs/01-design-rules.md`:
+- [x] 12. **diff first** A design rule, R14, in `docs/01-design-rules.md`:
   the rigidity line above, and what counts as evidence for adopting a
   practice (an observed incident, or a well-understood failure that can
   occur here, passed through the four checks: mechanism, fit, cost here,
@@ -70,22 +70,22 @@ Judgment over proxies [rigidity]:
   document is never installed, so a retro there could not read it.
   `docs/03-mental-traps.md` explains the reasoning beside P5 and points to
   R14. [routing]
-- [ ] 13. **diff first** Every restatement points to R14 instead of
+- [x] 13. **diff first** Every restatement points to R14 instead of
   defining evidence itself: P2, T1's antidote and pre-addition question 1, T5,
   the traps document's own entry rule, `docs/02-extensions.md`'s operating
   rule, `docs/04-operator-feedback-loop.md`'s judgment rules ("act on
   second" becomes cost-dependent: a cheap, reversible fix may act on the
   first occurrence), and `template/docs/deferred-practices.md`.
-- [ ] 14. An adoption made on the four checks records its answers (in the
+- [x] 14. An adoption made on the four checks records its answers (in the
   retro's pipeline-log row or the change folder), as a waiver is recorded:
   `retro.md` step 4 and the extensions operating rule. [seams]
-- [ ] 15. **diff first** Deletion quotas become "nominate one, or say why
+- [x] 15. **diff first** Deletion quotas become "nominate one, or say why
   nothing qualifies": T14's antidote and the extensions' "Deletion pass".
-- [ ] 16. Removing a checklist item weighs the severity of what it catches,
+- [x] 16. Removing a checklist item weighs the severity of what it catches,
   not only how often it fires: `review-checklist.md`'s preamble and T14.
 - [ ] 17. R13: a theoretical finding becomes a known limitation by default;
   a cheap test is allowed when the class is severe (matching `review.md`).
-- [ ] 18. **diff first** Drop "not through another completeness audit" from
+- [x] 18. **diff first** Drop "not through another completeness audit" from
   `docs/04-operator-feedback-loop.md` (it contradicts the root `AGENTS.md`).
 - [ ] 19. R7 says it limits the harness's own requirements, not the
   project's development tools.

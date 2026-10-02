@@ -6,17 +6,19 @@ A note about this document, in its own spirit: it earned its existence by having
 
 ---
 
-## The five principles behind everything
+## The principles behind everything
 
-**P1 — Awareness is free; obligation is expensive.** Knowing a practice exists costs a catalog line. Adopting it costs attention, maintenance, credibility, and agent context — forever. The two are best separated ruthlessly: comprehensive *awareness* (a curated catalog with triggers), minimal *adoption* (only what evidence demands). "It's a best practice" describes awareness; on its own, it is never a reason for adoption.
+**P1 — Awareness is free; obligation is expensive.** Knowing a practice exists costs a catalog line. Adopting it costs attention, maintenance, credibility, and agent context — forever. The two are best separated ruthlessly: comprehensive *awareness* (a curated catalog with triggers), minimal *adoption* (only what evidence demands, as R14 defines it). "It's a best practice" describes awareness; on its own, it is never a reason for adoption.
 
-**P2 — Evidence over roadmap.** The retro log outranks architectural appetite. Structure earns its way in through observed friction, not anticipation of it. Corollary: instrument first (a metrics table in markdown is enough), build second.
+**P2 — Evidence over roadmap.** The retro log outranks architectural appetite. Structure earns its way in through evidence: friction already observed, or a failure whose mechanism is understood and can occur here, passed through the four checks of R14 (`01-design-rules.md`). Anticipation alone ("we might need it") is not evidence. Corollary: instrument first (a metrics table in markdown is enough), build second.
 
 **P3 — Artifacts over conversations.** Anything a later stage, another agent, or a future human needs must live in a durable file, never in a session's memory. This one principle buys reviewer isolation, crash recovery, parallelism, and honest handoffs — all for the price of writing things down.
 
 **P4 — Canonical content once; everything else points at it.** Duplicated content is drift by construction. Tool adapters, wrappers, and summaries contain delegation, never copies. The moment the same fact is maintained in two files, one of them is already wrong — it just isn't yet clear which.
 
 **P5 — Loops terminate; humans decide.** Every automated iteration has a stop condition, a budget, and an escalation path. Judgment calls — merging, waiving, resolving conflicts, spending a third review round — belong to people. An agent that never gives up is not persistent; it is unaccountable.
+
+**P6 — Rigid where the actor would rationalize; judgment everywhere else.** A gate exists because the party it constrains will always have a reason why this case is different, so a gate with exceptions is no gate: approval, the test lock, reviewer isolation and the trust rule stay absolute. Rules about what to adopt, keep or delete are the opposite. There a fixed proxy (an incident count, a firing rate, a deletion quota) stands in for a judgment it can't make, and fails where the judgment matters. Understanding why a practice works elsewhere and checking that the reason holds here is the work, not a shortcut around it. *(Canonical: R14.)*
 
 ---
 
@@ -28,7 +30,7 @@ Each trap follows the same anatomy: **the pull** (why capable people fall in), *
 *The pull:* covering every practice up front feels like protection against future gaps — the reasoning usually sounds like "it will be harder to know what's needed if it never existed in the document."
 *The cost:* documents that agents skim and humans perform; twenty mandated practices yield twelve done as theater; the ceremony that was actually needed gets bypassed along with the ceremony that wasn't.
 *The tell:* an addition being justified with "all serious projects use this" rather than a condition the project has actually exhibited. The instinct also tends to recur in different clothing — designing extraction before a second team exists, adopting a tool "for all future projects," addressing every practice "for foundation."
-*The antidote:* the awareness/obligation split (P1). Record the practice in the catalog with a trigger; build it when the trigger fires. A trigger is a *stronger* answer to the discovery problem than presence in a list — a list says the practice exists; a trigger says what a project looks like when it's time.
+*The antidote:* the awareness/obligation split (P1). Record the practice in the catalog with a trigger; build it when the trigger fires, or sooner when it passes R14's four checks. A practice whose mechanism you understand, and whose failure can happen here, doesn't need to hurt you first. A trigger is a *stronger* answer to the discovery problem than presence in a list — a list says the practice exists; a trigger says what a project looks like when it's time.
 
 ### T2 — Premature generalization
 *The pull:* designing for future teams or projects feels like foresight; abstraction feels like engineering maturity.
@@ -52,7 +54,7 @@ Each trap follows the same anatomy: **the pull** (why capable people fall in), *
 *The pull:* new terms ("prompt/context/loop/graph engineering") arrive with viral urgency and the implication that everyone serious has already moved on.
 *The cost:* restructuring around vocabulary with a measurable half-life; documents named after trends rot by definition; renaming gets mistaken for progress.
 *The tell:* the exciting new practice is younger than the retro log, and it's hard to state what it adds beyond patterns already implemented under older names.
-*The antidote:* extract substance, discard branding. "Which durable pattern is this relabeling?" is a better first question than "should this be adopted?" All novelty routes through the horizon scan: catalog entries with triggers, never direct implementations. Six weeks is a fashion cycle, not an engineering signal.
+*The antidote:* extract substance, discard branding. "Which durable pattern is this relabeling?" is a better first question than "should this be adopted?" All novelty routes through the horizon scan and R14: usually a catalog entry with a trigger, adopted directly only when its four checks pass. Six weeks is a fashion cycle, not an engineering signal.
 
 ### T6 — Tool coupling
 *The pull:* the current agent tool's native features (its context filename, its command format, its subagents) are convenient right now.
@@ -106,7 +108,7 @@ Each trap follows the same anatomy: **the pull** (why capable people fall in), *
 *The pull:* additions are visible contributions; deletions feel like admitting mistakes.
 *The cost:* a workspace that only accretes is decaying in slow motion — every unused command, unrouted file, and never-firing checklist item is context spent and credibility eroded.
 *The tell:* nothing deleted since creation; a catalog that has grown every quarter; review findings converted wholesale into tests and rules. In `til`, four fix rounds on one feature each turned a reviewer's theoretical markdown or SVG edge case into a permanent test; a later audit found about 3,000 removable lines of tests and tooling, much of it from that habit.
-*The antidote:* deletion discipline — every structural review nominates at least one removal; retro treats "this step added no value" as a first-class finding; aliases over duplicates when novelty turns out to be renaming.
+*The antidote:* deletion discipline — every structural review nominates a removal or says why nothing qualifies (a quota invites deleting something to meet it), and weighs a quiet checklist item by the severity of what it would catch, not only how often it fires; retro treats "this step added no value" as a first-class finding; aliases over duplicates when novelty turns out to be renaming.
 
 ---
 
@@ -114,7 +116,7 @@ Each trap follows the same anatomy: **the pull** (why capable people fall in), *
 
 Before adding *anything* — a practice, a document, a command, a knowledge file, a tool — a recommended discipline is to answer these six questions in writing (two sentences each is plenty):
 
-1. **What observed condition demands this?** (Cite the retro log or a concrete incident. "Best practice" and "future-proofing" are not conditions — see T1, T2.)
+1. **What failure does this prevent here?** (An incident from the retro log, or a mechanism that can occur here: R14. "Best practice" and "future-proofing" name no mechanism — see T1, T2.)
 2. **Does it already exist** — in the harness under another name, or in a maintained external tool? (T4, T5)
 3. **Who or what will read it, and when?** If the answer is "agents, always," it is probably landfill (T8). If the answer is "nobody, specifically," that answers the larger question too.
 4. **What keeps it true?** Name the mechanism — CI check, retro category, stamped version, greppable invariant — or accept that the addition will silently rot (T3, T13).
@@ -127,4 +129,4 @@ An addition that clears all six can go in without guilt. The discipline is not m
 
 ## One last trap: this document
 
-Meta-discipline for this file itself: entries enter only with the full anatomy and a real incident behind them; the horizon scan may propose entries, but the bar stays "someone actually fell in"; and if this document ever exceeds roughly twice its current length, the next structural review should consolidate it rather than extend it. A traps document that becomes exhausting to read has fallen into T1, T8, and T14 simultaneously — and will be skipped precisely by the reader mid-fall who needed it most.
+Meta-discipline for this file itself: entries enter only with the full anatomy and a real incident behind them, here or well documented elsewhere (this document exists so lessons already paid for aren't re-learned); the horizon scan may propose entries, but the bar stays "someone actually fell in", not "someone could"; and if this document ever exceeds roughly twice its current length, the next structural review should consolidate it rather than extend it. A traps document that becomes exhausting to read has fallen into T1, T8, and T14 simultaneously — and will be skipped precisely by the reader mid-fall who needed it most.
