@@ -50,7 +50,7 @@ the comparison with pstack; **[routing]** the final check that each standard rea
   hashes; its "Log" step records results and deviations only, not the
   procedure. Past results files stay as written. [tests/evals]
 - [x] 10. Refresh the golden fixture (scripts and `_config.sh` changed).
-- [ ] 11. `CHANGELOG.md` entry; the full `bash tests/run.sh` passes;
+- [x] 11. `CHANGELOG.md` entry; the full `bash tests/run.sh` passes (all 7 suites at `12d5349`; shellcheck runs in CI);
   shellcheck passes in CI.
 
 No golden review runs in PR 1: every review-text edit moved to PR 2 so the

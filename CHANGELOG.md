@@ -146,6 +146,24 @@ release:
 - Archived change folders (`changes/archive/`) are not gated; `retro` says
   how to archive.
 
+**Changed for DRY and YAGNI** (spec Amendment 6; plan
+`docs/specs/2026-10-01-quality-plan.md`, PR 1):
+
+- One `.cortex/config` parser, `scripts/cortex/_config.sh`, sourced by
+  `check.sh`, `gates.sh`, `tests-locked.sh` and `adapt.sh` from their own
+  directory (the four copies had diverged). Behavior is unchanged; new tests
+  pin parsing cases nothing covered before (spaces around `=`, a commented
+  key, a duplicate key). An installed repository gains one file.
+- Constitution E4: build only what the acceptance criteria need, keep one
+  source per fact, and migrate internal callers and delete the old path in
+  the same change.
+- `deferred-practices.md` no longer lists the CI checks that `ci-gates.sh`
+  already runs.
+- `docs/00-highlights.md` is removed; it restated the design rules and had
+  drifted from them. The README's reading order starts at the design rules.
+- Maintainers: shared test helpers live in `tests/lib.sh`, and
+  `evals/golden/review-maxlength/refresh.sh` refreshes the golden fixture.
+
 **Fixed (design problems in v1):**
 
 - A repository's `AGENTS.md` "overriding workspace guidance" contradicted
