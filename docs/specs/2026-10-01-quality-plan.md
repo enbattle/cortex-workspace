@@ -49,7 +49,7 @@ the comparison with pstack; **[routing]** the final check that each standard rea
   matches" keeps the current state and the check, not each refresh's
   hashes; its "Log" step records results and deviations only, not the
   procedure. Past results files stay as written. [tests/evals]
-- [ ] 10. Refresh the golden fixture (scripts and `_config.sh` changed).
+- [x] 10. Refresh the golden fixture (scripts and `_config.sh` changed).
 - [ ] 11. `CHANGELOG.md` entry; the full `bash tests/run.sh` passes;
   shellcheck passes in CI.
 
