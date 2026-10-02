@@ -35,7 +35,7 @@ the comparison with pstack; **[routing]** the final check that each standard rea
   lock-fixture helper for `gated_repo`, `variant_gated_repo` and
   `lock_folder` (`write_lock` stays: it builds malformed locks); and
   `set_config` reuses `append`. [tests/evals]
-- [ ] 7. Constitution E4, judged by whether copies must change together
+- [x] 7. Constitution E4, judged by whether copies must change together
   (the third copy is when to look, not a mandate) [seams], and including:
   migrate internal callers and delete the old path in the same change,
   while public interfaces follow E2. [standards] [pstack]

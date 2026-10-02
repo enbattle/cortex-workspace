@@ -15,6 +15,7 @@ principle as E2, S3, W1, P1, and so on (R-numbers are the design rules in
 - E1. Every behavior change ships with tests that encode its acceptance criteria.
 - E2. Public interfaces (APIs, events, file formats, CLI flags) change compatibly, or with a documented migration.
 - E3. Errors are handled or propagated explicitly; nothing is silently swallowed.
+- E4. Build only what the acceptance criteria need: no option, layer or abstraction for an anticipated requirement. Each fact or rule has one source: when copies must change together, merge them (look hard by the third). Replacing an internal API means migrating its callers and deleting the old path in the same change; public interfaces follow E2.
 
 ## Security
 
