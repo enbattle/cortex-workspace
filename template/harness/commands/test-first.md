@@ -25,8 +25,9 @@ tests to fit it, so the tests stop encoding the spec.
 1. Read only the change folder and the code the tests will exercise. Don't
    read or plan the implementation.
 2. For each criterion marked **automatable**, write one or more tests in the
-   repository's test style. Create or edit test files and test fixtures only;
-   never an implementation file.
+   repository's test style, to the bar in the Tests section of
+   `harness/policies/review-checklist.md`. Create or edit test files and
+   test fixtures only; never an implementation file.
 3. Run the test command and confirm each new test **fails for the expected
    reason**: the behavior is missing, not a typo, an import error, or a
    broken fixture. A test that passes before the implementation exists tests

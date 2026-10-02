@@ -17,6 +17,11 @@ each off with a one-line note and commits at every task boundary. -->
 <!-- The test lock is not in this file: test-first writes lock.md in its own
 commit, so nothing that edits tasks.md can move it. -->
 
+## Verification
+
+<!-- implement records how it ran the changed thing the way a user would,
+and what it saw (the review checklist says what counts). -->
+
 ## Gate output
 
 <!-- implement pastes the output of scripts/cortex/gates.sh here before

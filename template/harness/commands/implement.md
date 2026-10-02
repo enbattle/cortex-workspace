@@ -48,7 +48,10 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    the folder.
 5. Update any doc the change makes stale: `AGENTS.md`, `docs/knowledge/`,
    a README. Only what actually changed.
-6. Before handing off, run `bash scripts/cortex/gates.sh <change-folder>` (the
+6. Verify the change on the real artifact, as the "Verification on the real
+   artifact" section of `harness/policies/review-checklist.md` describes, and
+   paste the evidence under `## Verification` in `tasks.md`. Then, before
+   handing off, run `bash scripts/cortex/gates.sh <change-folder>` (the
    test lock, the build, test and lint commands from `.cortex/config`, and
    the harness check) and paste its output under `## Gate output` in
    `tasks.md`, then commit `tasks.md`: `review` requires a clean tree. It
@@ -60,7 +63,7 @@ what was tried in the task's note, and escalate to the user.
 
 ## Output
 
-Commits on the change branch, `tasks.md` checked off with notes and gate
+Commits on the change branch, `tasks.md` checked off with notes, verification evidence and gate
 output, docs updated. End by telling the user to run `review` in a **fresh
 context** that has not seen this conversation.
 

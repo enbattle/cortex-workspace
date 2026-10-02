@@ -33,6 +33,10 @@ against the change before approving it.
    committed and appears in it (plain `git diff` would miss untracked files).
 3. Re-run the gates yourself rather than trusting `tasks.md`:
    `bash scripts/cortex/gates.sh <change-folder>`. A failing gate is a finding.
+   Then repeat the verification on the real artifact that `tasks.md` records
+   under `## Verification` (the checklist says what counts). If there is no
+   record, run it yourself: a missing record is Low; a verification that
+   fails is a finding at the severity of what fails.
 4. Verify each acceptance criterion is actually met, not that code exists
    that looks related. Check each manual-verify item is listed for the user.
 5. Walk `harness/policies/review-checklist.md` item by item.
@@ -74,8 +78,11 @@ must decide how to proceed.
 A verdict, **approve** or **request changes**, with findings ordered by
 severity; each has the file and line, why it matters, and a concrete fix. An
 approval includes a paragraph on what was probed and found sound, so an
-empty approval is visible as one. On request-changes, write the findings to
-`review-findings.md` in the change folder with the round number (the folder
+empty approval is visible as one. The verdict also lists every procedure
+step and every checklist item as **done** (a few words on what was checked)
+or `skip: <reason>`, so a step skipped silently is visible as one.
+
+On request-changes, write the findings to `review-findings.md` in the change folder with the round number (the folder
 carries them to the next `implement`, not this conversation). Each round is
 a section headed `## Round <n>`, so the round count is mechanical. If you
 are running read-only (an adapter may take away your write tools), return

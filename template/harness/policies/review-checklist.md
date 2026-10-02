@@ -2,7 +2,9 @@
 
 The `review` command reads this fresh on every run. Edit this file to raise
 review standards; that is a data change, not a prompt rewrite. Remove an item
-that has never produced a finding in a long time: a checklist that only grows
+that has stopped earning its place, weighing how often it finds something
+against the severity of what it would catch (an authorization check that
+rarely fires may be the most valuable line here): a checklist that only grows
 stops being read.
 
 ## Correctness
@@ -13,9 +15,27 @@ stops being read.
 
 ## Tests
 
+`test-first` writes tests to this bar; review checks them against it. A test
+that can't fail, mocks the unit it tests, or passes or fails by chance leaves
+its criterion unverified: Medium. A missing property-based test or extra
+boundary case is Low, unless a criterion depends on it.
+
 - [ ] `bash scripts/cortex/gates.sh <change-folder>` passes, including the test lock: the tests are exactly as `test-first` committed them.
 - [ ] Each automatable criterion maps to a test in `tasks.md`; each manual-verify item is listed for the user.
-- [ ] Tests assert behavior a user or caller would see, not the implementation's internals, and run against real output, not a re-implementation of it.
+- [ ] Tests call the code the way its users do and assert against literal expected values, never values computed by the code under test or a re-implementation of it; the unit under test is never mocked.
+- [ ] Tests are deterministic and isolated: nothing depends on the clock, test order, the network, or state a test didn't set up.
+- [ ] Boundary and error cases from the criteria are tested, not only the expected path; where the input space is large (a parser, a validator, a serializer), a property-based test covers it.
+
+## Verification on the real artifact
+
+`implement` records this under `## Verification` in `tasks.md`; review repeats it.
+
+- [ ] The changed thing was run the way a user would, matched to what changed: a command by its real invocation and output; an endpoint by a real request and response; a user-facing flow by walking it; a migration by applying it (and rolling it back) on a copy; a library by calling it from a caller's position. "It builds" or "the tests pass" is not this evidence.
+
+## Simplicity (constitution E4)
+
+- [ ] No logic or fact is duplicated where the copies must change together.
+- [ ] Nothing is built beyond the criteria: no unused option, speculative abstraction, dead code, or compatibility path kept for internal callers.
 
 ## Security (every change; the external-surface pass goes deeper)
 
@@ -34,7 +54,6 @@ stops being read.
 
 - [ ] The code follows the conventions in `AGENTS.md` (and a package's own `AGENTS.md`).
 - [ ] Docs the change made stale are updated; any spec deviation is in `design.md`'s `## As built`.
-- [ ] `bash scripts/cortex/check.sh` passes.
 
 ## Process rules only review can check
 

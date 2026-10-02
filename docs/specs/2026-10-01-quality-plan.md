@@ -96,25 +96,25 @@ Judgment over proxies [rigidity]:
 
 Review text, all in this PR so golden runs happen once [seams]:
 
-- [ ] 20. `review-checklist.md`: drop the `check.sh` item (`gates.sh` runs
+- [x] 20. `review-checklist.md`: drop the `check.sh` item (`gates.sh` runs
   it) [audit]; add a simplicity item (no duplicated logic that must change
   together, nothing beyond the criteria) [standards].
-- [ ] 21. `security-review.md` points to `review.md` step 7 for what counts
+- [x] 21. `security-review.md` points to `review.md` step 7 for what counts
   as an external surface, instead of repeating the list. [audit]
-- [ ] 22. The review verdict lists every procedure step and checklist item
+- [x] 22. The review verdict lists every procedure step and checklist item
   as done or `skip: <reason>`, so an empty approval is mechanical to spot.
   [pstack]
 
 Test and verification quality:
 
-- [ ] 23. A test-quality bar: deterministic and isolated; boundary and
+- [x] 23. A test-quality bar: deterministic and isolated; boundary and
   error cases; never mock the unit under test; assert against literal
   expected values [pstack]; property-based tests where the input space is
   large. [standards] It lives once, in the Tests section of
   `review-checklist.md`, which the reviewer already loads (R4); `test-first.md`
   tells the test writer to meet that section, instead of a copy the
   reviewer can't see. [routing]
-- [ ] 24. Verification on the real artifact, matched to what changed:
+- [x] 24. Verification on the real artifact, matched to what changed:
   `implement` runs the changed thing the way a user would (the command, the
   endpoint, the flow) and pastes the evidence into `tasks.md`; `review`
   repeats it. [pstack] What counts as evidence for each kind of change is
