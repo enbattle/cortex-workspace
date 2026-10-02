@@ -44,12 +44,12 @@ suites passed first.
 
 **25 caught, 10 survived.** Every mutant applied and parsed.
 
-Survivors, triaged (R13, R14):
+Survivors, triaged (R13, R14). A surviving mutant means no test would notice that breakage; the scripts as committed are correct in every case below.
 
 | Mutant | What survives | Judgment |
 | --- | --- | --- |
-| c7 | C7 exempts every template, so `Approved-by:` could appear in any of them | **Real gap in a rigid rule** (R6: only a human writes approval). Worth a planted-violation test. |
-| t6 | A staged edit to a locked file, with the working tree restored, passes: the commit takes the weakened index copy, the check compares the working tree | **Real gap in the local guardrail.** CI's fresh checkout catches it (R11's boundary). Worth a planted-violation test. |
+| c7 | Widening C7's exemption to every template (so `Approved-by:` could appear in any of them) goes unnoticed. `check.sh` itself exempts only the proposal. | **Test gap on a rigid rule** (R6: only a human writes approval). Worth a planted-violation test. |
+| t6 | Dropping the index comparison goes unnoticed: no test stages a weakened locked file and restores the working tree (the commit would take the weakened copy). `tests-locked.sh` itself compares both. | **Test gap on the lock** (R11). Worth a planted-violation test. |
 | c2 | C2 misses one tool name (`codex`): only some names are planted | Low. A cheap test per listed name. |
 | c6 | C6 accepts `Budget:` anywhere in a line | Low. |
 | c9 | C9 allows a 26-line skill: the boundary isn't pinned | Low. |
@@ -59,7 +59,7 @@ Survivors, triaged (R13, R14):
 | t2 | One later edit to `lock.md` allowed by the count | **Covered elsewhere.** Two lock commits break the parent check, which reports `LOCK moved`. |
 
 **Recommendation:** planted-violation tests for c7 and t6 (a rigid rule and
-a lock bypass), written by a separate agent as for any test. The five Low
+the lock), written by a separate agent as for any test. The five Low
 survivors are cheap one-line plants too; whether to add them is the
 maintainer's call. Automating mutation testing in CI is not recommended yet:
 the regex mutants are tied to the scripts' exact text and would break on
