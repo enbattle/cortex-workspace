@@ -28,23 +28,12 @@ format (Amendment 2's `lock.md`).
 
 ## Which template this fixture matches
 
-Rebuilt on 2026-09-24 from the template at commit `15de2ea`, with that
-commit's `scripts/install.sh` and by following its command texts. The
-source, tests, proposal and planted change are the first build's (from
-`1f9e92d`). Refreshed on 2026-09-29 to the template at commit `3080b70`
-(the same template and design rules as `c2088a2`). Refreshed again on
-2026-09-30 for the design rules only (R11 now covers loosening a check), by
-the same history rewrite: commits `golden-clean` `c5ba08f`, `golden-planted`
-`25eb14e`, base `ede3d24`, and `lock.md`'s `Tests-locked-at` `dac3016`. Only
-`.cortex/design-rules.md` and that sha changed at both tags; `gates.sh`
-prints `gates: ok` at both, and the reproductions below give their expected
-values at `golden-clean` and their wrong ones at `golden-planted`.
-Refreshed again on 2026-09-30 for the triage-waiver text in
-`harness/commands/implement.md` and `review.md`, by the same rewrite, then
-once more for `implement.md`'s High-finding rule: `golden-clean` `6571f1b`,
-`golden-planted` `84d80ab`, base `6831eb4`, and `Tests-locked-at`
-`7fcebf8`. Only those files and that sha changed at both tags;
-`gates: ok` and the reproductions hold as before.
+The fixture was built on 2026-09-24 from the template at commit `15de2ea`,
+with that commit's `scripts/install.sh` and by following its command texts;
+the source, tests, proposal and planted change come from the first pilot
+(`1f9e92d`). Since then only its installed copies have been refreshed. The
+current tags are in the bundle, and each results file records the commits
+it ran against.
 
 The installed copies that must match their source byte for byte, at
 `golden-clean`, with `golden-planted` leaving them unchanged:
@@ -61,23 +50,15 @@ The installed copies that must match their source byte for byte, at
 is missing, so after an edit to any of them in `template/` the suites fail
 until the fixture is refreshed. Otherwise a run tests the old text.
 
-To refresh, either rebuild it with the current `install.sh` following the
-same steps (install, the approved change folder, test-first's three
-commits, the implementation, tag `golden-clean`, add the planted commit, tag
-`golden-planted`), or, when only those copies changed, rewrite the history
-as the 2026-09-29 refresh did. In a clone of the bundle with
-`core.autocrlf=false` and local `main`, `cortex-install` and
-`change/20260924-slugify-maxlength` branches, run
-`git filter-branch --tree-filter <filter> --tag-name-filter cat -- --branches --tags`,
-where the filter, at every commit that has `harness/commands/review.md`,
-copies each file in the list above from the cortex checkout, and in
-`changes/20260924-slugify-maxlength/lock.md` replaces the old
-`Tests-locked-at` sha with `$(map <old sha>)`. Source, tests, planted
-content, commit messages, authors and dates stay as they are. Then
-`git bundle create fixture.bundle HEAD --branches --tags`, check that
-`gates.sh` prints `gates: ok` at both tags and that the rubric's
-reproductions still give their expected values at `golden-clean` and their
-wrong ones at `golden-planted`, and update the shas above.
+To refresh, run `bash evals/golden/review-maxlength/refresh.sh` and commit
+the new `fixture.bundle`. It rewrites the fixture's history with the
+current copies and replaces the bundle only if `gates.sh` prints
+`gates: ok` at both tags and the project's own files are unchanged (so the
+rubric's reproductions still hold). When the template removes a file or
+changes how a change is taken through the commands, rebuild the fixture
+instead, following the same steps as the first build (install, the approved
+change folder, test-first's three commits, the implementation, tag
+`golden-clean`, add the planted commit, tag `golden-planted`).
 
 ## Procedure
 
@@ -126,4 +107,5 @@ clone and by its own fresh agent.
    tree was dirty), the agent tool and model, then per run the tag, verdict,
    grade, the finding that named the plant (severity and a one-line quote)
    or why it failed, other findings with your judgment of each, and whether
-   the clone was left clean.
+   the clone was left clean. Note deviations from this procedure; don't
+   restate it or the fixture's setup.
