@@ -159,13 +159,13 @@ and review already run lint; a hook would be a third copy). [standards]
 
 Agreed 2026-10-02, from the test-suite audit (`evals/audits/2026-10-02-test-suites.md`).
 
-- [ ] 33. Spec Amendment 7: `check.sh` starts a bounded number of processes
+- [x] 33. Spec Amendment 7: `check.sh` starts a bounded number of processes
   (behavior unchanged), and acceptance criteria for the tests the mutation
   audit asked for.
-- [ ] 34. Tests by a separate agent, before the change: planted violations
+- [x] 34. Tests by a separate agent, before the change: planted violations
   for the survivors c7 and t6 (rigid rules) and c2, c6, c9, c10, c12
   (low severity; one line each), and the process-count criterion.
-- [ ] 35. `check.sh` with a bounded number of processes; refresh the golden
+- [x] 35. `check.sh` with a bounded number of processes; refresh the golden
   fixture; re-time a suite against the audit's numbers.
 - [ ] 36. `CHANGELOG.md` entry; CI passes.
 

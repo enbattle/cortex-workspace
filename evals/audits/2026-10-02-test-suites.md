@@ -65,3 +65,29 @@ maintainer's call. Automating mutation testing in CI is not recommended yet:
 the regex mutants are tied to the scripts' exact text and would break on
 every edit; re-run this file's audit after a substantial script change
 instead.
+
+## Follow-up: check.sh with a bounded number of processes (PR 3)
+
+Spec Amendment 7. Each check now runs one `grep` over every file it covers
+(C5 one per heading), so the count no longer grows with the template: with
+40 files added, every count stays the same (criterion 43). Old and new
+printed byte-identical output and exit codes on a fresh install, a filled
+install, every check failing at once, C2 in both directories, C5 and C6,
+C9 at 25, 26 and unmarked, and with `harness/`, `docs/knowledge/` or
+`harness/commands/` missing.
+
+- `check.sh` on a filled install: 2.1 s against 7.3 s for the old script,
+  run side by side on the same loaded machine (3.3 s unloaded above).
+- `check.test.sh`: 54 cases (10 new) in 497 s, a mean of 9.2 s per case
+  against 11.3 s: about 19% faster per case.
+
+The suites are now dominated by the test harness itself: each assertion in
+`tests/lib.sh` starts a `grep`, and each fixture runs several `git`
+commands, at 50-60 ms per process here. Assertions written with bash
+pattern matching instead of `grep` would be the next lever; that changes
+the helpers, so assertion counts must stay the same.
+
+Found on the way: with `harness/` or `docs/knowledge/` missing, `check.sh`
+exits 1 with no output (a `set -e` stop inside `files_under`). The new
+script keeps that exit code, as H1 requires; a message saying what is
+missing would be a spec change of its own.
