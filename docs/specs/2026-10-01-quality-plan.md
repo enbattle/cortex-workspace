@@ -167,7 +167,7 @@ Agreed 2026-10-02, from the test-suite audit (`evals/audits/2026-10-02-test-suit
   (low severity; one line each), and the process-count criterion.
 - [x] 35. `check.sh` with a bounded number of processes; refresh the golden
   fixture; re-time a suite against the audit's numbers.
-- [ ] 36. `CHANGELOG.md` entry; CI passes.
+- [x] 36. `CHANGELOG.md` entry; CI passes.
 
 ## After PR 3
 

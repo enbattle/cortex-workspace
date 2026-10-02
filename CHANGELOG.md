@@ -192,6 +192,20 @@ release:
   process start-up makes `check.sh` take 3.3 s on Windows, and a mutation
   audit of the gate scripts caught 25 of 35 mutants.
 
+**Changed: test gaps closed, a faster check.sh** (spec Amendment 7, plan
+PR 3):
+
+- `check.sh` runs one `grep` per check over all the files it covers instead
+  of one per file, so the number of processes it starts no longer grows
+  with the template. Output and exit codes are unchanged; it runs about 3.5
+  times faster on Windows.
+- Planted-violation tests for the checks the mutation audit found untested:
+  `Approved-by:` in a template other than the proposal (C7), a staged edit
+  to a locked test with the working tree restored, each tool name in C2, a
+  mid-line `Budget:` (C6), the 25-line skill boundary (C9), the
+  untrusted-content wording (C10), and `TODO` without a colon (C12).
+- `refresh.sh` reports a failing gate instead of exiting silently.
+
 **Fixed (design problems in v1):**
 
 - A repository's `AGENTS.md` "overriding workspace guidance" contradicted
