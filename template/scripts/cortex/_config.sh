@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # The one parser for .cortex/config (spec Amendment 6). Sourced, never run,
 # by the scripts next to it; each sources the copy in its own directory, so a
 # base-branch script run by ci-gates.sh uses the base-branch parser too.
