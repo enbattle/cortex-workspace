@@ -10,7 +10,7 @@ as the tool allows.
 
 **Status:** 2.0.0, not yet released (see [CHANGELOG.md](CHANGELOG.md)). The
 scripts are covered by test suites written by a separate agent before the
-scripts were (`tests/`, 6 suites). The whole
+scripts were (`tests/`, 7 suites). The whole
 pipeline has run end to end once, on a toy repository
 ([pilot 1](evals/pilots/2026-09-23-toy-repo.md)): review caught a real
 compatibility break, and a fresh reviewer caught a planted bug the tests
