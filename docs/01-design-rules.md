@@ -59,7 +59,9 @@ in, or suggests text for it; a command that finds it missing stops and asks.
 **R7 — Plain files.** The harness is markdown plus a few POSIX shell scripts
 that need only git. No framework, no package, no daemon. Any urge to add
 tooling beyond this is a signal to re-read this rule and check cortex's
-extensions catalog (`docs/02-extensions.md` in the cortex repository).
+extensions catalog (`docs/02-extensions.md` in the cortex repository). This
+limits what the harness itself requires; the project's own development
+tools (a type checker, a mutation tester) are the project's choice.
 
 **R8 — Tool-neutral canon, generated adapters.** Canonical content lives in
 `AGENTS.md` and `harness/`, in plain markdown that names no agent tool.
@@ -145,8 +147,10 @@ task right. Concretely:
   finds nothing above the bar, the loop ends; below-bar findings are
   recorded, not iterated on (R10 sets the cap). A finding is confirmed
   against the code before it becomes work, and a below-bar or theoretical
-  finding is recorded as a known limitation, not turned into a test or a
-  rule. Artifacts are sized to what
+  finding is recorded as a known limitation by default, not turned into a
+  test or a rule. The exception is a cheap test for a severe class
+  (security, data loss, money), which `review` already refuses to
+  downgrade for rarity alone. Artifacts are sized to what
   the reader needs, since every extra paragraph is paid again by every
   review round.
 - **Usage is measured, not guessed.** When a run is expensive, the retro

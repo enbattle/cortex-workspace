@@ -83,13 +83,13 @@ Judgment over proxies [rigidity]:
   nothing qualifies": T14's antidote and the extensions' "Deletion pass".
 - [x] 16. Removing a checklist item weighs the severity of what it catches,
   not only how often it fires: `review-checklist.md`'s preamble and T14.
-- [ ] 17. R13: a theoretical finding becomes a known limitation by default;
+- [x] 17. R13: a theoretical finding becomes a known limitation by default;
   a cheap test is allowed when the class is severe (matching `review.md`).
 - [x] 18. **diff first** Drop "not through another completeness audit" from
   `docs/04-operator-feedback-loop.md` (it contradicts the root `AGENTS.md`).
-- [ ] 19. R7 says it limits the harness's own requirements, not the
+- [x] 19. R7 says it limits the harness's own requirements, not the
   project's development tools.
-- [ ] 19a. Drop the hard-coded rule range "R1–R13" (in `template/AGENTS.md`,
+- [x] 19a. Drop the hard-coded rule range "R1–R13" (in `template/AGENTS.md`,
   `README.md`, `docs/02-extensions.md`, and a comment in
   `scripts/install.sh`), so adding R14 doesn't mean editing four places:
   say "the design rules" or "rule IDs (R1, R2, ...)". [routing]

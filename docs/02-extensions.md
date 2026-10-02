@@ -8,7 +8,7 @@ Do not implement anything here because it "seems like a good idea" or because th
 
 **This catalog is curated, not exhaustive — and that is deliberate.** Its job is to solve the awareness problem (you cannot recognize a need for a practice you have never heard of) without creating an obligation problem (practices adopted because they are listed, not because they are needed). Awareness is free; implementation is gated. Anyone may propose a new catalog entry at any time, but every entry must arrive in the standard shape — **trigger** (the observable project condition that means it is now needed), **implementation** (how to build it within the workspace's design rules), **pitfalls** — before it is added. A practice that cannot articulate its trigger is not ready for the catalog; "all serious projects do this" is not a trigger.
 
-When you do implement an extension, follow the design rules (R1–R13 in `01-design-rules.md`), run a retro afterward, and update the root `AGENTS.md` routing table if the extension adds anything agents need to find.
+When you do implement an extension, follow the design rules (`01-design-rules.md`), run a retro afterward, and update the root `AGENTS.md` routing table if the extension adds anything agents need to find.
 
 ---
 

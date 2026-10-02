@@ -115,7 +115,7 @@ for i in "${!rels[@]}"; do
   esac
 done
 
-# The design rules the installed commands cite by ID (R1-R13), copied from
+# The design rules the installed commands cite by ID (R1, R2, ...), copied from
 # their one source in this repository, under the same never-overwrite rule.
 rules_rel=.cortex/design-rules.md
 if [ ! -e "$target/$rules_rel" ]; then
