@@ -23,6 +23,13 @@ repositories. Route yourself with the table below.
   changes (see git history for the v2 scripts). Never edit a test to make a
   script pass; a wrong test is a spec question.
 - Every new check gets a planted-violation test before it is trusted.
+- **One source per fact; nothing speculative** (the constitution's E4, applied
+  here). Logic two or more scripts use lives in a sibling file they source
+  from their own directory, as `_config.sh` does, so the base-branch copies
+  `ci-gates.sh` runs stay consistent. Helpers two or more suites use live in
+  `tests/lib.sh`. A doc that summarizes another links to it instead. Dated
+  records (pilots, eval results, audits) are snapshots: leave them as
+  written.
 - **Changes land through a branch and a pull request**, and merge only when
   CI passes. Nothing is committed directly to `main`.
 - While iterating, run only the suites you touched
