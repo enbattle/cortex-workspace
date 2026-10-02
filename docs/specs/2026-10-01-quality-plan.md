@@ -27,7 +27,7 @@ the comparison with pstack; **[routing]** the final check that each standard rea
   [audit] `09fb2fc`
 - [x] 3. Spec Amendment 6, one config parser. [audit] `7050e67`
 - [x] 4. Amendment 6 tests, by a separate agent, before the change. `6df5d05`
-- [ ] 5. `template/scripts/cortex/_config.sh`; `check.sh`, `gates.sh`,
+- [x] 5. `template/scripts/cortex/_config.sh`; `check.sh`, `gates.sh`,
   `tests-locked.sh` and `adapt.sh` source it. [audit]
 - [ ] 6. `tests/lib.sh` gains the helpers copied across suites, with
   assertion counts unchanged: `commit_all` (3 copies) [audit];
@@ -39,12 +39,12 @@ the comparison with pstack; **[routing]** the final check that each standard rea
   (the third copy is when to look, not a mandate) [seams], and including:
   migrate internal callers and delete the old path in the same change,
   while public interfaces follow E2. [standards] [pstack]
-- [ ] 8. Maintainer rule in root `AGENTS.md`: logic used by two or more
+- [x] 8. Maintainer rule in root `AGENTS.md`: logic used by two or more
   scripts lives in a sibling file; helpers used by two or more suites live
   in `tests/lib.sh`; a doc that summarizes another links to it; DRY applies
   to maintained files, not dated records (pilots, results, audits).
   [standards] [tests/evals]
-- [ ] 9. `evals/golden/review-maxlength/refresh.sh` replaces the hand-written
+- [x] 9. `evals/golden/review-maxlength/refresh.sh` replaces the hand-written
   history-rewrite filter; the README's "Which template this fixture
   matches" keeps the current state and the check, not each refresh's
   hashes; its "Log" step records results and deviations only, not the

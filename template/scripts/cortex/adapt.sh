@@ -16,6 +16,9 @@
 # Exit:  0 done, 2 .cortex/config missing.
 set -euo pipefail
 
+# The config parser next to this file, resolved before the cd below.
+# shellcheck source=_config.sh
+. "$(cd "$(dirname "$0")" && pwd)/_config.sh"
 cd "${1:-.}"
 MARKER="cortex:generated"
 POINTER="Read \`AGENTS.md\` in the repository root and follow it; it is the canonical agent context."
@@ -25,13 +28,8 @@ if [ ! -f .cortex/config ]; then
   exit 2
 fi
 
-tools="$(tr -d '\r' < .cortex/config | awk '
-  /^[[:space:]]*#/ { next }
-  { eq = index($0, "="); if (eq == 0) next
-    key = substr($0, 1, eq - 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
-    if (key != "TOOLS") next
-    val = substr($0, eq + 1); gsub(/[[:space:]]/, "", val); print val; exit }')"
-case "$tools" in "<"*">") tools="" ;; esac
+# TOOLS is a comma-separated list; whitespace around the names is dropped.
+tools="$(config_value TOOLS < .cortex/config | tr -d '[:space:]')"
 if [ -z "$tools" ]; then
   echo "warning: TOOLS is not set in .cortex/config; no adapters written"
   exit 0

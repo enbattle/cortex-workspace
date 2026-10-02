@@ -23,21 +23,10 @@ folder="$(cd "$1" 2>/dev/null && pwd || printf '%s' "$1")"
 # temporary directory, it must use the base copies of the others too, never
 # the branch's own (which the change under review could have edited).
 here="$(cd "$(dirname "$0")" && pwd)"
+# shellcheck source=_config.sh
+. "$here/_config.sh"
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
-
-config_get() { # KEY -> value, empty if unset or a <placeholder>
-  [ -f .cortex/config ] || return 0
-  local value
-  value="$(tr -d '\r' < .cortex/config | awk -v k="$1" '
-    /^[[:space:]]*#/ { next }
-    { eq = index($0, "="); if (eq == 0) next
-      key = substr($0, 1, eq - 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
-      if (key != k) next
-      val = substr($0, eq + 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", val); print val; exit }')"
-  case "$value" in "<"*">") value="" ;; esac
-  printf '%s' "$value"
-}
 
 failed=0
 out="$(mktemp)"
@@ -60,8 +49,8 @@ gate() { # name command... : run it, show its output if it fails
 }
 
 config_gate() { # name KEY
-  local cmd
-  cmd="$(config_get "$2")"
+  local cmd=""
+  [ ! -f .cortex/config ] || cmd="$(config_value "$2" < .cortex/config)"
   if [ -z "$cmd" ]; then
     echo "gate $1: FAIL (not set in .cortex/config)"
     failed=$((failed + 1))
