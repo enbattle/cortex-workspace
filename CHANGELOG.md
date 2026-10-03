@@ -7,13 +7,13 @@ installed repository, `evals/pilots/2026-09-24-pilot-2.md`) and the rebuilt,
 self-contained golden task (run 3 times, `evals/golden/review-maxlength/`)
 are done. Still open before release:
 
-- Pilot 2's remaining friction (`evals/pilots/2026-09-24-pilot-2.md`): F1
-  (subagents chain shell commands that permission rules can't match; the
-  skills now say not to, but the agent definitions don't), F4 (the review
-  skill's before/after check misses edits made after its Agent call), F5
-  (nothing yet shows, from the run records, that the reviewer subagent is
-  denied Edit/Write; the tools allowlist says so, but it is unobserved). Then
-  one interactive run to count real permission prompts. (F6, the stale golden
+- Pilot 2's remaining friction (`evals/pilots/2026-09-24-pilot-2.md`) is
+  fixed: F1 (the agent definitions now say to run one command per Bash
+  call), F4 (the review skill's status check allows only
+  `review-findings.md` to differ), and F5 (a probe showed `cortex-reviewer`
+  has no Edit or Write: `evals/pilots/2026-10-02-reviewer-tools-probe.md`).
+  Still open: one interactive run through the pipeline, counting the
+  permission prompts a person actually sees. (F6, the stale golden
   bundle, was fixed on 2026-09-24: the bundle is rebuilt from the current
   template and passes 3/3.)
 - Date this entry and tag the release once merged; installs should use the
