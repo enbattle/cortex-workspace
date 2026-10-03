@@ -206,6 +206,17 @@ PR 3):
   untrusted-content wording (C10), and `TODO` without a colon (C12).
 - `refresh.sh` reports a failing gate instead of exiting silently.
 
+**Changed after the completeness audit** (`evals/audits/2026-10-02.md`):
+
+- The review checklist checks that a practice a change adopts records R14's
+  four answers. `permissions.md` lets `implement` and `review` run the
+  changed thing the way a user would (review on a scratch copy only), and
+  lists what `retro` reads.
+- The golden fixture's change folder is rebuilt for the current flow, so
+  golden runs now review a change with a `## Verification` record (3/3
+  PASS). The mutation runner is deleted (its patterns had gone stale), and
+  the mutation audit's count is corrected to 26 of 35.
+
 **Fixed (design problems in v1):**
 
 - A repository's `AGENTS.md` "overriding workspace guidance" contradicted
