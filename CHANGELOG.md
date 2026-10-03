@@ -127,6 +127,17 @@ release:
   Bash; the before/after `git status` is the real check). Fewer, broader
   permission rules.
 
+**Changed after pilot 3** (`evals/pilots/2026-10-03-pilot-3.md`):
+
+- The Claude Code `settings.json` allows the routine commands the pipeline
+  runs (read-only `git`, `git add`, `commit`, `switch`, `scripts/cortex/*`)
+  for Bash and PowerShell; `INSTALL.md` says to add the project's own build,
+  test and lint commands. Its `ask` rule for merges no longer catches
+  `git merge-base`, which had been denied in both pilots.
+- `AGENTS.md` tells every session to run one shell command per call.
+- `spec-clarify`'s done-checks before the last task name the tests they run,
+  since the locked tests still fail until then.
+
 **Changed after the completeness audit** (spec Amendment 3):
 
 - The test lock's boundary moved server-side: new

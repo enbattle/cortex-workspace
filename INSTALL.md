@@ -85,6 +85,14 @@ Fix every `FAIL` line (each names the rule it enforces) and re-run until it
 prints `check: ok`. On a fresh install it fails on purpose: C11 for each
 `.cortex/config` value still unset, and C12 while `AGENTS.md` has a `TODO`.
 
+In Claude Code, the generated `.claude/settings.json` allows the routine
+commands the pipeline runs (read-only `git`, `git add`, `git commit`,
+`git switch`, and `scripts/cortex/*`, for Bash and PowerShell) and asks
+before push, merge, rebase and hard reset. Add this repository's build, test
+and lint commands from `.cortex/config` to its `allow` list with the user
+(for example `"Bash(npm test*)"`), or every gate run prompts. File edits
+still prompt unless the user accepts edits for the session.
+
 ## 5b. Make the pull request the boundary (hosted on GitHub)
 
 The local gates are guardrails: an agent with git access on its own machine

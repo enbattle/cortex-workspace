@@ -37,7 +37,9 @@ toward the spec, not polite to it.
    this marking.
 5. Fill `design.md`: approach, alternatives considered and why each was
    rejected, risks, rollback plan. Fill `tasks.md`: small, ordered tasks,
-   each with a done-check that can be run or observed.
+   each with a done-check that can be run or observed. Until the last task
+   the locked tests still fail, so an earlier done-check names the tests it
+   runs, not the whole test command.
 6. Ask the user to review the folder and approve it by writing the approval
    line in `proposal.md` themselves. Don't write it, fill it in, or draft it.
 7. Once the approval line is filled in, commit the change folder on the
