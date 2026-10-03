@@ -811,6 +811,29 @@ case_AC34_stub_parser() {
   assert_exit 0 "$CODE" "nothing else is broken -> exit 0"
 }
 
+# ---- AC37 (Amendment 7): staged edit, working tree restored -----------------------
+
+# ac37_check PATH LIST-LINE... : lock (with LIST-LINEs), stage an edit to PATH,
+# then restore PATH's working-tree copy to its locked content
+ac37_check() {
+  local d p="$1"; shift
+  d="$(base_repo)" || return 1
+  lock_it "$d" "$@"
+  cp "$d/$p" "$TEST_TMP/ac37.orig"
+  printf 'echo weakened\n' > "$d/$p"
+  git -C "$d" add "$p"
+  cp "$TEST_TMP/ac37.orig" "$d/$p"
+  assert_true "fixture: working tree matches the lock" \
+    test "$(git -C "$d" show "HEAD~1:$p")" = "$(cat "$d/$p")"
+  assert_true "fixture: index holds the edited copy" \
+    test "$(git -C "$d" show ":$p")" = "echo weakened"
+  locked "$d"
+  expect_lock modified "$p" "staged edit, working tree restored"
+}
+
+case_AC37_listed() { ac37_check tests/a.test.sh; }
+case_AC37_glob_only() { ac37_check tests/b.test.sh '- tests/a.test.sh'; }
+
 run_case "fixture: T, then lock.md in its own commit L" case_fixture_layout
 run_case "pass: untouched locked set" case_pass_untouched
 run_case "pass: non-test changes" case_pass_non_test_changes
@@ -884,4 +907,6 @@ run_case "AC32 TEST_GLOBS after a commented-out line" case_AC32_comment
 run_case "AC32 TEST_GLOBS after a line without =" case_AC32_no_equals
 run_case "AC32 TEST_GLOBS twice: the first wins" case_AC32_twice
 run_case "AC34 a stub _config.sh changes what tests-locked.sh reads" case_AC34_stub_parser
+run_case "AC37 listed test: staged edit, working tree restored" case_AC37_listed
+run_case "AC37 TEST_GLOBS test: staged edit, working tree restored" case_AC37_glob_only
 summary

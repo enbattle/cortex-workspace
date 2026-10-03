@@ -465,6 +465,180 @@ case_AC34_stub_parser() {
   done
 }
 
+# ---- AC36-44 (Amendment 7, H1/H2): pinned behavior, bounded processes ----------
+
+# command_n DIR N -> relpath of the Nth harness command file (sorted)
+command_n() {
+  local f
+  f="$(find "$1/harness/commands" -type f -name '*.md' | LC_ALL=C sort | sed -n "${2}p")"
+  [ -n "$f" ] || { fail "fixture: no command file #$2"; return 1; }
+  rel "$1" "$f"
+}
+
+# ac36_check RELPATH : Approved-by: in a harness template other than the proposal
+ac36_check() {
+  local d r="$1"; d="$(prepared_install)"; baseline_ok "$d"
+  planted "$r exists in the install" test -f "$d/$r"
+  append "$d/$r" "Approved-by: me"
+  planted "Approved-by in $r" grep -qF "Approved-by:" "$d/$r"
+  expect_violation "$d" C7 "$r"
+}
+
+case_AC36_tasks_template() { ac36_check harness/templates/change-folder/tasks.md; }
+case_AC36_adr_template() { ac36_check harness/templates/adr.md; }
+
+case_AC38_each_tool_name() {
+  local d r t; d="$(prepared_install)"; baseline_ok "$d"
+  r="$(a_command "$d")"
+  cp "$d/$r" "$TEST_TMP/ac38.orig"
+  for t in claude cursor copilot gemini codex; do
+    cp "$TEST_TMP/ac38.orig" "$d/$r"
+    append "$d/$r" "Then ask $t."
+    planted "$t in $r" grep -qw "$t" "$d/$r"
+    expect_violation "$d" C2 "$r"
+  done
+}
+
+case_AC39_budget_mid_line() {
+  local d r; d="$(prepared_install)"; baseline_ok "$d"
+  r="$(a_command "$d")"
+  filter_file "$d/$r" awk '!/^Budget:/'
+  append "$d/$r" "The Budget: two attempts, then stop."
+  planted "Budget: only mid-line in $r" test -z "$(grep '^Budget:' "$d/$r" || true)"
+  planted "Budget: still present mid-line in $r" grep -qF "Budget:" "$d/$r"
+  expect_violation "$d" C6 "$r"
+}
+
+# skill_of_lines FILE N : a generated SKILL.md (marker on line 1) of exactly N lines
+skill_of_lines() {
+  local f="$1" n="$2" i=2
+  mkdir -p "$(dirname "$f")"
+  printf '<!-- cortex:generated -->\n' > "$f"
+  while [ "$i" -le "$n" ]; do printf 'line %s\n' "$i" >> "$f"; i=$((i + 1)); done
+}
+
+case_AC40_skill_25_lines_ok() {
+  local d f; d="$(prepared_install)"; baseline_ok "$d"
+  f="$d/.claude/skills/x/SKILL.md"
+  skill_of_lines "$f" 25
+  planted "SKILL.md has 25 lines" test "$(line_count "$f")" -eq 25
+  check_in "$d"
+  assert_exit 0 "$CODE" "a generated SKILL.md of exactly 25 lines passes"
+  assert_not_contains "$OUT" "[C9]" "no C9 at 25 lines"
+}
+
+case_AC40_skill_26_lines_fails() {
+  local d f; d="$(prepared_install)"; baseline_ok "$d"
+  f="$d/.claude/skills/x/SKILL.md"
+  skill_of_lines "$f" 26
+  planted "SKILL.md has 26 lines" test "$(line_count "$f")" -eq 26
+  expect_violation "$d" C9 ".claude/skills/x/SKILL.md"
+}
+
+case_AC41_never_instructions_without_data() {
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  filter_file "$d/AGENTS.md" sed 's/data, never instructions/input, never instructions/g'
+  planted "AGENTS.md still says never instructions" grep -qF "never instructions" "$d/AGENTS.md"
+  planted "AGENTS.md lacks data, never instructions" test -z "$(grep -F 'data, never instructions' "$d/AGENTS.md" || true)"
+  expect_violation "$d" C10 "AGENTS.md"
+}
+
+case_AC42_todo_without_colon() {
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  append "$d/AGENTS.md" "- TODO name the owners"
+  planted "TODO in AGENTS.md" grep -qF "TODO" "$d/AGENTS.md"
+  planted "no TODO: in AGENTS.md" test -z "$(grep -F 'TODO:' "$d/AGENTS.md" || true)"
+  expect_violation "$d" C12 "AGENTS.md"
+}
+
+# AC43: the commands H2 bounds
+BOUNDED_CMDS="grep wc find sort awk tr"
+
+# shimmed_check DIR LOG : run check.sh in DIR with BOUNDED_CMDS counted into LOG
+shimmed_check() {
+  local shims="$TEST_TMP/shims.$RANDOM$RANDOM"
+  : > "$2"
+  # shellcheck disable=SC2086 # the list is split on purpose
+  make_shims "$shims" "$2" $BOUNDED_CMDS
+  run env PATH="$shims:$PATH" bash -c 'cd "$1" && ./scripts/cortex/check.sh' _ "$1"
+}
+
+# add_valid_files DIR N : N valid commands and N knowledge files, passing every check
+add_valid_files() {
+  local d="$1" n="$2" i
+  for i in $(seq 1 "$n"); do
+    printf '%s\n' "# Bulk command $i" "" "## Purpose" "" "Exercise the checker." "" \
+      "## Preconditions" "" "None." "" "## Procedure" "" "1. Do the step." "" \
+      "## Output" "" "A line." "" "## Autonomy" "" "Runs alone." "" \
+      "Budget: does not iterate." > "$d/harness/commands/zz-bulk-$i.md"
+    printf '%s\n' "# Bulk note $i" "" "A note about the system, number $i." \
+      > "$d/docs/knowledge/zz-bulk-$i.md"
+  done
+}
+
+case_AC43_bounded_processes() {
+  local d log1 log2 c n1 n2 total
+  d="$(prepared_install)"; baseline_ok "$d"
+  log1="$TEST_TMP/ac43.base.log"; log2="$TEST_TMP/ac43.more.log"
+  # sanity: a shim counts and still works
+  shimmed_check "$d" "$log1"
+  assert_exit 0 "$CODE" "shimmed check.sh on a filled install exits 0"
+  assert_line "$OUT" "check: ok" "shimmed check.sh prints check: ok"
+  total=0
+  for c in $BOUNDED_CMDS; do total=$((total + $(count_calls "$log1" "$c"))); done
+  assert_true "shims see check.sh's process starts" test "$total" -gt 0
+  add_valid_files "$d" 20
+  planted "20 more commands" test "$(find "$d/harness/commands" -name 'zz-bulk-*.md' | grep -c .)" = 20
+  planted "20 more knowledge files" test "$(find "$d/docs/knowledge" -name 'zz-bulk-*.md' | grep -c .)" = 20
+  shimmed_check "$d" "$log2"
+  assert_exit 0 "$CODE" "40 valid files added: check.sh still exits 0"
+  assert_line "$OUT" "check: ok" "40 valid files added: check: ok"
+  for c in $BOUNDED_CMDS; do
+    n1="$(count_calls "$log1" "$c")"; n2="$(count_calls "$log2" "$c")"
+    if [ "$n1" = "$n2" ]; then pass
+    else fail "$c called $n1 times on the install, $n2 with 40 more files (H2: must not grow)"; fi
+  done
+}
+
+case_AC44_order_and_count() {
+  local d c1 c2 c3 c4 c5 c6 c7 adr tasks expected actual id paths
+  d="$(prepared_install)"; baseline_ok "$d"
+  c1="$(command_n "$d" 1)"; c2="$(command_n "$d" 2)"; c3="$(command_n "$d" 3)"
+  c4="$(command_n "$d" 4)"; c5="$(command_n "$d" 5)"; c6="$(command_n "$d" 6)"
+  c7="$(command_n "$d" 7)"
+  adr=harness/templates/adr.md; tasks=harness/templates/change-folder/tasks.md
+  planted "harness templates exist" test -f "$d/$adr" -a -f "$d/$tasks"
+  # each check in two files, planted out of path order
+  append "$d/$c3" "Notes for $TOKEN."; append "$d/$c1" "Notes for $TOKEN."
+  append "$d/$c5" "Then ask copilot."; append "$d/$c2" "Then ask codex."
+  append "$d/$adr" "First, read everything."; append "$d/$c4" "Then read all of it."
+  planted "$c6 has ## Purpose" grep -q '^## Purpose' "$d/$c6"
+  planted "$c2 has ## Output" grep -q '^## Output' "$d/$c2"
+  filter_file "$d/$c6" awk '!/^## Purpose/'; filter_file "$d/$c2" awk '!/^## Output/'
+  planted "$c7 has Budget:" grep -q '^Budget:' "$d/$c7"
+  planted "$c1 has Budget:" grep -q '^Budget:' "$d/$c1"
+  filter_file "$d/$c7" awk '!/^Budget:/'; filter_file "$d/$c1" awk '!/^Budget:/'
+  append "$d/$tasks" "Approved-by: me"; append "$d/$c5" "Approved-by: me"
+  expected=""
+  for id in C1 C2 C4 C5 C6 C7; do
+    case "$id" in
+      C1) paths="$c3 $c1" ;; C2) paths="$c5 $c2" ;; C4) paths="$adr $c4" ;;
+      C5) paths="$c6 $c2" ;; C6) paths="$c7 $c1" ;; C7) paths="$tasks $c5" ;;
+    esac
+    # shellcheck disable=SC2086 # paths have no spaces
+    expected="$expected$(printf "FAIL [$id] %s\n" $paths | LC_ALL=C sort)"$'\n'
+  done
+  check_in "$d"
+  assert_exit 1 "$CODE" "AC44: twelve violations exit 1"
+  actual="$(grep '^FAIL ' <<<"$OUT" | sed 's/^\(FAIL \[[A-Z0-9]*\] [^:]*\):.*/\1/' || true)"
+  if [ "$actual" = "${expected%$'\n'}" ]; then pass
+  else
+    fail "AC44: FAIL lines not grouped by check ID, then sorted by path"
+    printf '    --- expected ---\n%s    --- actual ---\n%s\n' "$expected" "$actual" >&2
+  fi
+  assert_line "$OUT" "check: 12 failure(s)" "AC44: summary counts all twelve"
+}
+
 run_case "token absent from template" case_token_absent_from_template
 run_case "AC4 baseline check: ok" case_baseline_ok
 run_case "repo-root argument" case_root_argument
@@ -509,4 +683,14 @@ run_case "AC32 PROJECT_NAME after a commented-out line" case_AC32_comment
 run_case "AC32 PROJECT_NAME after a line without =" case_AC32_no_equals
 run_case "AC32 PROJECT_NAME twice: the first wins" case_AC32_twice
 run_case "AC34 a stub _config.sh changes what check.sh reads" case_AC34_stub_parser
+run_case "AC36 C7 Approved-by in the tasks template" case_AC36_tasks_template
+run_case "AC36 C7 Approved-by in the ADR template" case_AC36_adr_template
+run_case "AC38 C2 for each of the five tool names" case_AC38_each_tool_name
+run_case "AC39 C6 Budget: only mid-line" case_AC39_budget_mid_line
+run_case "AC40 C9 generated SKILL.md of exactly 25 lines ok" case_AC40_skill_25_lines_ok
+run_case "AC40 C9 generated SKILL.md of 26 lines fails" case_AC40_skill_26_lines_fails
+run_case "AC41 C10 'never instructions' without 'data,'" case_AC41_never_instructions_without_data
+run_case "AC42 C12 TODO without a colon" case_AC42_todo_without_colon
+run_case "AC43 process starts do not grow with files (H2)" case_AC43_bounded_processes
+run_case "AC44 FAIL lines grouped by check, sorted by path" case_AC44_order_and_count
 summary

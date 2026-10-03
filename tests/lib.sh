@@ -205,6 +205,31 @@ lock_tests() {
   commit_all "$d" "lock tests for $f"
 }
 
+# ---- counting process starts (spec Amendments 5 and 7) ----------------------------
+
+# make_shims DIR LOG CMD... : one counting shim per CMD in DIR; each appends
+# its own name to LOG, then execs the real command (resolved now, before DIR
+# is on PATH, so a shim never calls itself)
+make_shims() {
+  local dir="$1" log="$2" c real; shift 2
+  mkdir -p "$dir"
+  for c in "$@"; do
+    real="$(command -v "$c")" || { echo "no real $c" >&2; return 1; }
+    case "$real" in /*) ;; *) echo "$c is not an external command: $real" >&2; return 1 ;; esac
+    {
+      printf '#!/usr/bin/env bash\n'
+      printf 'echo %q >> %q\n' "$c" "$log"
+      printf 'exec %q "$@"\n' "$real"
+    } > "$dir/$c"
+    chmod +x "$dir/$c"
+  done
+}
+
+# count_calls LOG CMD -> number of times CMD was logged
+count_calls() {
+  if [ -f "$1" ]; then grep -cxF -- "$2" "$1" || true; else echo 0; fi
+}
+
 # ---- config variations (spec Amendment 6) ----------------------------------------
 
 # config_lines FILE KEY LINE... : drop every KEY= line, then append LINEs

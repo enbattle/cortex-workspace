@@ -72,7 +72,8 @@ for pair in "golden-clean $old_clean" "golden-planted $old_planted"; do
     fi
   done
   git checkout -q --detach "$tag"
-  result="$(bash scripts/cortex/gates.sh "$folder" 2>&1 | tail -1)"
+  # gates.sh exits 1 on a failure; capture its last line either way
+  result="$( (bash scripts/cortex/gates.sh "$folder" 2>&1 || true) | tail -1)"
   echo "refresh: $tag $(git rev-parse --short=7 HEAD): $result"
   [ "$result" = "gates: ok" ] || failed=1
 done

@@ -38,29 +38,50 @@ files_under() { # dir... -> regular files, sorted
   done | LC_ALL=C sort
 }
 
+# Each check runs one grep over every file it covers, not one per file
+# (spec Amendment 7): starting a process costs 50-60 ms on Windows. grep
+# lists matches in argument order, so reports stay sorted by path.
+# (Assigned first: a missing harness/ or docs/knowledge/ still stops the
+# script with exit 1, as it always has.)
 harness_files="$(files_under harness)"
 knowledge_files="$(files_under docs/knowledge)"
-command_files="$(files_under harness/commands | grep '\.md$' || true)"
+harness=()
+while IFS= read -r f; do [ -z "$f" ] || harness+=("$f"); done <<<"$harness_files"
+knowledge=()
+while IFS= read -r f; do [ -z "$f" ] || knowledge+=("$f"); done <<<"$knowledge_files"
+commands=()
+for f in ${harness[@]+"${harness[@]}"}; do
+  case "$f" in harness/commands/*.md) commands+=("$f") ;; esac
+done
+
+# grep_files GREP-ARGS... -- FILE... -> grep's output, nothing if no files
+grep_files() {
+  local args=()
+  while [ "$1" != -- ]; do args+=("$1"); shift; done
+  shift
+  [ "$#" -gt 0 ] || return 0
+  grep "${args[@]}" -- "$@" || true
+}
+
+# report_each ID MESSAGE <<< PATHS
+report_each() {
+  local f
+  while IFS= read -r f; do
+    [ -z "$f" ] || report "$1" "$f" "$2"
+  done
+}
 
 # C1 — R1: the project is never named in the harness.
 project=""
 [ ! -f .cortex/config ] || project="$(config_value PROJECT_NAME < .cortex/config)"
 if [ -n "$project" ]; then
-  while IFS= read -r f; do
-    [ -n "$f" ] || continue
-    if grep -qiwF -- "$project" "$f"; then
-      report C1 "$f" "names the project (\"$project\"); harness files refer to roles and paths only"
-    fi
-  done <<<"$harness_files"
+  report_each C1 "names the project (\"$project\"); harness files refer to roles and paths only" \
+    <<<"$(grep_files -liwF -e "$project" -- ${harness[@]+"${harness[@]}"})"
 fi
 
 # C2 — R8: canonical files name no agent tool.
-while IFS= read -r f; do
-  [ -n "$f" ] || continue
-  if grep -qiwE 'claude|cursor|copilot|gemini|codex' "$f"; then
-    report C2 "$f" "names an agent tool; tool specifics belong in .cortex/adapters/"
-  fi
-done <<<"$(printf '%s\n%s\n' "$harness_files" "$knowledge_files")"
+report_each C2 "names an agent tool; tool specifics belong in .cortex/adapters/" \
+  <<<"$(grep_files -liwE 'claude|cursor|copilot|gemini|codex' -- ${harness[@]+"${harness[@]}"} ${knowledge[@]+"${knowledge[@]}"})"
 
 # C3 — R2: AGENTS.md is a router of at most 60 lines.
 if [ ! -f AGENTS.md ]; then
@@ -73,39 +94,35 @@ else
 fi
 
 # C4 — R5: no file tells an agent to read everything.
-while IFS= read -r f; do
-  [ -n "$f" ] || continue
-  if grep -qiE 'read all|read everything' "$f"; then
-    report C4 "$f" "tells an agent to read everything; name the specific files instead"
-  fi
-done <<<"$harness_files"
+report_each C4 "tells an agent to read everything; name the specific files instead" \
+  <<<"$(grep_files -liE 'read all|read everything' -- ${harness[@]+"${harness[@]}"})"
 
-# C5 — every command has the five sections.
-while IFS= read -r f; do
-  [ -n "$f" ] || continue
+# C5 — every command has the five sections. One grep -L per heading; a
+# file's missing headings are then listed in this order.
+lacking=""
+for heading in Purpose Preconditions Procedure Output Autonomy; do
+  while IFS= read -r f; do
+    [ -z "$f" ] || lacking="$lacking$f"$'\t'"$heading"$'\n'
+  done <<<"$(grep_files -L "^## $heading" -- ${commands[@]+"${commands[@]}"})"
+done
+for f in ${commands[@]+"${commands[@]}"}; do
   missing=""
   for heading in Purpose Preconditions Procedure Output Autonomy; do
-    grep -q "^## $heading" "$f" || missing="$missing $heading"
+    case $'\n'"$lacking" in *$'\n'"$f"$'\t'"$heading"$'\n'*) missing="$missing $heading" ;; esac
   done
-  if [ -n "$missing" ]; then
-    report C5 "$f" "missing section(s):$missing"
-  fi
-done <<<"$command_files"
+  [ -z "$missing" ] || report C5 "$f" "missing section(s):$missing"
+done
 
 # C6 — R10: every command declares its loop budget.
-while IFS= read -r f; do
-  [ -n "$f" ] || continue
-  grep -q '^Budget:' "$f" || report C6 "$f" "no 'Budget:' line (stop condition, attempt limit, escalation — or 'does not iterate')"
-done <<<"$command_files"
+report_each C6 "no 'Budget:' line (stop condition, attempt limit, escalation — or 'does not iterate')" \
+  <<<"$(grep_files -L '^Budget:' -- ${commands[@]+"${commands[@]}"})"
 
 # C7 — R6: only a human writes the approval line; only the template has the field.
 while IFS= read -r f; do
   [ -n "$f" ] || continue
   [ "$f" = harness/templates/change-folder/proposal.md ] && continue
-  if grep -qF 'Approved-by:' "$f"; then
-    report C7 "$f" "contains 'Approved-by:'; only a human writes the approval, in the proposal"
-  fi
-done <<<"$harness_files"
+  report C7 "$f" "contains 'Approved-by:'; only a human writes the approval, in the proposal"
+done <<<"$(grep_files -lF 'Approved-by:' -- ${harness[@]+"${harness[@]}"})"
 
 # C8 — R8: CLAUDE.md only points at AGENTS.md.
 if [ -f CLAUDE.md ]; then
@@ -118,15 +135,19 @@ if [ -f CLAUDE.md ]; then
 fi
 
 # C9 — R8: generated skills delegate; they don't carry procedure.
-while IFS= read -r f; do
-  [ -n "$f" ] || continue
-  if grep -qF 'cortex:generated' "$f"; then
-    lines="$(wc -l < "$f" | tr -d ' ')"
+skills=()
+while IFS= read -r f; do [ -z "$f" ] || skills+=("$f"); done <<<"$( [ -d .claude/skills ] && find .claude/skills -type f -name SKILL.md | LC_ALL=C sort || true)"
+generated=()
+while IFS= read -r f; do [ -z "$f" ] || generated+=("$f"); done <<<"$(grep_files -lF 'cortex:generated' -- ${skills[@]+"${skills[@]}"})"
+if [ "${#generated[@]}" -gt 0 ]; then
+  # One wc for all of them: a "<lines> <path>" row each, then a total row.
+  while read -r lines f; do
+    [ -n "$f" ] && [ "$f" != total ] || continue
     if [ "$lines" -gt 25 ]; then
       report C9 "$f" "$lines lines; a generated skill delegates to harness/commands/ in at most 25"
     fi
-  fi
-done <<<"$( [ -d .claude/skills ] && find .claude/skills -type f -name SKILL.md | LC_ALL=C sort || true)"
+  done <<<"$(wc -l -- "${generated[@]}")"
+fi
 
 # C10 — the untrusted-content rule is in the router.
 if [ -f AGENTS.md ] && ! grep -qF 'data, never instructions' AGENTS.md; then

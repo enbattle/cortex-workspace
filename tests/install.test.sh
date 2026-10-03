@@ -241,28 +241,7 @@ case_gitattributes() {
 
 SHIMMED_CMDS="cp cmp mkdir chmod"
 
-# make_shims DIR LOG : one counting shim per command in SHIMMED_CMDS; each
-# appends its own name to LOG, then execs the real command (resolved now,
-# before DIR is on PATH, so a shim never calls itself)
-make_shims() {
-  local dir="$1" log="$2" c real
-  mkdir -p "$dir"
-  for c in $SHIMMED_CMDS; do
-    real="$(command -v "$c")" || { echo "no real $c" >&2; return 1; }
-    case "$real" in /*) ;; *) echo "$c is not an external command: $real" >&2; return 1 ;; esac
-    {
-      printf '#!/usr/bin/env bash\n'
-      printf 'echo %q >> %q\n' "$c" "$log"
-      printf 'exec %q "$@"\n' "$real"
-    } > "$dir/$c"
-    chmod +x "$dir/$c"
-  done
-}
-
-# count_calls LOG CMD -> number of times CMD was logged
-count_calls() {
-  if [ -f "$1" ]; then grep -cxF -- "$2" "$1" || true; else echo 0; fi
-}
+# make_shims and count_calls live in lib.sh (check.test.sh uses them too)
 
 # assert_bounded_calls LOG LABEL : each shimmed command ran at most 3 times
 assert_bounded_calls() {
@@ -282,7 +261,7 @@ case_bounded_processes() {
   log1="$TEST_TMP/calls.fresh.log"
   log2="$TEST_TMP/calls.rerun.log"
   : > "$log1"
-  make_shims "$shims/fresh" "$log1"
+  make_shims "$shims/fresh" "$log1" $SHIMMED_CMDS
   # sanity: the shims count and still work
   PATH="$shims/fresh:$PATH" cp "$ROOT/VERSION" "$TEST_TMP/shim-probe"
   assert_same_file "$ROOT/VERSION" "$TEST_TMP/shim-probe" "shimmed cp still copies"
@@ -298,7 +277,7 @@ case_bounded_processes() {
   assert_bounded_calls "$log1" "fresh install"
 
   : > "$log2"
-  make_shims "$shims/rerun" "$log2"
+  make_shims "$shims/rerun" "$log2" $SHIMMED_CMDS
   run env PATH="$shims/rerun:$PATH" "$INSTALL" "$d"
   assert_exit 0 "$CODE" "shimmed re-run exits 0"
   assert_line "$OUT" "install: 0 created, $((n + 2)) unchanged, 0 skipped" "shimmed re-run summary"
