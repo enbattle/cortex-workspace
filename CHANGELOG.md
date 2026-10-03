@@ -190,7 +190,7 @@ release:
   `deferred-practices.md`. The horizon scan records pstack.
 - Audits of the test suites (`evals/audits/2026-10-02-test-suites.md`):
   process start-up makes `check.sh` take 3.3 s on Windows, and a mutation
-  audit of the gate scripts caught 25 of 35 mutants.
+  audit of the gate scripts caught 26 of 35 mutants.
 
 **Changed: test gaps closed, a faster check.sh** (spec Amendment 7, plan
 PR 3):
@@ -205,6 +205,17 @@ PR 3):
   mid-line `Budget:` (C6), the 25-line skill boundary (C9), the
   untrusted-content wording (C10), and `TODO` without a colon (C12).
 - `refresh.sh` reports a failing gate instead of exiting silently.
+
+**Changed after the completeness audit** (`evals/audits/2026-10-02.md`):
+
+- The review checklist checks that a practice a change adopts records R14's
+  four answers. `permissions.md` lets `implement` and `review` run the
+  changed thing the way a user would (review on a scratch copy only), and
+  lists what `retro` reads.
+- The golden fixture's change folder is rebuilt for the current flow, so
+  golden runs now review a change with a `## Verification` record (3/3
+  PASS). The mutation runner is deleted (its patterns had gone stale), and
+  the mutation audit's count is corrected to 26 of 35.
 
 **Fixed (design problems in v1):**
 

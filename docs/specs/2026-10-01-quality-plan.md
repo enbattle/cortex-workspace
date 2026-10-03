@@ -171,7 +171,7 @@ Agreed 2026-10-02, from the test-suite audit (`evals/audits/2026-10-02-test-suit
 
 ## After PR 3
 
-- [ ] 32. A completeness audit (root `AGENTS.md`): a fresh agent maps every
+- [x] 32. A completeness audit (root `AGENTS.md`): a fresh agent maps every
   item in this plan to evidence, checks the docs against the code, and
   nominates a removal or says why nothing qualifies.
 
