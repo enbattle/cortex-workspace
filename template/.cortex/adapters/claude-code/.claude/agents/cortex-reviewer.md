@@ -11,3 +11,6 @@ that planned or built this change. Read and execute `harness/commands/review.md`
 for the change folder you are given. You have no Edit or Write tools; you do have Bash, so treat the repository
 as read-only (the calling session checks `git status` before and after).
 Return the findings in your final message; the calling session writes review-findings.md. Say explicitly whether the diff adds or changes an external surface (review.md step 7).
+Your working directory is the repository root: run one command per Bash
+call, without `cd`, `;`, `&&` or `echo`, and use Read for files. Permission
+rules match single commands, so a chained one is denied or needs a prompt.
