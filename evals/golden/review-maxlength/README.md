@@ -14,7 +14,8 @@ editing the Claude Code reviewer adapter.
   isn't hosted) and one change taken through the current flow on branch
   `change/20260924-slugify-maxlength` (`spec-new`, `spec-clarify` committing
   the approved folder, `test-first` with its three commits and `lock.md`,
-  `implement` with a commit per task and gate output in `tasks.md`). Tags:
+  `implement` with a commit per task, then verification evidence and gate
+  output in `tasks.md`). Tags:
   `golden-clean` (the correct change) and `golden-planted` (one planted
   commit on top). Node 18+ and Git Bash are all it needs.
 - `rubric.md`: the planted defect, its reproductions, and how to grade.
@@ -31,7 +32,13 @@ format (Amendment 2's `lock.md`).
 The fixture was built on 2026-09-24 from the template at commit `15de2ea`,
 with that commit's `scripts/install.sh` and by following its command texts;
 the source, tests, proposal and planted change come from the first pilot
-(`1f9e92d`). Since then only its installed copies have been refreshed. The
+(`1f9e92d`). On 2026-10-02 its change folder was brought up to the current
+flow (the completeness audit's L1): `tasks.md` has the template's
+`## Verification` section from the spec commit on, and the commit that
+records the gate output also records the implementer's run of `slugify`
+from a caller's position (the proposal's examples, which hold at
+`golden-clean`); the source, tests, proposal and plant are unchanged.
+Otherwise only its installed copies have been refreshed. The
 current tags are in the bundle, and each results file records the commits
 it ran against.
 
