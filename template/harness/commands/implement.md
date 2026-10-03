@@ -45,12 +45,18 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    interface, a behavior the tests forced), stop and propose the spec update
    to the user; with their confirmation, record it in an `## As built`
    section of `design.md` and continue. Never let code drift silently from
-   the folder.
+   the folder. A confirmed update that changes `proposal.md`'s acceptance
+   criteria needs a fresh approval before work continues: the approval
+   line's date is renewed by the user, or on their explicit instruction
+   (design rule R6).
 5. Update any doc the change makes stale: `AGENTS.md`, `docs/knowledge/`,
    a README. Only what actually changed.
 6. Verify the change on the real artifact, as the "Verification on the real
    artifact" section of `harness/policies/review-checklist.md` describes, and
-   paste the evidence under `## Verification` in `tasks.md`. Then, before
+   paste the evidence under `## Verification` in `tasks.md`. If it can't run
+   here (a permission prompt nobody can answer, for example), stop and give
+   the user the exact command and the output to expect; record what they
+   report, and never hand off to `review` with it unrun. Then, before
    handing off, run `bash scripts/cortex/gates.sh <change-folder>` (the
    test lock, the build, test and lint commands from `.cortex/config`, and
    the harness check) and paste its output under `## Gate output` in

@@ -127,6 +127,16 @@ release:
   Bash; the before/after `git status` is the real check). Fewer, broader
   permission rules.
 
+**Changed after pilot 3b** (`evals/pilots/2026-10-03-pilot-3b.md`):
+
+- The allow list adds `git checkout -b`; `INSTALL.md` says committed allow
+  rules apply only once the folder is trusted.
+- The agent that fills in an approval line on instruction also commits it;
+  changed acceptance criteria need the approval renewed.
+- `spec-clarify` flags a task that would edit a file the test lock covers.
+- `implement` stops and hands the user the real-artifact check when it can't
+  run it; `AGENTS.md` adds no `git -C`.
+
 **Changed: the approval step** (the maintainer's decision after pilot 3):
 
 - R6: only a human approves, and the approval line is written by the human,

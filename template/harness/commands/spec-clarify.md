@@ -39,7 +39,10 @@ toward the spec, not polite to it.
    rejected, risks, rollback plan. Fill `tasks.md`: small, ordered tasks,
    each with a done-check that can be run or observed. Until the last task
    the locked tests still fail, so an earlier done-check names the tests it
-   runs, not the whole test command.
+   runs, not the whole test command. A task can't edit a file the test lock
+   covers (a non-test file matching `TEST_GLOBS`, such as the test runner's
+   config, or `.cortex/config`): flag it before approval and settle it with
+   the user (a separate change, or a narrower `TEST_GLOBS`).
 6. Brief the user from a fresh context: one that hasn't seen this
    conversation (a new session or an isolated subagent) reads the change
    folder and the files it names, and writes one screen into `brief.md` in
@@ -49,7 +52,8 @@ toward the spec, not polite to it.
    the user decides (design rule R6): they write the approval line in
    `proposal.md`, or explicitly tell you to fill it in for this change
    folder, in which case write their name marked "(written by the agent on
-   <name>'s instruction)" and the date. Never infer approval from anything
+   <name>'s instruction)" and the date. Whoever fills it in on the user's
+   instruction also commits it, so the commit records who wrote it. Never infer approval from anything
    else, and never draft the line.
 7. Once the approval line is filled in, commit the change folder (with
    `brief.md`) on the change branch, so the approved spec is in history

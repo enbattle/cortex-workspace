@@ -87,11 +87,16 @@ prints `check: ok`. On a fresh install it fails on purpose: C11 for each
 
 In Claude Code, the generated `.claude/settings.json` allows the routine
 commands the pipeline runs (read-only `git`, `git add`, `git commit`,
-`git switch`, and `scripts/cortex/*`, for Bash and PowerShell) and asks
+`git switch`, `git checkout -b`, and `scripts/cortex/*`, for Bash and
+PowerShell) and asks
 before push, merge, rebase and hard reset. Add this repository's build, test
 and lint commands from `.cortex/config` to its `allow` list with the user
 (for example `"Bash(npm test*)"`), or every gate run prompts. File edits
-still prompt unless the user accepts edits for the session.
+still prompt unless the user accepts edits for the session. These `allow`
+rules take effect only once each person has trusted the folder in Claude
+Code; a headless or unattended run in an untrusted folder gets none of them
+(pass `--allowedTools`, or put the same rules in the untracked
+`.claude/settings.local.json`).
 
 ## 5b. Make the pull request the boundary (hosted on GitHub)
 
