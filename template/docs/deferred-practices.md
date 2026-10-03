@@ -30,11 +30,11 @@ someone's head.
 cheap first measurement. *Revisit when:* a command is about to be edited and
 nobody can say whether the edit helps, or an escaped defect appears.
 
-**CI checks for the process.** A pull request touching source must include a
-change-folder update or carry a `no-spec` label; `check.sh` runs in CI.
+**A change-folder presence check in CI.** A pull request touching source
+must include a change-folder update or carry a `no-spec` label. (The harness
+check and the test lock already run in CI: `scripts/cortex/ci-gates.sh`.)
 *Deferred:* until the process is stable enough to enforce. *Revisit when:* a
-nontrivial change merges without a change folder, or `check.sh` is found
-failing on the default branch.
+nontrivial change merges without a change folder.
 
 **A deeper security program.** Dependency and secret scanning in CI, threat
 models per surface. *Deferred:* `review`'s separate security pass covers each

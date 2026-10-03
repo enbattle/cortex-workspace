@@ -20,31 +20,15 @@
 # Exit:  0 clean, 1 violations found.
 set -euo pipefail
 
+# The config parser next to this file, resolved before the cd below.
+# shellcheck source=_config.sh
+. "$(cd "$(dirname "$0")" && pwd)/_config.sh"
 cd "${1:-.}"
 
 failures=0
 report() { # id path message
   echo "FAIL [$1] $2: $3"
   failures=$((failures + 1))
-}
-
-# config_get KEY -> the value from .cortex/config, or empty if unset/placeholder
-config_get() {
-  [ -f .cortex/config ] || return 0
-  local value
-  value="$(tr -d '\r' < .cortex/config |
-    awk -v k="$1" '
-      /^[[:space:]]*#/ { next }
-      {
-        eq = index($0, "=")
-        if (eq == 0) next
-        key = substr($0, 1, eq - 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
-        if (key != k) next
-        val = substr($0, eq + 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
-        print val; exit
-      }')"
-  case "$value" in "<"*">") value="" ;; esac
-  printf '%s' "$value"
 }
 
 files_under() { # dir... -> regular files, sorted
@@ -59,7 +43,8 @@ knowledge_files="$(files_under docs/knowledge)"
 command_files="$(files_under harness/commands | grep '\.md$' || true)"
 
 # C1 — R1: the project is never named in the harness.
-project="$(config_get PROJECT_NAME)"
+project=""
+[ ! -f .cortex/config ] || project="$(config_value PROJECT_NAME < .cortex/config)"
 if [ -n "$project" ]; then
   while IFS= read -r f; do
     [ -n "$f" ] || continue
@@ -151,7 +136,7 @@ fi
 # C11 — the install is filled in: every required config value is set.
 if [ -f .cortex/config ]; then
   for key in PROJECT_NAME BUILD_CMD TEST_CMD LINT_CMD TEST_GLOBS TOOLS; do
-    [ -n "$(config_get "$key" | tr -d '[:space:]')" ] || report C11 .cortex/config "$key is not set"
+    [ -n "$(config_value "$key" < .cortex/config | tr -d '[:space:]')" ] || report C11 .cortex/config "$key is not set"
   done
 fi
 

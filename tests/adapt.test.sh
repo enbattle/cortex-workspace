@@ -268,6 +268,43 @@ case_stale_ignores_handwritten() {
   assert_true "hand-written GEMINI.md untouched" test "$(cat "$d/GEMINI.md")" = "# my gemini notes"
 }
 
+# ---- AC32-34 (Amendment 6, F1/F2): one config parser ----------------------------
+
+ac32_adapt() { # KIND : TOOLS parsed per the format section (real gemini, other cursor)
+  local kind="$1" d; d="$(fresh_install)"
+  config_variant "$d/.cortex/config" "$kind" TOOLS gemini cursor
+  adapt "$d"
+  assert_exit 0 "$CODE" "$kind: adapt exits 0"
+  assert_line "$OUT" "wrote GEMINI.md" "$kind: the real TOOLS value is used"
+  assert_file_contains "$d/GEMINI.md" "$MARKER" "$kind: GEMINI.md written"
+  assert_file_absent "$d/.cursor" "$kind: the other value is not read as TOOLS"
+  assert_not_contains "$OUT$ERR" "$TOOLS_WARNING" "$kind: TOOLS is set"
+  assert_not_contains "$OUT$ERR" "unknown tool" "$kind: no unknown tool"
+}
+
+case_AC32_spaced() { ac32_adapt spaced; }
+case_AC32_comment() { ac32_adapt comment; }
+case_AC32_no_equals() { ac32_adapt no-equals; }
+case_AC32_twice() { ac32_adapt twice; }
+
+case_AC33_spaced_list() {
+  local d; d="$(tools_install "claude , cursor")"
+  assert_file_contains "$d/.cortex/config" "TOOLS=claude , cursor" "fixture: TOOLS has spaces around the comma"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0"
+  assert_line "$OUT" "wrote CLAUDE.md" "claude adapter written"
+  assert_file_exists "$d/CLAUDE.md" "CLAUDE.md written"
+  assert_line "$OUT" "wrote .cursor/rules/cortex.mdc" "cursor adapter written"
+  assert_file_exists "$d/.cursor/rules/cortex.mdc" "cursor rule written"
+  assert_not_contains "$OUT$ERR" "unknown tool" "whitespace is not part of a tool name"
+}
+
+case_AC34_stub_parser() {
+  local d; d="$(tools_install claude,cursor,copilot,gemini)"
+  write_stub_parser "$d"
+  expect_no_adapters "$d" "stub _config.sh"
+}
+
 run_case "missing .cortex/config -> exit 2" case_missing_config
 run_case "AC11 TOOLS placeholder warns, writes nothing" case_tools_placeholder
 run_case "AC11 TOOLS empty warns, writes nothing" case_tools_empty
@@ -287,4 +324,10 @@ run_case "AC20 settings.json unchanged on re-run" case_settings_unchanged_on_rer
 run_case "AC20 stale cursor rule reported, kept" case_stale_cursor
 run_case "AC20 every removed tool reported stale" case_stale_all_known
 run_case "stale ignores hand-written files" case_stale_ignores_handwritten
+run_case "AC32 TOOLS with spaces around =" case_AC32_spaced
+run_case "AC32 TOOLS after a commented-out line" case_AC32_comment
+run_case "AC32 TOOLS after a line without =" case_AC32_no_equals
+run_case "AC32 TOOLS twice: the first wins" case_AC32_twice
+run_case "AC33 TOOLS=claude , cursor writes both" case_AC33_spaced_list
+run_case "AC34 a stub _config.sh changes what adapt.sh reads" case_AC34_stub_parser
 summary

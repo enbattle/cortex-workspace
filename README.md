@@ -10,7 +10,7 @@ as the tool allows.
 
 **Status:** 2.0.0, not yet released (see [CHANGELOG.md](CHANGELOG.md)). The
 scripts are covered by test suites written by a separate agent before the
-scripts were (`tests/`, 6 suites). The whole
+scripts were (`tests/`, 7 suites). The whole
 pipeline has run end to end once, on a toy repository
 ([pilot 1](evals/pilots/2026-09-23-toy-repo.md)): review caught a real
 compatibility break, and a fresh reviewer caught a planted bug the tests
@@ -76,8 +76,7 @@ and checks. Everything it can't know is left as a visible `TODO`.
 
 | Document | For | When |
 | --- | --- | --- |
-| [docs/00-highlights.md](docs/00-highlights.md) | anyone | first: the ten practices in sixty seconds |
-| [docs/01-design-rules.md](docs/01-design-rules.md) | maintainers, installers | the normative rules R1–R13 |
+| [docs/01-design-rules.md](docs/01-design-rules.md) | anyone | first: the normative rules R1–R13 |
 | [docs/02-extensions.md](docs/02-extensions.md) | maintainers | before adding anything: what's deferred, and each one's trigger |
 | [docs/03-mental-traps.md](docs/03-mental-traps.md) | humans deciding structure | never loaded by agents during routine work |
 | [docs/04-operator-feedback-loop.md](docs/04-operator-feedback-loop.md) | the person running it | re-read at each retro |

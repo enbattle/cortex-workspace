@@ -7,11 +7,6 @@ set -euo pipefail
 
 GATE_NAMES="tests-locked build test lint check"
 
-commit_all() { # dir msg
-  git -C "$1" add -A
-  git -C "$1" commit -q -m "$2"
-}
-
 # gated_repo [KEY=VALUE...] -> a filled install (check: ok; BUILD/TEST/LINT_CMD
 # =true, TEST_GLOBS=*.test.sh) with tests/a.test.sh locked in the Amendment 2
 # layout: the tests are committed (T), then changes/x/lock.md naming T in its
@@ -19,7 +14,7 @@ commit_all() { # dir msg
 # because the config is itself locked (B2): editing it afterwards would fail
 # the tests-locked gate.
 gated_repo() {
-  local d sha kv
+  local d kv
   d="$(filled_install Zqxproj)" || return 1
   for kv in "$@"; do
     case "$kv" in
@@ -27,21 +22,16 @@ gated_repo() {
       *) set_config "$d/.cortex/config" "${kv%%=*}" "${kv#*=}" ;;
     esac
   done
-  mkdir -p "$d/tests" "$d/src"
-  printf 'echo a\n' > "$d/tests/a.test.sh"
-  printf 'app\n' > "$d/src/app.txt"
-  commit_all "$d" "add tests"
-  sha="$(git -C "$d" rev-parse HEAD)"
-  mkdir -p "$d/changes/x"
-  cat > "$d/changes/x/lock.md" <<EOF2
-Tests-locked-at: $sha
-
-## Locked tests
-
-- tests/a.test.sh
-EOF2
-  commit_all "$d" "lock tests"
+  lock_a "$d"
   printf '%s\n' "$d"
+}
+
+# lock_a DIR : add tests/a.test.sh and src/app.txt, and lock changes/x on them
+lock_a() {
+  mkdir -p "$1/tests" "$1/src"
+  printf 'echo a\n' > "$1/tests/a.test.sh"
+  printf 'app\n' > "$1/src/app.txt"
+  lock_tests "$1" changes/x tests/a.test.sh
 }
 
 gates() { # dir [change-folder...] -> run installed gates.sh from the repo root
@@ -232,6 +222,44 @@ case_from_subdir_relative_broken_lock() {
   assert_contains "$OUT$ERR" "LOCK modified: tests/a.test.sh" "the modified test is named"
 }
 
+# ---- AC32/AC34 (Amendment 6, F1/F2): one config parser --------------------------
+
+# variant_gated_repo KIND -> like gated_repo, with BUILD_CMD written per KIND
+# (set before the lock, since the config is locked)
+variant_gated_repo() {
+  local d
+  d="$(filled_install Zqxproj)" || return 1
+  config_variant "$d/.cortex/config" "$1" BUILD_CMD \
+    "touch build-real-ran" "touch build-other-ran; exit 7" || return 1
+  lock_a "$d"
+  printf '%s\n' "$d"
+}
+
+ac32_gates() { # KIND : BUILD_CMD parsed per the format section
+  local kind="$1" d; d="$(variant_gated_repo "$kind")"
+  gates "$d" changes/x
+  assert_exit 0 "$CODE" "$kind: gates pass"
+  assert_line "$OUT" "gate build: ok" "$kind: the real BUILD_CMD runs and passes"
+  assert_file_exists "$d/build-real-ran" "$kind: the real BUILD_CMD ran"
+  assert_file_absent "$d/build-other-ran" "$kind: the other value never ran"
+  assert_line "$OUT" "gates: ok" "$kind: gates: ok"
+}
+
+case_AC32_spaced() { ac32_gates spaced; }
+case_AC32_comment() { ac32_gates comment; }
+case_AC32_no_equals() { ac32_gates no-equals; }
+case_AC32_twice() { ac32_gates twice; }
+
+case_AC34_stub_parser() {
+  local d g; d="$(gated_repo)"
+  write_stub_parser "$d"
+  gates "$d" changes/x
+  assert_exit 1 "$CODE" "a parser that prints nothing -> exit 1"
+  for g in build test lint; do
+    assert_line "$OUT" "gate $g: FAIL (not set in .cortex/config)" "gates.sh reads $g's command through _config.sh"
+  done
+}
+
 run_case "gates.sh shipped and installed executable" case_installed_executable
 run_case "usage error -> exit 2" case_usage_error
 run_case "all gates pass -> gates: ok" case_all_pass
@@ -247,4 +275,9 @@ run_case "B2 config edited after the lock fails tests-locked" case_config_edited
 run_case "AC17 scripts without exec bit still work" case_no_exec_bit
 run_case "AC17 from a subdirectory, relative folder" case_from_subdir_relative
 run_case "AC17 subdirectory + relative folder, broken lock" case_from_subdir_relative_broken_lock
+run_case "AC32 BUILD_CMD with spaces around =" case_AC32_spaced
+run_case "AC32 BUILD_CMD after a commented-out line" case_AC32_comment
+run_case "AC32 BUILD_CMD after a line without =" case_AC32_no_equals
+run_case "AC32 BUILD_CMD twice: the first wins" case_AC32_twice
+run_case "AC34 a stub _config.sh changes what gates.sh reads" case_AC34_stub_parser
 summary

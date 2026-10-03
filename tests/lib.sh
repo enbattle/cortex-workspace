@@ -164,9 +164,7 @@ set_config() {
     filter_file "$f" awk -v k="$k" -v v="$v" '
       $0 ~ "^[[:space:]]*" k "[[:space:]]*=" { print k "=" v; next } { print }'
   else
-    # make sure the file ends in a newline before appending
-    if [ -s "$f" ] && [ -n "$(tail -c 1 "$f")" ]; then echo >> "$f"; fi
-    printf '%s=%s\n' "$k" "$v" >> "$f"
+    append "$f" "$k=$v"
   fi
 }
 
@@ -186,6 +184,58 @@ append() {
 }
 
 line_count() { wc -l < "$1" | tr -d ' '; }
+
+commit_all() { # dir msg
+  git -C "$1" add -A
+  git -C "$1" commit -q -m "$2"
+}
+
+# lock_tests DIR FOLDER PATH... : the Amendment 2 lock layout. Commits
+# everything as T, then FOLDER/lock.md naming T and listing each PATH, as
+# its own commit L.
+lock_tests() {
+  local d="$1" f="$2" sha p; shift 2
+  commit_all "$d" "add tests for $f"
+  sha="$(git -C "$d" rev-parse HEAD)"
+  mkdir -p "$d/$f"
+  {
+    printf 'Tests-locked-at: %s\n\n## Locked tests\n\n' "$sha"
+    for p in "$@"; do printf -- '- %s\n' "$p"; done
+  } > "$d/$f/lock.md"
+  commit_all "$d" "lock tests for $f"
+}
+
+# ---- config variations (spec Amendment 6) ----------------------------------------
+
+# config_lines FILE KEY LINE... : drop every KEY= line, then append LINEs
+config_lines() {
+  local f="$1" k="$2" l; shift 2
+  filter_file "$f" awk -v k="$k" '!($0 ~ "^[[:space:]]*" k "[[:space:]]*=")'
+  for l in "$@"; do
+    append "$f" "$l"
+    grep -qxF -- "$l" "$f" || { fail "fixture: line not planted: $l"; return 1; }
+  done
+}
+
+# config_variant FILE KIND KEY REAL OTHER : write KEY per one AC32 variation;
+# a correct parser reads REAL, never OTHER
+config_variant() {
+  local f="$1" kind="$2" k="$3" real="$4" other="$5"
+  case "$kind" in
+    spaced) config_lines "$f" "$k" "$k = $real" ;;
+    comment) config_lines "$f" "$k" "# $k=$other" "$k=$real" ;;
+    no-equals) config_lines "$f" "$k" "$k $other" "$k=$real" ;;
+    twice) config_lines "$f" "$k" "$k=$real" "$k=$other" ;;
+    *) fail "unknown variant $kind"; return 1 ;;
+  esac
+}
+
+# write_stub_parser DIR : an installed _config.sh whose config_value prints nothing
+write_stub_parser() {
+  mkdir -p "$1/scripts/cortex"
+  printf '%s\n' '# stub: config_value reads its input and prints nothing' \
+    'config_value() { cat > /dev/null; }' > "$1/scripts/cortex/_config.sh"
+}
 
 # ---- filled baseline (spec Amendment 1, A2) ---------------------------------------
 

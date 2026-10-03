@@ -33,6 +33,8 @@ if [ "$#" -ne 1 ]; then
 fi
 folder="$1"
 lock_file="$folder/lock.md"
+# shellcheck source=_config.sh
+. "$(cd "$(dirname "$0")" && pwd)/_config.sh"
 g() { git -c core.quotepath=off "$@"; }
 
 problems=0
@@ -102,13 +104,7 @@ fi
 # it afterwards can't unlock anything.
 globs=""
 if g cat-file -e "$sha:.cortex/config" 2>/dev/null; then
-  globs="$(g show "$sha:.cortex/config" | tr -d '\r' | awk '
-    /^[[:space:]]*#/ { next }
-    { eq = index($0, "="); if (eq == 0) next
-      key = substr($0, 1, eq - 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
-      if (key != "TEST_GLOBS") next
-      val = substr($0, eq + 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", val); print val; exit }')"
-  case "$globs" in "<"*">") globs="" ;; esac
+  globs="$(g show "$sha:.cortex/config" | config_value TEST_GLOBS)"
 fi
 
 # The lock set: the listed files, every file matching TEST_GLOBS at the sha (a

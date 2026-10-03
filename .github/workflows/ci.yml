@@ -19,6 +19,6 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: shellcheck
-        run: shellcheck --severity=warning scripts/*.sh template/scripts/cortex/*.sh tests/*.sh
+        run: shellcheck --severity=warning scripts/*.sh template/scripts/cortex/*.sh tests/*.sh evals/golden/*/refresh.sh
       - name: test suites
         run: bash tests/run.sh --parallel

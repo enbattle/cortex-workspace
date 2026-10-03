@@ -13,11 +13,6 @@ set -euo pipefail
 
 LOCK_REL="changes/x/lock.md"
 
-commit_all() { # dir msg
-  git -C "$1" add -A
-  git -C "$1" commit -q -m "$2"
-}
-
 # write_lock DIR SHA [LIST-LINE...] : changes/x/lock.md naming SHA ("-" omits
 # the Tests-locked-at line). With no list lines, locks tests/a.test.sh and
 # tests/b.test.sh (the second wrapped in backticks). A "## Notes" section
@@ -787,6 +782,35 @@ case_D1_rebase_onto_moved_base() {
   assert_not_contains "$OUT" "tests-locked: " "rebase onto a moved base: no success line"
 }
 
+# ---- AC32/AC34 (Amendment 6, F1/F2): one config parser --------------------------
+
+# ac32_locked KIND : TEST_GLOBS at the lock written per KIND (real *.test.sh,
+# other *.spec.sh); a new *.test.sh is added, a new *.spec.sh is not
+ac32_locked() {
+  local kind="$1" d; d="$(base_repo)"
+  config_variant "$d/.cortex/config" "$kind" TEST_GLOBS '*.test.sh' '*.spec.sh'
+  lock_it "$d"
+  printf 'echo c\n' > "$d/tests/c.test.sh"
+  printf 'echo d\n' > "$d/tests/d.spec.sh"
+  locked "$d"
+  expect_lock added tests/c.test.sh "$kind: the real TEST_GLOBS"
+  assert_not_contains "$OUT$ERR" "LOCK added: tests/d.spec.sh" "$kind: the other value is not read as TEST_GLOBS"
+}
+
+case_AC32_spaced() { ac32_locked spaced; }
+case_AC32_comment() { ac32_locked comment; }
+case_AC32_no_equals() { ac32_locked no-equals; }
+case_AC32_twice() { ac32_locked twice; }
+
+case_AC34_stub_parser() {
+  local d; d="$(locked_repo)"
+  write_stub_parser "$d"
+  printf 'echo c\n' > "$d/tests/c.test.sh"
+  locked "$d"
+  assert_not_contains "$OUT$ERR" "LOCK added: tests/c.test.sh" "tests-locked.sh reads TEST_GLOBS through _config.sh"
+  assert_exit 0 "$CODE" "nothing else is broken -> exit 0"
+}
+
 run_case "fixture: T, then lock.md in its own commit L" case_fixture_layout
 run_case "pass: untouched locked set" case_pass_untouched
 run_case "pass: non-test changes" case_pass_non_test_changes
@@ -855,4 +879,9 @@ run_case "AC27 merge resolving a listed test to neither side" case_D1_merge_reso
 run_case "AC27 merge resolving a matched test to neither side" case_D1_merge_resolved_to_neither_matched
 run_case "AC27 merge resolving the config to neither side" case_D1_merge_resolved_config_to_neither
 run_case "AC28 rebase onto a moved base fails" case_D1_rebase_onto_moved_base
+run_case "AC32 TEST_GLOBS with spaces around =" case_AC32_spaced
+run_case "AC32 TEST_GLOBS after a commented-out line" case_AC32_comment
+run_case "AC32 TEST_GLOBS after a line without =" case_AC32_no_equals
+run_case "AC32 TEST_GLOBS twice: the first wins" case_AC32_twice
+run_case "AC34 a stub _config.sh changes what tests-locked.sh reads" case_AC34_stub_parser
 summary

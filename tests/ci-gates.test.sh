@@ -15,27 +15,9 @@ set -euo pipefail
 
 BASE="origin/main"
 
-commit_all() { # dir msg
-  git -C "$1" add -A
-  git -C "$1" commit -q -m "$2"
-}
-
 # lock_folder DIR FOLDER : commit everything as T, then FOLDER/lock.md naming
 # T (locking tests/b.test.sh) as its own commit L
-lock_folder() {
-  local d="$1" f="$2" sha
-  commit_all "$d" "add tests for $f"
-  sha="$(git -C "$d" rev-parse HEAD)"
-  mkdir -p "$d/$f"
-  cat > "$d/$f/lock.md" <<EOF2
-Tests-locked-at: $sha
-
-## Locked tests
-
-- tests/b.test.sh
-EOF2
-  commit_all "$d" "lock tests for $f"
-}
+lock_folder() { lock_tests "$1" "$2" tests/b.test.sh; }
 
 # base_only -> filled install committed as the base (origin/main), checked out
 # on branch "feature" at the same commit; nothing locked yet
@@ -418,6 +400,28 @@ ci-gates: ok" "the folder is gated and passes after a base merge"
   assert_not_contains "$OUT" "LOCK " "no LOCK lines after a base merge"
 }
 
+# ---- AC35 (Amendment 6, F1): the base's parser, never the branch's ----------------
+
+case_AC35_branch_stub_parser() {
+  # the branch replaces _config.sh with one that reads nothing; the base copies
+  # of check.sh and gates.sh still read the base's filled config correctly
+  local d; d="$(ci_repo)"
+  printf '%s\n' '# stub: config_value reads its input and prints nothing' \
+    'config_value() { cat > /dev/null; }' > "$d/scripts/cortex/_config.sh"
+  commit_all "$d" "replace the config parser"
+  assert_true "fixture: the branch's _config.sh differs from the base's" \
+    test -n "$(git -C "$d" diff --name-only "$BASE" HEAD -- scripts/cortex/_config.sh)"
+  ci_gates "$d" "$BASE"
+  assert_exit 0 "$CODE" "ci-gates passes with the base's parser"
+  expect_ci_lines "ci-gates: using scripts from $BASE
+ci-gates: check ok
+ci-gates: changes/x ok
+ci-gates: ok" "base parser: check and folder pass"
+  assert_not_contains "$OUT" "[C11]" "the base check.sh reads the config"
+  assert_line "$OUT" "gate build: ok" "the base gates.sh reads BUILD_CMD"
+  assert_true "ci-gates: ok is the last line" test "$(last_line "$OUT")" = "ci-gates: ok"
+}
+
 run_case "ci-gates.sh shipped and installed executable" case_installed
 run_case "AC25 no argument -> exit 2" case_usage_no_argument
 run_case "AC25 unresolvable ref -> exit 2" case_usage_bad_ref
@@ -441,4 +445,5 @@ run_case "AC24 hidden + broken lock: both counted" case_hidden_plus_lock_failure
 run_case "AC29 folder archived on the branch is not gated" case_archived_on_branch
 run_case "AC29 folder archived after its change merged" case_archived_after_merge
 run_case "AC29 base merged into a locked branch -> ok" case_base_merged_into_locked_branch
+run_case "AC35 a branch's stub _config.sh: the base's parser is used" case_AC35_branch_stub_parser
 summary

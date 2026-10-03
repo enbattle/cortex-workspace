@@ -423,6 +423,48 @@ case_C8_exact_marker_ok() {
   assert_not_contains "$OUT" "[C8]" "no C8 for the exact generated comment"
 }
 
+# ---- AC32-34 (Amendment 6, F1/F2): one config parser ----------------------------
+
+# A second project name, absent from the template, used as the value a correct
+# parser must NOT pick.
+OTHER_NAME="Qzvother"
+
+# ac32_check KIND : PROJECT_NAME parsed per the format section; C1 fires for
+# the real name only
+ac32_check() {
+  local kind="$1" d cfg r1 r2
+  d="$(prepared_install)"; baseline_ok "$d"
+  cfg="$d/.cortex/config"
+  config_variant "$cfg" "$kind" PROJECT_NAME "$TOKEN" "$OTHER_NAME"
+  r1="$(a_command "$d")"
+  r2="$(rel "$d" "$(find "$d/harness/commands" -type f -name '*.md' | LC_ALL=C sort | sed -n 2p)")"
+  planted "two distinct command files" test -n "$r2" -a "$r1" != "$r2"
+  planted "$OTHER_NAME absent from harness/" test -z "$(grep -rliF "$OTHER_NAME" "$d/harness" || true)"
+  append "$d/$r1" "Notes for $TOKEN."
+  append "$d/$r2" "Notes for $OTHER_NAME."
+  check_in "$d"
+  assert_exit 1 "$CODE" "$kind: the real name planted -> exit 1"
+  assert_contains "$OUT" "FAIL [C1] $r1:" "$kind: C1 fires for the real PROJECT_NAME"
+  assert_not_contains "$OUT" "FAIL [C1] $r2:" "$kind: the other value is not read as PROJECT_NAME"
+  assert_not_contains "$OUT" "$(c11 PROJECT_NAME)" "$kind: PROJECT_NAME is set"
+  assert_line "$OUT" "check: 1 failure(s)" "$kind: only the C1 plant fails"
+}
+
+case_AC32_spaced() { ac32_check spaced; }
+case_AC32_comment() { ac32_check comment; }
+case_AC32_no_equals() { ac32_check no-equals; }
+case_AC32_twice() { ac32_check twice; }
+
+case_AC34_stub_parser() {
+  local d k; d="$(prepared_install)"; baseline_ok "$d"
+  write_stub_parser "$d"
+  check_in "$d"
+  assert_exit 1 "$CODE" "a parser that prints nothing -> exit 1"
+  for k in $FILL_KEYS; do
+    assert_line "$OUT" "$(c11 "$k")" "check.sh reads $k through _config.sh"
+  done
+}
+
 run_case "token absent from template" case_token_absent_from_template
 run_case "AC4 baseline check: ok" case_baseline_ok
 run_case "repo-root argument" case_root_argument
@@ -462,4 +504,9 @@ run_case "AC18 'cortex' is a whole word in harness/" case_C1_cortex_is_whole_wor
 run_case "AC18 C8 a different comment" case_C8_other_comment_only
 run_case "AC18 C8 a second, different comment" case_C8_second_comment
 run_case "AC18 C8 exact generated comment ok" case_C8_exact_marker_ok
+run_case "AC32 PROJECT_NAME with spaces around =" case_AC32_spaced
+run_case "AC32 PROJECT_NAME after a commented-out line" case_AC32_comment
+run_case "AC32 PROJECT_NAME after a line without =" case_AC32_no_equals
+run_case "AC32 PROJECT_NAME twice: the first wins" case_AC32_twice
+run_case "AC34 a stub _config.sh changes what check.sh reads" case_AC34_stub_parser
 summary
