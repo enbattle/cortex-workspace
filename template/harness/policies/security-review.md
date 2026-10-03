@@ -1,10 +1,8 @@
 # Security review
 
 A separate pass `review` runs, in its own fresh context, when a diff adds or
-changes an external surface: a network endpoint, an authentication or
-authorization boundary, a webhook, a file upload, deserialization of
-untrusted data, an outbound call that carries credentials, or a new
-dependency. Same inputs as `review`; this checklist instead of the general
+changes an external surface (`harness/commands/review.md` step 7 lists what
+counts). Same inputs as `review`; this checklist instead of the general
 one. Report findings in the same format, each labeled introduced or already
 present.
 

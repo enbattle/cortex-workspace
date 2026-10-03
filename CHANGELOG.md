@@ -164,6 +164,34 @@ release:
 - Maintainers: shared test helpers live in `tests/lib.sh`, and
   `evals/golden/review-maxlength/refresh.sh` refreshes the golden fixture.
 
+**Changed: judgment over proxies, and quality standards** (plan PR 2):
+
+- New design rule R14: a rule is rigid where it constrains the party who
+  would argue for an exception (approval, the test lock, reviewer isolation,
+  untrusted content, never pushing); elsewhere a practice is adopted when it
+  passes four checks (mechanism, fit, cost here, reversibility), recorded in
+  writing. `retro` checks deferred practices against it as well as their
+  triggers. Deletion quotas become "nominate one, or say why nothing
+  qualifies", weighed by severity.
+- R13: a cheap test for a severe class of finding is allowed. R7 limits the
+  harness's own requirements, not the project's tools.
+- The review checklist gains a Tests bar that `test-first` writes to
+  (literal expected values, no mocked unit, deterministic, boundary and
+  error cases, property-based tests for large input spaces), a section on
+  verification on the real artifact, and a Simplicity section for E4; it
+  drops the `check.sh` item, which `gates.sh` already runs.
+- `implement` records verification evidence under `## Verification` in
+  `tasks.md`; `review` repeats it, and its verdict lists every step and
+  checklist item as done or `skip: <reason>`. Golden task: 4/4 PASS
+  (`results/2026-10-02.md`).
+- Five new catalog entries (mutation testing, flaky-test quarantine,
+  coverage reported but never gated, process weight scaled to stakes, a
+  second reviewer on another model); the first three are seeded in
+  `deferred-practices.md`. The horizon scan records pstack.
+- Audits of the test suites (`evals/audits/2026-10-02-test-suites.md`):
+  process start-up makes `check.sh` take 3.3 s on Windows, and a mutation
+  audit of the gate scripts caught 25 of 35 mutants.
+
 **Fixed (design problems in v1):**
 
 - A repository's `AGENTS.md` "overriding workspace guidance" contradicted

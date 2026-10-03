@@ -34,8 +34,11 @@ This is the maintenance loop for everything under `harness/` and
    upstream leaks: propose moving the check earlier (the constitution, the
    clarify questions, the repository's conventions).
 4. Check `docs/deferred-practices.md`: has any entry's trigger fired during
-   this change? If so, propose adopting it to the user (a large one is its
-   own change folder) and update the entry; don't build it inside the retro.
+   this change, or does an entry now pass the four checks of R14
+   (`.cortex/design-rules.md`)? If so, propose adopting it to the user with
+   the trigger or the four answers (a large one is its own change folder),
+   record them in the pipeline-log row, and update the entry; don't build it
+   inside the retro.
 5. Show the user the proposed edits. Apply only what they approve.
 6. Append one row to `changes/pipeline-log.md` recording what was actually
    applied (its header defines the columns). An **escaped defect** (a bug

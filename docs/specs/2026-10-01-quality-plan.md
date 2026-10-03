@@ -60,7 +60,7 @@ golden runs happen once. [seams]
 
 Judgment over proxies [rigidity]:
 
-- [ ] 12. **diff first** A design rule, R14, in `docs/01-design-rules.md`:
+- [x] 12. **diff first** A design rule, R14, in `docs/01-design-rules.md`:
   the rigidity line above, and what counts as evidence for adopting a
   practice (an observed incident, or a well-understood failure that can
   occur here, passed through the four checks: mechanism, fit, cost here,
@@ -70,77 +70,77 @@ Judgment over proxies [rigidity]:
   document is never installed, so a retro there could not read it.
   `docs/03-mental-traps.md` explains the reasoning beside P5 and points to
   R14. [routing]
-- [ ] 13. **diff first** Every restatement points to R14 instead of
+- [x] 13. **diff first** Every restatement points to R14 instead of
   defining evidence itself: P2, T1's antidote and pre-addition question 1, T5,
   the traps document's own entry rule, `docs/02-extensions.md`'s operating
   rule, `docs/04-operator-feedback-loop.md`'s judgment rules ("act on
   second" becomes cost-dependent: a cheap, reversible fix may act on the
   first occurrence), and `template/docs/deferred-practices.md`.
-- [ ] 14. An adoption made on the four checks records its answers (in the
+- [x] 14. An adoption made on the four checks records its answers (in the
   retro's pipeline-log row or the change folder), as a waiver is recorded:
   `retro.md` step 4 and the extensions operating rule. [seams]
-- [ ] 15. **diff first** Deletion quotas become "nominate one, or say why
+- [x] 15. **diff first** Deletion quotas become "nominate one, or say why
   nothing qualifies": T14's antidote and the extensions' "Deletion pass".
-- [ ] 16. Removing a checklist item weighs the severity of what it catches,
+- [x] 16. Removing a checklist item weighs the severity of what it catches,
   not only how often it fires: `review-checklist.md`'s preamble and T14.
-- [ ] 17. R13: a theoretical finding becomes a known limitation by default;
+- [x] 17. R13: a theoretical finding becomes a known limitation by default;
   a cheap test is allowed when the class is severe (matching `review.md`).
-- [ ] 18. **diff first** Drop "not through another completeness audit" from
+- [x] 18. **diff first** Drop "not through another completeness audit" from
   `docs/04-operator-feedback-loop.md` (it contradicts the root `AGENTS.md`).
-- [ ] 19. R7 says it limits the harness's own requirements, not the
+- [x] 19. R7 says it limits the harness's own requirements, not the
   project's development tools.
-- [ ] 19a. Drop the hard-coded rule range "R1–R13" (in `template/AGENTS.md`,
+- [x] 19a. Drop the hard-coded rule range "R1–R13" (in `template/AGENTS.md`,
   `README.md`, `docs/02-extensions.md`, and a comment in
   `scripts/install.sh`), so adding R14 doesn't mean editing four places:
   say "the design rules" or "rule IDs (R1, R2, ...)". [routing]
 
 Review text, all in this PR so golden runs happen once [seams]:
 
-- [ ] 20. `review-checklist.md`: drop the `check.sh` item (`gates.sh` runs
+- [x] 20. `review-checklist.md`: drop the `check.sh` item (`gates.sh` runs
   it) [audit]; add a simplicity item (no duplicated logic that must change
   together, nothing beyond the criteria) [standards].
-- [ ] 21. `security-review.md` points to `review.md` step 7 for what counts
+- [x] 21. `security-review.md` points to `review.md` step 7 for what counts
   as an external surface, instead of repeating the list. [audit]
-- [ ] 22. The review verdict lists every procedure step and checklist item
+- [x] 22. The review verdict lists every procedure step and checklist item
   as done or `skip: <reason>`, so an empty approval is mechanical to spot.
   [pstack]
 
 Test and verification quality:
 
-- [ ] 23. A test-quality bar: deterministic and isolated; boundary and
+- [x] 23. A test-quality bar: deterministic and isolated; boundary and
   error cases; never mock the unit under test; assert against literal
   expected values [pstack]; property-based tests where the input space is
   large. [standards] It lives once, in the Tests section of
   `review-checklist.md`, which the reviewer already loads (R4); `test-first.md`
   tells the test writer to meet that section, instead of a copy the
   reviewer can't see. [routing]
-- [ ] 24. Verification on the real artifact, matched to what changed:
+- [x] 24. Verification on the real artifact, matched to what changed:
   `implement` runs the changed thing the way a user would (the command, the
   endpoint, the flow) and pastes the evidence into `tasks.md`; `review`
   repeats it. [pstack] What counts as evidence for each kind of change is
   defined once, in `review-checklist.md`; both commands point to it.
   [routing]
-- [ ] 25. A mutation audit of the five gate scripts (break one condition at
+- [x] 25. A mutation audit of the five gate scripts (break one condition at
   a time; record what no test catches) in `evals/audits/`; automate only if
   it finds survivors. [standards]
-- [ ] 26. Measure the suites' time and memory before changing them (a run
+- [x] 26. Measure the suites' time and memory before changing them (a run
   was killed for memory on 2026-09-30). [standards]
 
 Catalog (`docs/02-extensions.md`), each with a trigger:
 
-- [ ] 27. Mutation-testing tools for installed repositories (stack-specific,
+- [x] 27. Mutation-testing tools for installed repositories (stack-specific,
   so not shipped); flaky-test quarantine (a scale problem); coverage
   reported, never gated (a gate gets gamed). [standards] These three are
   practices for the project, so each is also seeded as a short entry in
   `template/docs/deferred-practices.md`, which installed repositories read
   at every retro; items 28 and 29 change the harness, so they stay in the
   cortex catalog only. [routing]
-- [ ] 28. Process weight scaled to stakes: a middle tier between trivial
+- [x] 28. Process weight scaled to stakes: a middle tier between trivial
   and the full pipeline, chosen by the human or a fixed rule, never the
   agent; designed from the first real project's data. [pstack]
-- [ ] 29. A second reviewer on a different model for high-risk changes,
+- [x] 29. A second reviewer on a different model for high-risk changes,
   next to model-tier routing. [pstack]
-- [ ] 30. The horizon scan records pstack, with what was adopted (items 7,
+- [x] 30. The horizon scan records pstack, with what was adopted (items 7,
   22, 23, 24, 28, 29) and what was rejected and why: its size, the
   maintained feature map (a curated summary drifts, R13), "never block on
   the human" (conflicts with the human gates), competing prototypes by
@@ -148,8 +148,9 @@ Catalog (`docs/02-extensions.md`), each with a trigger:
 
 Then:
 
-- [ ] 31. Refresh the fixture; run the golden task twice with fresh
-  reviewers and record it; `CHANGELOG.md` entry; the full suites pass.
+- [x] 31. Refresh the fixture; run the golden task twice with fresh
+  reviewers and record it; `CHANGELOG.md` entry; the full suites pass (CI
+  run 37072785977 at `5b107a4`).
 
 Rejected after discussion: lint hooks in the Claude Code adapter (`gates.sh`
 and review already run lint; a hook would be a third copy). [standards]

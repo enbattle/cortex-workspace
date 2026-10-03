@@ -10,7 +10,7 @@ Route yourself with the table below before doing any work.
 | Starting any task | `docs/knowledge/index.md`, then only the files it points you to |
 | Working in a package that has its own `AGENTS.md` | That file too; it may add conventions, never relax the constitution, security rules, or gates |
 | Making a nontrivial change | The commands in order: `spec-new`, `spec-clarify`, `test-first`, `implement`, `review`, `retro` (in `harness/commands/`) |
-| Running any command | `docs/constitution.md`; it is non-negotiable. Rule IDs (R1–R13) are in `.cortex/design-rules.md` |
+| Running any command | `docs/constitution.md`; it is non-negotiable. Rule IDs (R1, R2, ...) are in `.cortex/design-rules.md` |
 | Reviewing | Only the inputs `harness/commands/review.md` names, in a fresh context |
 | Checking the harness itself | `bash scripts/cortex/check.sh` |
 

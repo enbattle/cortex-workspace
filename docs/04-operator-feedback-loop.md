@@ -2,7 +2,7 @@
 
 **This document is personal.** It is for the human running the workspace, meant to be re-read regularly — before a work session, after a rough one, at each retro. It is deliberately *not* part of the agent-loaded document set: pointing agents at operator pedagogy is the T8 trap (context as landfill). The design rules and template say what gets installed, the extensions doc says what to build later, the traps doc says how to think about structure — this one trains the skill none of those can encode: *recognizing a signal while it is happening*.
 
-Once the workspace is running, everything changes through this loop. Not through inspiration, not through "while I'm at it," not through another completeness audit. Signal → change. That is the whole discipline.
+Once the workspace is running, everything changes through this loop. Not through inspiration, not through "while I'm at it." Signal → change. That is the whole discipline.
 
 ---
 
@@ -56,7 +56,7 @@ The skill to build: treat the *feeling* as a loggable event. Feelings about proc
 
 ## The judgment rules
 
-**Log on first occurrence, act on second.** One incident is weather; a repeat is climate. The log is what distinguishes them without trusting memory. Acting on every first occurrence produces churn; ignoring repeats produces rot.
+**Log on first occurrence, act on second, unless the fix is cheap and reversible.** One incident is weather; a repeat is climate. The log is what distinguishes them without trusting memory. Acting on every first occurrence with a structural change produces churn; ignoring repeats produces rot; a one-line fix that can be undone just as easily doesn't need to wait for the weather to turn.
 
 **Two exceptions act immediately:** escaped defects (a bug review approved) and anything security-shaped. These skip the wait-for-a-pattern rule and get a retro now.
 
@@ -98,4 +98,4 @@ If all five are clean, no retro needed — the loop's silence is also informatio
 
 ## The reminder this document exists for
 
-The pull, forever, will be toward two failure modes: changing things because they *seem* improvable (audit appetite, completeness anxiety — T1 in new clothing), and changing nothing because logging feels like overhead. The loop is the narrow path between them: **evidence in, diffs out, verified later.** When unsure whether something deserves a change, the question is never "would this be better?" — almost anything "would be better." The question is: *which logged signal demands it?* No signal, no change. Two signals, no excuses.
+The pull, forever, will be toward two failure modes: changing things because they *seem* improvable (audit appetite, completeness anxiety — T1 in new clothing), and changing nothing because logging feels like overhead. The loop is the narrow path between them: **evidence in, diffs out, verified later.** When unsure whether something deserves a change, the question is never "would this be better?" — almost anything "would be better." The question is: *what failure does it prevent, and can that failure happen here?* (R14's four checks.) A logged signal is the strongest answer; an understood mechanism is an answer too. No answer, no change. Two signals, no excuses.

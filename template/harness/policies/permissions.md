@@ -8,8 +8,8 @@ enforce a row, the row still binds and review checks it.
 | Command | Reads | Writes | Runs | Never |
 | --- | --- | --- | --- | --- |
 | `spec-new`, `spec-clarify` | code, knowledge, policies | the change folder | read-only commands | code, tests, the approval line |
-| `test-first` | the change folder, code under test | test and fixture files; `tasks.md`; commits on the change branch | the test command | implementation files |
-| `implement` | the change folder, code, knowledge | code, docs, `tasks.md`; commits on the change branch | build, test, lint, the cortex scripts | locked tests, new test files |
+| `test-first` | the change folder, code under test, the review checklist's Tests section | test and fixture files; `tasks.md`; commits on the change branch | the test command | implementation files |
+| `implement` | the change folder, code, knowledge, the review checklist | code, docs, `tasks.md`; commits on the change branch | build, test, lint, the cortex scripts | locked tests, new test files |
 | `review` | the diff, the change folder, policies | `review-findings.md` only | tests, the cortex scripts | anything else |
 | `retro` | the change folder, the pipeline log | approved edits only; the pipeline log | read-only commands | unapproved edits |
 | `onboard` | knowledge | nothing | nothing | anything |
