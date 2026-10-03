@@ -639,6 +639,86 @@ case_AC44_order_and_count() {
   assert_line "$OUT" "check: 12 failure(s)" "AC44: summary counts all twelve"
 }
 
+# ---- AC45-49 (Amendment 8, J1): C0 names a missing directory ---------------------
+
+c0() { printf 'FAIL [C0] %s/: missing; run check.sh from the repository root (or pass the root as its argument), or reinstall' "$1"; }
+
+case_AC45_harness_missing() {
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  rm -rf "$d/harness"
+  planted "harness/ removed" test ! -e "$d/harness"
+  check_in "$d"
+  assert_exit 1 "$CODE" "AC45: missing harness/ exits 1"
+  assert_true "AC45: C0 for harness/ is the first line" \
+    test "$(sed -n 1p <<<"$OUT")" = "$(c0 harness)"
+  assert_true "AC45: C0 for harness/ reported once" \
+    test "$(grep -cxF -- "$(c0 harness)" <<<"$OUT" || true)" = 1
+  assert_not_contains "$OUT" "$(c0 docs/knowledge)" "AC45: docs/knowledge/ is present, no C0 for it"
+  assert_line "$OUT" "check: 1 failure(s)" "AC45: summary counts the C0 line"
+}
+
+case_AC46_knowledge_missing() {
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  rm -rf "$d/docs/knowledge"
+  planted "docs/knowledge/ removed" test ! -e "$d/docs/knowledge"
+  check_in "$d"
+  assert_exit 1 "$CODE" "AC46: missing docs/knowledge/ exits 1"
+  assert_true "AC46: C0 for docs/knowledge/ is the first line" \
+    test "$(sed -n 1p <<<"$OUT")" = "$(c0 docs/knowledge)"
+  assert_true "AC46: C0 for docs/knowledge/ reported once" \
+    test "$(grep -cxF -- "$(c0 docs/knowledge)" <<<"$OUT" || true)" = 1
+  assert_not_contains "$OUT" "$(c0 harness)" "AC46: harness/ is present, no C0 for it"
+  assert_line "$OUT" "check: 1 failure(s)" "AC46: summary counts the C0 line"
+}
+
+case_AC47_both_missing() {
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  rm -rf "$d/harness" "$d/docs/knowledge"
+  planted "both directories removed" test ! -e "$d/harness" -a ! -e "$d/docs/knowledge"
+  check_in "$d"
+  assert_exit 1 "$CODE" "AC47: both missing exits 1"
+  assert_true "AC47: C0 for harness/ is the first line" \
+    test "$(sed -n 1p <<<"$OUT")" = "$(c0 harness)"
+  assert_true "AC47: C0 for docs/knowledge/ is the second line" \
+    test "$(sed -n 2p <<<"$OUT")" = "$(c0 docs/knowledge)"
+  assert_line "$OUT" "check: 2 failure(s)" "AC47: summary counts both C0 lines"
+}
+
+case_AC48_unfilled_harness_missing() {
+  local d k expected actual; d="$(fresh_install)"
+  planted "template AGENTS.md has TODO" grep -qF "TODO" "$d/AGENTS.md"
+  rm -rf "$d/harness"
+  planted "harness/ removed" test ! -e "$d/harness"
+  check_in "$d"
+  assert_exit 1 "$CODE" "AC48: unfilled install without harness/ exits 1"
+  assert_true "AC48: C0 for harness/ is the first line" \
+    test "$(sed -n 1p <<<"$OUT")" = "$(c0 harness)"
+  for k in $FILL_KEYS; do
+    assert_line "$OUT" "$(c11 "$k")" "AC48: C11 for unset $k still reported"
+  done
+  assert_contains "$OUT" "FAIL [C12] AGENTS.md:" "AC48: C12 still reported"
+  expected="$(printf '%s\n' C0 C11 C11 C11 C11 C11 C11 C12)"
+  actual="$(grep '^FAIL ' <<<"$OUT" | sed 's/^FAIL \[\([A-Z0-9]*\)\].*/\1/' || true)"
+  if [ "$actual" = "$expected" ]; then pass
+  else fail "AC48: FAIL lines are not C0, then six C11, then C12"; show_output; fi
+  assert_line "$OUT" "check: 8 failure(s)" "AC48: C0 + six C11 + one C12 counted"
+}
+
+case_AC49_run_from_subdirectory() {
+  local d fails; d="$(prepared_install)"; baseline_ok "$d"
+  planted "harness/commands/ exists" test -d "$d/harness/commands"
+  run bash -c 'cd "$1/harness/commands" && ../../scripts/cortex/check.sh' _ "$d"
+  assert_exit 1 "$CODE" "AC49: run from harness/commands/ exits 1"
+  assert_true "AC49: output is not empty" test -n "$OUT"
+  assert_true "AC49: C0 for harness/ is the first line" \
+    test "$(sed -n 1p <<<"$OUT")" = "$(c0 harness)"
+  assert_true "AC49: C0 for docs/knowledge/ is the second line" \
+    test "$(sed -n 2p <<<"$OUT")" = "$(c0 docs/knowledge)"
+  fails="$(grep '^FAIL \[C0\]' <<<"$OUT" || true)"
+  assert_true "AC49: exactly two C0 lines" test "$(grep -c . <<<"$fails" || true)" = 2
+  assert_line "$OUT" "check: $(grep -c '^FAIL ' <<<"$OUT" || true) failure(s)" "AC49: summary counts every FAIL line"
+}
+
 run_case "token absent from template" case_token_absent_from_template
 run_case "AC4 baseline check: ok" case_baseline_ok
 run_case "repo-root argument" case_root_argument
@@ -693,4 +773,9 @@ run_case "AC41 C10 'never instructions' without 'data,'" case_AC41_never_instruc
 run_case "AC42 C12 TODO without a colon" case_AC42_todo_without_colon
 run_case "AC43 process starts do not grow with files (H2)" case_AC43_bounded_processes
 run_case "AC44 FAIL lines grouped by check, sorted by path" case_AC44_order_and_count
+run_case "AC45 C0 for a missing harness/" case_AC45_harness_missing
+run_case "AC46 C0 for a missing docs/knowledge/" case_AC46_knowledge_missing
+run_case "AC47 C0 for both, harness/ first" case_AC47_both_missing
+run_case "AC48 C0 first on an unfilled install, C11/C12 follow" case_AC48_unfilled_harness_missing
+run_case "AC49 run from harness/commands/ with no argument" case_AC49_run_from_subdirectory
 summary
