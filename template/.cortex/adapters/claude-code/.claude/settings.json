@@ -9,6 +9,7 @@
       "Bash(git merge-base*)",
       "Bash(git rev-parse*)",
       "Bash(git switch *)",
+      "Bash(git checkout -b *)",
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(bash scripts/cortex/*)",
@@ -20,6 +21,7 @@
       "PowerShell(git merge-base*)",
       "PowerShell(git rev-parse*)",
       "PowerShell(git switch *)",
+      "PowerShell(git checkout -b *)",
       "PowerShell(git add *)",
       "PowerShell(git commit *)",
       "PowerShell(bash scripts/cortex/*)"
