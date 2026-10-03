@@ -216,6 +216,12 @@ PR 3):
   golden runs now review a change with a `## Verification` record (3/3
   PASS). The mutation runner is deleted (its patterns had gone stale), and
   the mutation audit's count is corrected to 26 of 35.
+- `check.sh` reports a missing `harness/` or `docs/knowledge/` as C0 and
+  says to run it from the repository root (spec Amendment 8). It used to
+  exit 1 with no output, which is what running it from the wrong directory
+  looked like.
+- Faster test helpers for this repository's suites are recorded in
+  `docs/02-extensions.md` as needed, with a trigger to revisit.
 
 **Fixed (design problems in v1):**
 
