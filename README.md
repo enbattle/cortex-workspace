@@ -35,7 +35,7 @@ docs/constitution.md           the project's non-negotiables (project-owned; upg
 docs/knowledge/                index, glossary, architecture, decisions/
 docs/deferred-practices.md     practices considered and deferred, with triggers
 changes/pipeline-log.md        one row per change: gates, findings, retro, escaped defects
-scripts/cortex/                check.sh, tests-locked.sh, gates.sh, ci-gates.sh, adapt.sh
+scripts/cortex/                check.sh, tests-locked.sh, gates.sh, ci-gates.sh, adapt.sh, _config.sh (their parser)
 .cortex/                       config, version, design rules, adapter sources, CI and CODEOWNERS templates
 ```
 

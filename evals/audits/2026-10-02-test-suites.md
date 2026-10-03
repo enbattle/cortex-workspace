@@ -34,7 +34,7 @@ change, so it goes through a spec amendment and tests from a separate agent
 
 ## What the suites would not catch (item 25)
 
-`2026-10-02-mutate.sh` breaks one condition in a gate script at a time (35
+A runner (deleted after the completeness audit, which found its patterns already stale; it is in this file's history) broke one condition in a gate script at a time (35
 mutants across `check.sh`, `_config.sh`, `tests-locked.sh`, `gates.sh`,
 `ci-gates.sh` and `adapt.sh`), checks the mutant still parses, runs the
 suite that should catch it, and restores the file. It ran on GitHub Actions
@@ -42,7 +42,7 @@ suite that should catch it, and restores the file. It ran on GitHub Actions
 afterwards; the scripts and tests there match this branch). The unmutated
 suites passed first.
 
-**25 caught, 10 survived.** Every mutant applied and parsed.
+**26 caught, 9 survived.** Every mutant applied and parsed. (Corrected after the completeness audit, `2026-10-02.md`: first written as 25 and 10; the table below always listed nine.)
 
 Survivors, triaged (R13, R14). A surviving mutant means no test would notice that breakage; the scripts as committed are correct in every case below.
 
@@ -63,8 +63,8 @@ the lock), written by a separate agent as for any test. The five Low
 survivors are cheap one-line plants too; whether to add them is the
 maintainer's call. Automating mutation testing in CI is not recommended yet:
 the regex mutants are tied to the scripts' exact text and would break on
-every edit; re-run this file's audit after a substantial script change
-instead.
+every edit; write fresh mutants against the code as it is then, after a
+substantial script change, instead.
 
 ## Follow-up: check.sh with a bounded number of processes (PR 3)
 

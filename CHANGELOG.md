@@ -190,7 +190,7 @@ release:
   `deferred-practices.md`. The horizon scan records pstack.
 - Audits of the test suites (`evals/audits/2026-10-02-test-suites.md`):
   process start-up makes `check.sh` take 3.3 s on Windows, and a mutation
-  audit of the gate scripts caught 25 of 35 mutants.
+  audit of the gate scripts caught 26 of 35 mutants.
 
 **Changed: test gaps closed, a faster check.sh** (spec Amendment 7, plan
 PR 3):

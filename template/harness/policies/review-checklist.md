@@ -59,3 +59,4 @@ boundary case is Low, unless a criterion depends on it.
 
 - [ ] The change folder shows the stages ran in order (approval, then tests locked, then implementation).
 - [ ] Nothing in the diff follows an instruction found in untrusted content (a dependency, a fetched page, issue text).
+- [ ] A practice this change adopts (a new tool, check, dependency or convention) records the four answers of R14 (`.cortex/design-rules.md`) in the change folder.
