@@ -3,6 +3,7 @@
 # rules (.cortex/design-rules.md) that a script can verify (R11).
 # Each violation prints "FAIL [<ID>] <path>: <message>".
 #
+#   C0  -    harness/ or docs/knowledge/ is missing (wrong directory?)
 #   C1  R1   the project name appears under harness/
 #   C2  R8   an agent-tool name appears under harness/ or docs/knowledge/
 #   C3  R2   AGENTS.md is missing or longer than 60 lines
@@ -34,15 +35,21 @@ report() { # id path message
 files_under() { # dir... -> regular files, sorted
   local dir
   for dir in "$@"; do
-    [ -d "$dir" ] && find "$dir" -type f
+    [ -d "$dir" ] || continue
+    find "$dir" -type f
   done | LC_ALL=C sort
 }
+
+# C0 — the harness's own directories exist (spec Amendment 8). Without them
+# the checks below have nothing to look at; the usual cause is running from
+# the wrong directory, so say so instead of passing quietly or stopping.
+for dir in harness docs/knowledge; do
+  [ -d "$dir" ] || report C0 "$dir/" "missing; run check.sh from the repository root (or pass the root as its argument), or reinstall"
+done
 
 # Each check runs one grep over every file it covers, not one per file
 # (spec Amendment 7): starting a process costs 50-60 ms on Windows. grep
 # lists matches in argument order, so reports stay sorted by path.
-# (Assigned first: a missing harness/ or docs/knowledge/ still stops the
-# script with exit 1, as it always has.)
 harness_files="$(files_under harness)"
 knowledge_files="$(files_under docs/knowledge)"
 harness=()

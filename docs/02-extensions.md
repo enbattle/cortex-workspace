@@ -165,6 +165,9 @@ The pipeline (spec-new → spec-clarify → test-first → implement → review,
 
 **A second reviewer on a different model.** *Trigger:* a defect escapes that review approved, or a change adds an external surface. *Do:* for those changes, a second fresh reviewer on a different model family, its findings merged into the same round (it counts once toward R10's budget). Different models have different blind spots; measure that with the golden task before relying on it. Pairs with model-tier routing. *Pitfalls:* review cost doubles; a disagreement between reviewers goes to the human, not to a vote.
 
+**Faster test helpers (this repository's own suites).** Needed; not yet done. The assertions in `tests/lib.sh` (`assert_contains`, `assert_not_contains`, `assert_line`, `assert_file_contains`) start a `grep` for every call, about 50-60 ms each on Windows, and since `check.sh` stopped dominating (spec Amendment 7) they and the fixtures' `git` commands are most of a local run: `check.test.sh` still averages 9.2 s a case there (`evals/audits/2026-10-02-test-suites.md`). *Revisit when:* the next change to `tests/lib.sh`, or a local suite run gets in the way again (stopped for memory, or a suite over 10 minutes). *Do:* replace the `grep` with bash's own matching (`[[ $haystack == *"$needle"* ]]`; newlines around the needle for an exact line; `$(<file)` for the file forms), behaving exactly like `grep -F` (special characters, CRLF), with every suite's assertion count unchanged and timings recorded before and after. *R14:* mechanism, one process start per assertion; fit, measured on this machine; cost here, a helper change with no script change; reversible, yes. *Pitfalls:* expect 10-20% on Windows and little on Linux CI; the `git` commands fixtures run are the other large cost, and they are needed.
+
+
 
 ---
 
