@@ -3,8 +3,10 @@
 Checks that `harness/commands/review.md`, run by a fresh agent, blocks a
 change whose tests and gates all pass but whose code breaks an acceptance
 criterion. Re-run it after editing `template/harness/commands/review.md`,
-the review checklist or the security review (root `AGENTS.md`), and after
-editing the Claude Code reviewer adapter.
+the review checklist or the security review (root `AGENTS.md`). This
+procedure uses a general-purpose reviewer, so it doesn't exercise the Claude
+Code reviewer adapter; after editing that adapter, re-run the probe in
+`evals/pilots/2026-10-02-reviewer-tools-probe.md` instead.
 
 ## Contents
 
@@ -38,7 +40,9 @@ flow (the completeness audit's L1): `tasks.md` has the template's
 records the gate output also records the implementer's run of `slugify`
 from a caller's position (the proposal's examples, which hold at
 `golden-clean`); the source, tests, proposal and plant are unchanged.
-Otherwise only its installed copies have been refreshed. The
+The change folder has no `brief.md` (added by `spec-clarify` since): the
+brief informs the approval, not the review, so the fixture wasn't rebuilt
+for it. Otherwise only its installed copies have been refreshed. The
 current tags are in the bundle, and each results file records the commits
 it ran against.
 
