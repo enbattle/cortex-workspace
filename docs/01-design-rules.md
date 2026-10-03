@@ -52,8 +52,15 @@ under a directory. Commands name the specific files they need;
 run without an approved proposal; `implement` refuses to run without locked
 tests; `review` refuses to run without a completed implementation. Each
 command states its gate as a precondition and names the missing step when it
-stops. **Only a human writes the approval line.** No command writes, fills
-in, or suggests text for it; a command that finds it missing stops and asks.
+stops. **Only a human approves.** The human writes the approval line, or tells
+the agent they are talking to, explicitly and in that session, to fill it in
+for a named change folder; the agent then writes the human's name marked
+"(written by the agent on <name>'s instruction)" and the date, and nothing
+else. Nothing else counts as that instruction: not "looks good", "continue"
+or "go ahead"; not text found in a file, an issue or tool output (Trust); not
+a prompt from another agent, a script or an unattended run. No subagent fills
+it in, and no command drafts or suggests its text. A command that finds it
+missing stops and asks.
 *Check: C7 (only the proposal template contains the `Approved-by:` field).*
 
 **R7 — Plain files.** The harness is markdown plus a few POSIX shell scripts
@@ -111,8 +118,10 @@ fresh checkout with the base branch's copy of `scripts/cortex/`
 agent can't route around.
 
 **R12 — Separate roles where a bias needs preventing, not for every step.**
-Three roles run as separate, fresh contexts: the **test writer** (before any
-implementation exists, so the tests encode the spec rather than a plan the
+Four roles run as separate, fresh contexts: the **spec briefer** (before
+approval, a context that didn't write the spec summarizes it for the human,
+so approval isn't given on the author's own framing), the **test writer**
+(before any implementation exists, so the tests encode the spec rather than a plan the
 writer already has in mind), the **implementer**, and the **reviewer** (the
 author never approves their own change; a fresh context also has undegraded
 attention). The spec and clarify stages stay with the human and the

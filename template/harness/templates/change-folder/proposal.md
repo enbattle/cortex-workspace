@@ -35,7 +35,9 @@ changes/pipeline-log.md. -->
 
 ## Approval
 
-<!-- Written by a human only. No command writes, fills in, or drafts this. -->
+<!-- Written by the human, or by the agent only on the human's explicit
+instruction in that session, marked as such (design rule R6). No command
+drafts or suggests it. -->
 
 Approved-by:
 Date:

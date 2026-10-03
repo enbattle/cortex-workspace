@@ -44,7 +44,7 @@ The workflow for a nontrivial change:
 | Command | Who runs it | Produces |
 | --- | --- | --- |
 | `spec-new` | you + the agent | a change folder with a drafted proposal |
-| `spec-clarify` | you + the agent | an interrogated proposal, design, tasks; **you** write the approval |
+| `spec-clarify` | you + the agent | an interrogated proposal, design, tasks, and a brief from a fresh agent; **you** approve |
 | `test-first` | a fresh agent | failing tests, committed and locked |
 | `implement` | another fresh agent | the change, with the locked tests untouched (checked by script) |
 | `review` | another fresh, read-only agent | a verdict with findings; a separate security pass for new external surfaces |
