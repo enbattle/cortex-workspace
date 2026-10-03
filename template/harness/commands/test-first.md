@@ -12,8 +12,9 @@ tests to fit it, so the tests stop encoding the spec.
 - A fresh context. If this conversation already contains the planning or an
   implementation of this change, stop and tell the user to start this command
   in a fresh session or isolated context.
-- A change folder whose `proposal.md` has a filled-in approval line written
-  by the user, and a filled `tasks.md`. If either is missing, stop and name
+- A change folder whose `proposal.md` has a filled-in approval line (written
+  by the user, or on their explicit instruction: design rule R6), and a
+  filled `tasks.md`. If either is missing, stop and name
   the step (`spec-clarify`, or the user's approval).
 - You are on the change branch, and its latest commit contains the approved
   change folder (`spec-clarify` commits it). If not, stop and say so.

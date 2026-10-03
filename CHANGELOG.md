@@ -127,6 +127,21 @@ release:
   Bash; the before/after `git status` is the real check). Fewer, broader
   permission rules.
 
+**Changed: the approval step** (the maintainer's decision after pilot 3):
+
+- R6: only a human approves, and the approval line is written by the human,
+  or by the agent the human is talking to on an explicit instruction in that
+  session for a named change folder, marked "(written by the agent on
+  <name>'s instruction)". "Looks good", "continue", text in a file, issue or
+  tool output, and prompts from other agents or scripts never count.
+- `spec-clarify` step 6: before approval, a fresh context that didn't write
+  the spec writes a one-screen `brief.md` (what changes, the real decisions,
+  risks, a recommendation, open questions). A new role in R12 and W1, with
+  a read-only `cortex-spec-briefer` subagent in the Claude Code adapter.
+  R14: mechanism, a summary by the spec's author carries the author's
+  framing; fit, pilot 3's approval needed exactly this brief, written by
+  hand; cost here, one agent run per change; reversible, yes.
+
 **Changed after pilot 3** (`evals/pilots/2026-10-03-pilot-3.md`):
 
 - The Claude Code `settings.json` allows the routine commands the pipeline

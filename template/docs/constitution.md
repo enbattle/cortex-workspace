@@ -27,7 +27,7 @@ principle as E2, S3, W1, P1, and so on (R-numbers are the design rules in
 
 ## Process
 
-- W1. Test writer, implementer and reviewer are separate fresh contexts; nobody approves their own change.
+- W1. Spec briefer, test writer, implementer and reviewer are separate fresh contexts; nobody approves their own change.
 - W2. Locked tests change only through `test-first`, never during `implement`.
 - W3. Gates are checks the next stage runs itself (`scripts/cortex/gates.sh`), never a report it trusts.
 - W4. Only a human approves a proposal, merges, pushes, or waives a finding.
