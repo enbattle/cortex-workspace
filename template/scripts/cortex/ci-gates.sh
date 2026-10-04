@@ -69,12 +69,14 @@ else
 fi
 
 # 4. Every change folder whose lock was added or changed on this branch.
+# The lock may accept a locked file's version from a merge only when it came
+# from the base (spec Amendment 10), so it gets the base ref.
 # Archived changes (changes/archive/) finished earlier and are not gated.
 folders="$(g diff --name-only "$base...HEAD" -- 'changes/*/lock.md' | grep -v '^changes/archive/' | sed 's|/lock\.md$||' | LC_ALL=C sort -u || true)"
 while IFS= read -r folder; do
   [ -n "$folder" ] || continue
   [ -f "$folder/lock.md" ] || continue
-  if bash "$tools/gates.sh" "$folder"; then
+  if CORTEX_BASE_REF="$base" bash "$tools/gates.sh" "$folder"; then
     echo "ci-gates: $folder ok"
   else
     fail "$folder"
