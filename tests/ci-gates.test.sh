@@ -384,6 +384,94 @@ case_added_lock_deleted() {
   expect_dropped_lock "lock added on the branch, then deleted"
 }
 
+# ---- AC72 (Amendment 12, N1): a merge can't hide the lock commit ------------------
+#
+# The tip is a merge whose first parent is T (the tests commit, before the
+# lock: no changes/x/lock.md) and whose second parent is the lock commit L,
+# keeping T's tree for changes/x. A pathspec git log simplifies history and
+# prunes the L side, so the dropped lock is only seen by reading every commit.
+
+# pruned_lock_merge DIR [archive|archive-first] : make HEAD such a merge,
+# built with plumbing so the shape is exact. The tree is the first parent's
+# plus src/impl.txt. With "archive", the merge also places L's lock.md at
+# changes/archive/x/lock.md. With "archive-first", the first parent is P, a
+# child of T (a sibling of L) that already holds that archived copy, so the
+# merge equals P for every lock.md path and any pathspec log prunes L.
+pruned_lock_merge() {
+  local d="$1" first l blob tree m
+  l="$(git -C "$d" rev-parse HEAD)"
+  first="$(git -C "$d" rev-parse HEAD^1)"
+  blob="$(git -C "$d" rev-parse "$l:changes/x/lock.md")"
+  git -C "$d" checkout -q "$first"
+  if [ "${2-}" = archive-first ]; then
+    git -C "$d" update-index --add --cacheinfo "100644,$blob,changes/archive/x/lock.md"
+    tree="$(git -C "$d" write-tree)"
+    first="$(printf 'archive copy of the lock, before the merge\n' | git -C "$d" commit-tree "$tree" -p "$first")"
+    git -C "$d" checkout -q "$first"
+  fi
+  printf 'impl\n' > "$d/src/impl.txt"
+  git -C "$d" add src/impl.txt
+  if [ "${2-}" = archive ]; then
+    git -C "$d" update-index --add --cacheinfo "100644,$blob,changes/archive/x/lock.md"
+  fi
+  tree="$(git -C "$d" write-tree)"
+  m="$(printf 'merge the lock, keeping the pre-lock tree\n' | git -C "$d" commit-tree "$tree" -p "$first" -p "$l")"
+  git -C "$d" checkout -q feature
+  git -C "$d" reset -q --hard "$m"
+}
+
+# expect_pruned_shape DIR : fixture checks that HEAD is the pruned-side merge
+expect_pruned_shape() {
+  local d="$1"
+  assert_true "fixture: HEAD^1 has no changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e HEAD^1:changes/x/lock.md 2>/dev/null' _ "$d"
+  assert_true "fixture: HEAD^2 is the lock commit (adds changes/x/lock.md)" \
+    test -n "$(git -C "$d" diff --name-only --diff-filter=A HEAD^2^ HEAD^2 -- changes/x/lock.md)"
+  assert_file_absent "$d/changes/x/lock.md" "fixture: no changes/x/lock.md at HEAD"
+  assert_true "fixture: the base has no changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
+  assert_true "fixture: a plain pathspec git log prunes the lock commit" \
+    test -z "$(git -C "$d" log --format=%H "$BASE..HEAD" -- changes/x/lock.md)"
+}
+
+case_AC72_merge_prunes_lock() {
+  local d; d="$(ci_repo)"
+  pruned_lock_merge "$d"
+  expect_pruned_shape "$d"
+  assert_file_exists "$d/src/impl.txt" "fixture: the merge added an implementation file"
+  ci_gates "$d" "$BASE"
+  expect_dropped_lock "merge whose first parent predates the lock"
+  assert_line "$OUT" "ci-gates: FAIL changes/x (lock.md added on this branch is gone)" \
+    "the dropped-lock line names changes/x"
+}
+
+case_AC72_merge_prunes_lock_archived() {
+  local d; d="$(ci_repo)"
+  pruned_lock_merge "$d" archive
+  expect_pruned_shape "$d"
+  assert_file_exists "$d/changes/archive/x/lock.md" "fixture: lock.md now under changes/archive/x"
+  ci_gates "$d" "$BASE"
+  expect_dropped_lock "merge whose first parent predates the lock, folder archived"
+  assert_true "the dropped-lock line names the folder" \
+    grep -qxE 'ci-gates: FAIL changes/(archive/)?x \(lock\.md added on this branch is gone\)' <<<"$OUT"
+}
+
+case_AC72_merge_prunes_lock_archived_first_parent() {
+  local d l; d="$(ci_repo)"
+  l="$(git -C "$d" rev-parse HEAD)"
+  pruned_lock_merge "$d" archive-first
+  expect_pruned_shape "$d"
+  assert_file_exists "$d/changes/archive/x/lock.md" "fixture: lock.md under changes/archive/x"
+  assert_true "fixture: the merge equals its first parent for every lock.md path" \
+    git -C "$d" diff --quiet HEAD^1 HEAD -- 'changes/*lock.md'
+  assert_true "fixture: a pathspec log over every lock.md prunes the lock commit" \
+    bash -c '! git -C "$1" log --format=%H "$2..HEAD" -- "changes/*lock.md" | grep -qxF "$3"' _ "$d" "$BASE" "$l"
+  ci_gates "$d" "$BASE"
+  expect_dropped_lock "merge pruning the lock, archived copy on the first parent"
+  assert_true "the dropped-lock line names the folder" \
+    grep -qxE 'ci-gates: FAIL changes/(archive/)?x \(lock\.md added on this branch is gone\)' <<<"$OUT"
+}
+
 case_archived_after_merge() {
   # the usual order: changes/x merged into the base, then a later branch
   # archives it
@@ -528,6 +616,9 @@ run_case "AC24 two hidden files counted separately" case_two_hidden
 run_case "AC24 hidden + broken lock: both counted" case_hidden_plus_lock_failure
 run_case "AC70 lock added on the branch, then archived -> FAIL" case_archived_on_branch
 run_case "AC70 lock added on the branch, then deleted -> FAIL" case_added_lock_deleted
+run_case "AC72 merge keeping the pre-lock tree drops the lock -> FAIL" case_AC72_merge_prunes_lock
+run_case "AC72 the same merge, folder moved under changes/archive/ -> FAIL" case_AC72_merge_prunes_lock_archived
+run_case "AC72 the same merge, archived copy already on the first parent -> FAIL" case_AC72_merge_prunes_lock_archived_first_parent
 run_case "AC29 folder archived after its change merged" case_archived_after_merge
 run_case "AC65 base merged into a locked branch, no re-lock -> FAIL" case_base_merged_into_locked_branch
 run_case "AC66 base merged, then a signed re-lock -> ok" case_base_merged_and_relocked
