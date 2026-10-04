@@ -142,6 +142,8 @@ release:
 - The agent that fills in an approval line on instruction also commits it;
   changed acceptance criteria need the approval renewed.
 - `spec-clarify` flags a task that would edit a file the test lock covers.
+- `INSTALL.md` advises allowing the project's run command (e.g. `node`), so
+  agents check a change on the real artifact without a prompt;
 - `implement` stops and hands the user the real-artifact check when it can't
   run it; `AGENTS.md` adds no `git -C`.
 

@@ -92,7 +92,11 @@ PowerShell) and asks
 before push, merge, rebase and hard reset. Add this repository's build, test
 and lint commands from `.cortex/config` to its `allow` list with the user
 (for example `"Bash(npm test*)"`), or running them directly prompts (the
-gates themselves run through the allowed `scripts/cortex/gates.sh`). File edits
+gates themselves run through the allowed `scripts/cortex/gates.sh`). Add the
+command that runs the project too (for a Node library, `"Bash(node *)"`), so
+`implement` and `review` can check a change on the real artifact without a
+prompt: agents already run code they wrote through the allowed test command
+and gates, so a prompt there adds friction, not safety. File edits
 still prompt unless the user accepts edits for the session. These `allow`
 rules take effect only once each person has trusted the folder in Claude
 Code; a headless or unattended run in an untrusted folder gets none of them
