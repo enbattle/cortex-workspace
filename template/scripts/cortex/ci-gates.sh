@@ -69,22 +69,26 @@ else
 fi
 
 # 4. A branch can't drop its own lock (spec Amendments 11 and 12): a lock.md
-# that a commit on this branch touched, that the base never had, and that is
-# gone at HEAD (deleted, or moved under changes/archive/) fails. The history,
-# not the net diff: a lock added and then removed on the branch nets out to
-# nothing. Every commit the branch brings counts, on every side of every merge
-# (Amendment 12): without --full-history, git log prunes a merged side the
-# merge's result ignores, and without -m it lists nothing a merge itself
-# changes; either way a merge could drop the lock.
+# added on this branch that is gone at HEAD (deleted, or moved under
+# changes/archive/) and that the base doesn't have fails. Added on this branch:
+# some commit the branch brings, on any side of any merge, has the path and
+# none of that commit's parents does, so a merge that adds a lock.md neither
+# side had counts and a merge bringing in the base's own doesn't. The history,
+# not the net diff: a lock added and then removed nets out to nothing. Paths
+# are compared literally, never as pathspecs.
+added="$(g log --full-history -m --no-renames --diff-filter=A --format='>%H %P' \
+  --name-only "$base..HEAD" -- 'changes/*/lock.md' |
+  awk '/^>/ { c = substr($1, 2); parents[c] = NF - 1; next }
+       NF { seen[c SUBSEP $0]++ }
+       END { for (k in seen) { split(k, a, SUBSEP); if (seen[k] >= parents[a[1]]) print a[2] } }' |
+  LC_ALL=C sort -u)"
 while IFS= read -r path; do
   [ -n "$path" ] || continue
   case "$path" in changes/archive/*) continue ;; esac
   g cat-file -e "HEAD:$path" 2>/dev/null && continue
-  # A path the base's history ever had is a finished change's, whatever the
-  # base did with it since; a branch can't add to the base's history.
-  [ -n "$(g rev-list -1 --full-history "$base" -- "$path")" ] && continue
+  g cat-file -e "$base:$path" 2>/dev/null && continue
   fail "${path%/lock.md} (lock.md added on this branch is gone)"
-done <<<"$(g log --full-history -m --format= --name-only "$base..HEAD" -- 'changes/*/lock.md' | LC_ALL=C sort -u)"
+done <<<"$added"
 
 # 5. Every change folder whose lock was added or changed on this branch.
 # Archived changes (changes/archive/) finished earlier and are not gated.
