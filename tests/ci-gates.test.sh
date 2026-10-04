@@ -472,6 +472,64 @@ case_AC72_merge_prunes_lock_archived_first_parent() {
     grep -qxE 'ci-gates: FAIL changes/(archive/)?x \(lock\.md added on this branch is gone\)' <<<"$OUT"
 }
 
+# ---- AC74 (Amendment 12, N1): a lock.md that only merges touch --------------------
+
+# side_commit DIR NAME -> sha of a commit off the base adding src/NAME.txt
+side_commit() {
+  local d="$1" tree
+  git -C "$d" read-tree "$BASE"
+  printf '%s\n' "$2" > "$d/src/$2.txt"
+  git -C "$d" add "src/$2.txt"
+  tree="$(git -C "$d" write-tree)"
+  printf 'side: %s\n' "$2" | git -C "$d" commit-tree "$tree" -p "$BASE"
+}
+
+case_AC74_lock_only_in_merges() {
+  # T adds the tests; merge M1 (T + side1) adds changes/x/lock.md naming T,
+  # which neither parent has; merge M2 (M1 + side2) removes it. No ordinary
+  # commit touches the path. Built with plumbing so the shape is exact.
+  local d t s1 s2 blob tree m1 m2
+  d="$(base_only)"
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  commit_all "$d" "add tests for changes/x"
+  t="$(git -C "$d" rev-parse HEAD)"
+  s1="$(side_commit "$d" side1)"
+  s2="$(side_commit "$d" side2)"
+  blob="$(printf 'Tests-locked-at: %s\n\n## Locked tests\n\n- tests/b.test.sh\n' "$t" \
+    | git -C "$d" hash-object -w --stdin)"
+  git -C "$d" read-tree "$t"
+  git -C "$d" update-index --add --cacheinfo "100644,$(git -C "$d" rev-parse "$s1:src/side1.txt"),src/side1.txt"
+  git -C "$d" update-index --add --cacheinfo "100644,$blob,changes/x/lock.md"
+  tree="$(git -C "$d" write-tree)"
+  m1="$(printf 'merge side1 (adds the lock)\n' | git -C "$d" commit-tree "$tree" -p "$t" -p "$s1")"
+  git -C "$d" update-index --force-remove changes/x/lock.md
+  git -C "$d" update-index --add --cacheinfo "100644,$(git -C "$d" rev-parse "$s2:src/side2.txt"),src/side2.txt"
+  tree="$(git -C "$d" write-tree)"
+  m2="$(printf 'merge side2 (drops the lock)\n' | git -C "$d" commit-tree "$tree" -p "$m1" -p "$s2")"
+  git -C "$d" reset -q --hard "$m2"
+
+  assert_true "fixture: HEAD is a merge" git -C "$d" cat-file -e HEAD^2
+  assert_true "fixture: HEAD^1 is a merge whose first parent is T" \
+    test "$(git -C "$d" rev-parse HEAD^1^1)" = "$t" -a -n "$(git -C "$d" rev-parse -q --verify HEAD^1^2)"
+  assert_true "fixture: the first merge's first parent has no changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e HEAD^1^1:changes/x/lock.md 2>/dev/null' _ "$d"
+  assert_true "fixture: the first merge's second parent has no changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e HEAD^1^2:changes/x/lock.md 2>/dev/null' _ "$d"
+  assert_true "fixture: the first merge's tree has changes/x/lock.md" \
+    git -C "$d" cat-file -e HEAD^1:changes/x/lock.md
+  assert_file_absent "$d/changes/x/lock.md" "fixture: no changes/x/lock.md at HEAD"
+  assert_true "fixture: the base has no changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
+  assert_true "fixture: no ordinary commit on the branch touches changes/x/lock.md" \
+    test -z "$(git -C "$d" log --no-merges --full-history --format=%H "$BASE..HEAD" -- changes/x/lock.md)"
+  assert_true "fixture: the side commits don't touch changes/" \
+    test -z "$(git -C "$d" diff --name-only "$BASE" "$s1" -- changes)$(git -C "$d" diff --name-only "$BASE" "$s2" -- changes)"
+  ci_gates "$d" "$BASE"
+  expect_dropped_lock "lock.md added and removed only by merges"
+  assert_line "$OUT" "ci-gates: FAIL changes/x (lock.md added on this branch is gone)" \
+    "the dropped-lock line names changes/x"
+}
+
 case_archived_after_merge() {
   # the usual order: changes/x merged into the base, then a later branch
   # archives it
@@ -619,6 +677,7 @@ run_case "AC70 lock added on the branch, then deleted -> FAIL" case_added_lock_d
 run_case "AC72 merge keeping the pre-lock tree drops the lock -> FAIL" case_AC72_merge_prunes_lock
 run_case "AC72 the same merge, folder moved under changes/archive/ -> FAIL" case_AC72_merge_prunes_lock_archived
 run_case "AC72 the same merge, archived copy already on the first parent -> FAIL" case_AC72_merge_prunes_lock_archived_first_parent
+run_case "AC74 lock.md added and removed only by merges -> FAIL" case_AC74_lock_only_in_merges
 run_case "AC29 folder archived after its change merged" case_archived_after_merge
 run_case "AC65 base merged into a locked branch, no re-lock -> FAIL" case_base_merged_into_locked_branch
 run_case "AC66 base merged, then a signed re-lock -> ok" case_base_merged_and_relocked
