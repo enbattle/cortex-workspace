@@ -4,7 +4,7 @@
 # Reads <change-folder>/lock.md: a "Tests-locked-at: <sha>" line and a
 # "## Locked tests" list. test-first commits the tests (commit T), then adds
 # lock.md naming T as the very next commit (L). Nothing touches lock.md again
-# except a signed re-lock (test-first step 7; spec Amendments 9 and 10).
+# except a signed re-lock (test-first step 7; spec Amendments 9 to 11).
 # Any other edit, including a lock.md brought in by a merge, is LOCK moved.
 #
 # Locked, and compared with their content at T (committed, staged and

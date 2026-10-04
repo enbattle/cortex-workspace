@@ -121,7 +121,10 @@ Deliberate trade-offs; each links to where it's explained.
 - **Local checks are guardrails, not a boundary.** An agent with full git
   access can get around them; the boundary is CI on the pull request plus
   required human review ([R11](docs/01-design-rules.md),
-  [INSTALL.md step 5b](INSTALL.md)).
+  [INSTALL.md step 5b](INSTALL.md)). CI judges history as pushed: a branch
+  rebuilt so that weaker tests carry the first lock needs no sign-off, and
+  only the reviewer, who sees those tests in the diff, catches it
+  ([spec Amendment 12](docs/specs/2026-09-23-v2-scripts.md)).
 - **Enforced isolation only in Claude Code.** In other tools, starting a
   fresh chat per role is up to you ([supported tools](#supported-agent-tools)).
 - **One repository.** Systems spread over several repositories are a

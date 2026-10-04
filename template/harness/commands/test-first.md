@@ -20,8 +20,9 @@ tests to fit it, so the tests stop encoding the spec.
   change folder (`spec-clarify` commits it). If not, stop and say so.
 - Load `docs/constitution.md` and the repository's `AGENTS.md`
   (for conventions; the test command is `TEST_CMD` in `.cortex/config`).
-- A re-lock: `lock.md` already exists, and the user has decided this command
-  re-runs because a locked test is wrong (reported by `implement`). Go to
+- A re-lock: `lock.md` already exists, and either the user has decided this
+  command re-runs because a locked test is wrong (reported by `implement`),
+  or the branch has just merged a base that changed locked files. Go to
   step 7.
 
 ## Procedure
@@ -52,7 +53,9 @@ tests to fit it, so the tests stop encoding the spec.
    a locked test is wrong (a spec problem `implement` reported), or after
    merging a base that changed locked files. T2 is a commit of the corrected
    tests and fixtures alone, or, after such a merge, the merge commit.
-   Rewrite `lock.md`: T2's full sha, every file the earlier lock listed,
+   Neither may change `.cortex/config`: if the base changed it, the change
+   can't take that base in; stop and tell the user to finish without it or
+   start over from the new base. Rewrite `lock.md`: T2's full sha, every file the earlier lock listed,
    and every file T2 created or changed. Stop for the user's sign-off on
    the `Re-lock signed off by:` line: they write it, or explicitly tell you
    to (design rule R6). If you

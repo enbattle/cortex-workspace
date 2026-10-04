@@ -4,7 +4,8 @@
 
 **Before release:** the pre-release completeness audit
 (`evals/audits/2026-10-03-2.1.0.md`) and its findings, then a re-run of
-the audit on the corrected branch; then date this entry and tag.
+the audit on the corrected branch; then update the README's status and
+install tag, date this entry and tag.
 
 **Added: a signed re-lock** (spec Amendment 9). When a locked test is wrong,
 `implement` says the user may have `test-first` re-run, but the lock check
@@ -21,10 +22,13 @@ paths, `INSTALL.md` step 5b). In tools that run `test-first` as an isolated
 agent, it stops with `lock.md` drafted, and the session the user is talking
 to gets the sign-off and commits it.
 
-**Fixed: holes in the test lock** (spec Amendments 10 and 11; the first three
-exist in 2.0.0, see its security note):
+**Fixed: holes in the test lock** (spec Amendments 10 to 12). Those marked
+*(also in 2.0.0)* let a weakened test past the lock in 2.0.0, locally and in
+CI; there the mitigation is a person reviewing test content in the pull
+request (Code Owners on the test paths). No repository had a real install
+when they were found.
 
-- **No merge allowance any more.** A locked file changed by a merge was
+- **No merge allowance any more** *(also in 2.0.0)*. A locked file changed by a merge was
   accepted if it matched a merged parent's version, and three audit rounds
   each found a way through that rule: merging a side branch that weakened a
   test, and restoring a test's older, pre-lock version from the base (which
@@ -34,12 +38,14 @@ exist in 2.0.0, see its security note):
   locked files, merge it and re-lock naming the merge commit. A base change
   to `.cortex/config` can't be taken into a locked change; finish without
   it or start over from the new base.
-- A merged side branch that brought its own `lock.md` hid the lock chain.
-  The lock history is now the branch's first-parent line, and a merge that
-  changes `lock.md` fails.
-- A branch could switch off CI's lock check by deleting or archiving its own
-  change folder; `ci-gates.sh` now fails a lock added on the branch and gone
-  at its head.
+- *(also in 2.0.0)* A merged side branch that brought its own `lock.md` hid
+  the lock chain. The lock history is now the branch's first-parent line,
+  and a merge that changes `lock.md` fails.
+- *(also in 2.0.0)* A branch could switch off CI's lock check by deleting or
+  archiving its own change folder, or by a merge that left its `lock.md`
+  out; `ci-gates.sh` now fails a lock added anywhere in the branch's history
+  and gone at its head. What it can't see, history rewritten before the
+  push, is in the README's Limits.
 - A re-lock could change `.cortex/config` and narrow `TEST_GLOBS`; it may
   not change the config at all.
 - A re-lock blessed every change since the previous lock; it now blesses
@@ -49,8 +55,8 @@ exist in 2.0.0, see its security note):
 
 In CI the protection starts once the base branch has the new
 `ci-gates.sh` and `tests-locked.sh`, since both are taken from the base.
-Tests from a separate agent first, for both amendments: tests-locked 248 to
-426 assertions, ci-gates 91 to 98.
+Tests from a separate agent first, for each amendment: tests-locked 248 to
+478 assertions, ci-gates 91 to 171.
 
 **Added:** a Limits section in the README (each limit links to where it's
 explained), and a trigger-gated catalog entry for rebasing a locked branch.
@@ -63,16 +69,9 @@ when its trigger fires.
 
 ## 2.0.0 — 2026-10-03
 
-**Security note (added with 2.1.0):** ways to get a weakened test past the lock
-exist in 2.0.0, locally and in CI: merging a side branch that weakened a
-locked test, or resolving a merge to a test's older, pre-lock version
-(Amendment 4's merge allowance accepted both; the second then vanishes
-from the pull request's diff); merging a side branch that brought its own
-`lock.md` (history simplification hid the chain); and deleting or
-archiving the change folder on the branch, which stopped CI checking it.
-All are fixed in 2.1.0 (spec Amendments 10 and 11). In 2.0.0 the mitigation is a person reviewing test
-content in the pull request (Code Owners on the test paths). No repository
-had a real install when this was found.
+**Security note (added with 2.1.0):** ways to get a weakened test past the
+lock exist in 2.0.0, locally and in CI; see 2.1.0's "Fixed" list, the items
+marked *(also in 2.0.0)*.
 
 **Before release** (all done):
 
