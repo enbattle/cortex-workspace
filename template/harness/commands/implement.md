@@ -8,7 +8,8 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
 
 ## Preconditions
 
-- A change folder whose `proposal.md` has the user's approval line and whose
+- A change folder whose `proposal.md` has a filled-in approval line (written
+  by the user, or on their explicit instruction: design rule R6) and whose
   folder has a `lock.md` (written by `test-first`). If not, stop and name the
   missing step (`test-first`).
 - `bash scripts/cortex/tests-locked.sh <change-folder>` passes before you start.
@@ -46,9 +47,10 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    to the user; with their confirmation, record it in an `## As built`
    section of `design.md` and continue. Never let code drift silently from
    the folder. A confirmed update that changes `proposal.md`'s acceptance
-   criteria needs a fresh approval before work continues: the approval
-   line's date is renewed by the user, or on their explicit instruction
-   (design rule R6).
+   criteria needs a fresh approval before work continues: stop and hand it
+   back to the user, who renews the approval line's date or tells the
+   session they are talking to to do it (design rule R6). You never renew it
+   yourself.
 5. Update any doc the change makes stale: `AGENTS.md`, `docs/knowledge/`,
    a README. Only what actually changed.
 6. Verify the change on the real artifact, as the "Verification on the real

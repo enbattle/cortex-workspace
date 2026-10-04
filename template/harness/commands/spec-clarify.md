@@ -45,16 +45,17 @@ toward the spec, not polite to it.
    the user (a separate change, or a narrower `TEST_GLOBS`).
 6. Brief the user from a fresh context: one that hasn't seen this
    conversation (a new session or an isolated subagent) reads the change
-   folder and the files it names, and writes one screen into `brief.md` in
-   the folder: what the change does, the decisions in it a reasonable owner
+   folder and the files it names and returns one screen, which you save as
+   `brief.md` in the folder: what the change does, the decisions in it a reasonable owner
    could make either way, the risks, a recommendation, and any question it
    would still ask. Show the user the brief and ask them to approve. Only
    the user decides (design rule R6): they write the approval line in
    `proposal.md`, or explicitly tell you to fill it in for this change
    folder, in which case write their name marked "(written by the agent on
-   <name>'s instruction)" and the date. Whoever fills it in on the user's
-   instruction also commits it, so the commit records who wrote it. Never infer approval from anything
-   else, and never draft the line.
+   <name>'s instruction)" and the date, and commit it yourself with the
+   user's instruction quoted in the commit message, so the record shows who
+   wrote it and on what words. Never infer approval from anything else, and
+   never draft the line.
 7. Once the approval line is filled in, commit the change folder (with
    `brief.md`) on the change branch, so the approved spec is in history
    before any test is written against it.

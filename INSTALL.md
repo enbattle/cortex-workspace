@@ -91,12 +91,20 @@ commands the pipeline runs (read-only `git`, `git add`, `git commit`,
 PowerShell) and asks
 before push, merge, rebase and hard reset. Add this repository's build, test
 and lint commands from `.cortex/config` to its `allow` list with the user
-(for example `"Bash(npm test*)"`), or every gate run prompts. File edits
+(for example `"Bash(npm test*)"`), or running them directly prompts (the
+gates themselves run through the allowed `scripts/cortex/gates.sh`). Add the
+command that runs the project too (for a Node library, `"Bash(node *)"`), so
+`implement` and `review` can check a change on the real artifact without a
+prompt: agents already run code they wrote through the allowed test command
+and gates, so a prompt there adds friction, not safety. File edits
 still prompt unless the user accepts edits for the session. These `allow`
 rules take effect only once each person has trusted the folder in Claude
 Code; a headless or unattended run in an untrusted folder gets none of them
 (pass `--allowedTools`, or put the same rules in the untracked
-`.claude/settings.local.json`).
+`.claude/settings.local.json`). Because `git commit` is allowed, a
+commit to the default branch doesn't prompt either: protect the default
+branch on the server (step 5b), since the rule against committing there is
+an instruction, not a permission.
 
 ## 5b. Make the pull request the boundary (hosted on GitHub)
 

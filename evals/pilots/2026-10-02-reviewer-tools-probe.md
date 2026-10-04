@@ -34,3 +34,13 @@ have shown as a tool call with an error, and there was none.
 
 To re-run after a change to the adapter or the tool, repeat the above in a
 fresh install; keep it out of real reviews.
+
+## Re-run, 2026-10-03
+
+After the release audit's M2 changed `cortex-reviewer.md` (its shell rule now
+points to `AGENTS.md`), as the golden README asks after an adapter edit.
+Same procedure, fresh install from `release/audit-2026-10-03` at `8c64970`:
+the main session's only call was `Agent` with `subagent_type:
+cortex-reviewer`; the subagent made no tool calls and reported Write and
+Edit "not available ... Its only tools are Read, Grep, Glob and Bash"; no
+file was created and the tree stayed clean. The restriction still holds.

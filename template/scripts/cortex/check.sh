@@ -124,11 +124,11 @@ done
 report_each C6 "no 'Budget:' line (stop condition, attempt limit, escalation — or 'does not iterate')" \
   <<<"$(grep_files -L '^Budget:' -- ${commands[@]+"${commands[@]}"})"
 
-# C7 — R6: only a human writes the approval line; only the template has the field.
+# C7 — R6: only a human approves; only the proposal template has the field.
 while IFS= read -r f; do
   [ -n "$f" ] || continue
   [ "$f" = harness/templates/change-folder/proposal.md ] && continue
-  report C7 "$f" "contains 'Approved-by:'; only a human writes the approval, in the proposal"
+  report C7 "$f" "contains 'Approved-by:'; only a human approves, in the proposal (R6)"
 done <<<"$(grep_files -lF 'Approved-by:' -- ${harness[@]+"${harness[@]}"})"
 
 # C8 — R8: CLAUDE.md only points at AGENTS.md.

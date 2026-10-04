@@ -2,20 +2,25 @@
 
 ## 2.0.0 — Unreleased
 
-**Before release:** pilot 2 (the Claude Code adapter run for real from an
-installed repository, `evals/pilots/2026-09-24-pilot-2.md`) and the rebuilt,
-self-contained golden task (run 3 times, `evals/golden/review-maxlength/`)
-are done. Still open before release:
+**Before release:** done:
 
-- Pilot 2's remaining friction (`evals/pilots/2026-09-24-pilot-2.md`) is
-  fixed: F1 (the agent definitions now say to run one command per Bash
-  call), F4 (the review skill's status check allows only
-  `review-findings.md` to differ), and F5 (a probe showed `cortex-reviewer`
-  has no Edit or Write: `evals/pilots/2026-10-02-reviewer-tools-probe.md`).
-  Still open: one interactive run through the pipeline, counting the
-  permission prompts a person actually sees. (F6, the stale golden
-  bundle, was fixed on 2026-09-24: the bundle is rebuilt from the current
-  template and passes 3/3.)
+- Pilot 2 (the Claude Code adapter run for real from an installed
+  repository, `evals/pilots/2026-09-24-pilot-2.md`) and its friction: F1
+  (one command per Bash call), F4 (the review skill's status check), F5 (a
+  probe showed `cortex-reviewer` has no Edit or Write:
+  `evals/pilots/2026-10-02-reviewer-tools-probe.md`), and F6 (the golden
+  bundle rebuilt from the template).
+- The golden task, rebuilt and self-contained
+  (`evals/golden/review-maxlength/`), passing on its latest runs.
+- Counting the permission prompts a person sees: pilots 3 and 3b
+  (`evals/pilots/2026-10-03-pilot-3.md`, `2026-10-03-pilot-3b.md`), run
+  headless by the maintainer's choice, each denial counting as a prompt.
+  After their fixes, 5 in 129 actions.
+- The pre-release completeness audit (`evals/audits/2026-10-03.md`) and its
+  findings.
+
+Still open:
+
 - Date this entry and tag the release once merged; installs should use the
   tag, not HEAD.
 
@@ -67,14 +72,17 @@ that generates a multi-repo workspace.
   ties the context-budget audit to R13.
 
 - Design rules R11 (gates are mechanical checks the next stage runs, and
-  account for untracked files) and R12 (separate fresh contexts for test
-  writer, implementer and reviewer, and only where a bias needs preventing).
+  account for untracked files) and R12 (separate fresh contexts only where a
+  bias needs preventing: the test writer, implementer and reviewer, and,
+  since the approval step below, the spec briefer).
 - `scripts/cortex/check.sh`: the old prose verification checklist as
   checks (C1–C10, then C11–C12 after the pilot), each with a
   planted-violation test.
 - `scripts/cortex/tests-locked.sh` and `adapt.sh`.
-- Human-only approval: no command writes the approval line, and `check.sh`
-  enforces that only the proposal template has the field.
+- Human-only approval: no command writes the approval line on its own (since
+  the approval step below, an agent may fill it in on the human's explicit
+  instruction), and `check.sh` enforces that only the proposal template has
+  the field.
 - A separate security-review pass for changes adding external surfaces, a
   tool-neutral permissions policy, and Claude Code permission rules.
 - `changes/pipeline-log.md` (Tier-1 metrics built in) and an `Escaped from`
@@ -134,6 +142,8 @@ release:
 - The agent that fills in an approval line on instruction also commits it;
   changed acceptance criteria need the approval renewed.
 - `spec-clarify` flags a task that would edit a file the test lock covers.
+- `INSTALL.md` advises allowing the project's run command (e.g. `node`), so
+  agents check a change on the real artifact without a prompt;
 - `implement` stops and hands the user the real-artifact check when it can't
   run it; `AGENTS.md` adds no `git -C`.
 
@@ -163,7 +173,7 @@ release:
 - `spec-clarify`'s done-checks before the last task name the tests they run,
   since the locked tests still fail until then.
 
-**Changed after the completeness audit** (spec Amendment 3):
+**Changed after the first completeness audit, 2026-09-24** (spec Amendment 3):
 
 - The test lock's boundary moved server-side: new
   `scripts/cortex/ci-gates.sh` runs the gates with the base branch's copy of
@@ -242,7 +252,7 @@ PR 3):
   untrusted-content wording (C10), and `TODO` without a colon (C12).
 - `refresh.sh` reports a failing gate instead of exiting silently.
 
-**Changed after the completeness audit** (`evals/audits/2026-10-02.md`):
+**Changed after the completeness audit of 2026-10-02** (`evals/audits/2026-10-02.md`):
 
 - The review checklist checks that a practice a change adopts records R14's
   four answers. `permissions.md` lets `implement` and `review` run the
@@ -256,8 +266,6 @@ PR 3):
   says to run it from the repository root (spec Amendment 8). It used to
   exit 1 with no output, which is what running it from the wrong directory
   looked like.
-- Faster test helpers for this repository's suites are recorded in
-  `docs/02-extensions.md` as needed, with a trigger to revisit.
 
 **Fixed (design problems in v1):**
 
