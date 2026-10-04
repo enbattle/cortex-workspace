@@ -2,6 +2,10 @@
 
 ## 2.1.0 — Unreleased
 
+**Before release:** the pre-release completeness audit
+(`evals/audits/2026-10-03-2.1.0.md`) and its findings, then a re-run of
+the audit on the corrected branch; then date this entry and tag.
+
 **Added: a signed re-lock** (spec Amendment 9). When a locked test is wrong,
 `implement` says the user may have `test-first` re-run, but the lock check
 refused any second lock commit, so the change could only start over (found
@@ -13,8 +17,29 @@ carry a sign-off, and the newest governs. The check proves a sign-off
 exists, not who wrote it, as for the approval line: the sign-off makes the
 agent stop, and the safeguard is a person reviewing the test and config
 content in the pull request (branch protection with Code Owners on the test
-paths, `INSTALL.md` step 5b). Tests from a separate agent first:
-tests-locked 248 to 334 assertions.
+paths, `INSTALL.md` step 5b). In tools that run `test-first` as an isolated
+agent, it stops with `lock.md` drafted, and the session the user is talking
+to gets the sign-off and commits it.
+
+**Fixed: holes in the test lock** (spec Amendment 10; the first two exist in
+2.0.0, see its security note):
+
+- A merged side branch that weakened a locked test passed as a base merge.
+  The allowance for a locked file arriving by merge now requires the base
+  when `CORTEX_BASE_REF` is set, which `ci-gates.sh` sets to the base ref.
+  Locally, unset, any merged branch is still accepted (a guardrail, R11).
+- A merged side branch that brought its own `lock.md` hid the lock chain.
+  The lock history is now the branch's first-parent line, and a merge that
+  changes `lock.md` fails.
+- A re-lock blessed every change since the previous lock; it now blesses
+  only its own tests commit, and anything changed earlier still fails.
+- A re-lock may not drop a file the earlier lock listed, and a deleted
+  `lock.md` fails cleanly instead of with a git error.
+
+In CI the protection starts once the base branch has the new
+`ci-gates.sh` and `tests-locked.sh`, since both are taken from the base.
+Tests from a separate agent first, for both amendments: tests-locked 248 to
+426 assertions, ci-gates 91 to 98.
 
 **Added:** a Limits section in the README (each limit links to where it's
 explained), and a trigger-gated catalog entry for rebasing a locked branch.

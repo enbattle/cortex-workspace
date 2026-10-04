@@ -20,6 +20,9 @@ tests to fit it, so the tests stop encoding the spec.
   change folder (`spec-clarify` commits it). If not, stop and say so.
 - Load `docs/constitution.md` and the repository's `AGENTS.md`
   (for conventions; the test command is `TEST_CMD` in `.cortex/config`).
+- A re-lock: `lock.md` already exists, and the user has decided this command
+  re-runs because a locked test is wrong (reported by `implement`). Go to
+  step 7.
 
 ## Procedure
 
@@ -50,8 +53,12 @@ tests to fit it, so the tests stop encoding the spec.
    corrected tests and fixtures alone (commit T2). Rewrite `lock.md`: T2's
    full sha, every file the earlier lock listed, and every file T2 created
    or changed. Stop for the user's sign-off on the `Re-lock signed off by:`
-   line: they write it, or explicitly tell you to (design rule R6). Then
-   commit `lock.md` alone as the very next commit after T2, update
+   line: they write it, or explicitly tell you to (design rule R6). If you
+   run as an isolated agent that can't wait for the user, stop here with
+   `lock.md` written but uncommitted and say so; the session the user is
+   talking to gets the sign-off and commits it. Commit `lock.md` alone as
+   the very next commit after T2 (the sign-off blesses only T2's own
+   changes: anything changed in locked files before T2 still fails), update
    `## Criteria to tests` in `tasks.md`, and repeat step 6.
 
 Budget: 3 attempts to get a test failing for the right reason. On the third
@@ -61,11 +68,13 @@ written, which is a spec problem for `spec-clarify`.
 ## Output
 
 Three commits: the tests and fixtures only; `lock.md` only (naming the
-first); `tasks.md` with the criterion-to-test mapping. End by telling
+first); `tasks.md` with the criterion-to-test mapping. A re-lock adds the
+corrected tests, then the signed `lock.md`, then the updated mapping. End by telling
 the user to run `implement` in a fresh context.
 
 ## Autonomy
 
 May write and commit tests on the change branch unattended. Must stop for the
-user on a missing approval, an untestable criterion, or budget exhaustion.
+user on a missing approval, an untestable criterion, budget exhaustion, or
+a re-lock's sign-off.
 Never edits implementation files, never pushes.
