@@ -54,8 +54,9 @@ tests to fit it, so the tests stop encoding the spec.
    merging a base that changed locked files. T2 is a commit of the corrected
    tests and fixtures alone, or, after such a merge, the merge commit.
    Neither may change `.cortex/config`: if the base changed it, the change
-   can't take that base in; stop and tell the user to finish without it or
-   start over from the new base. Rewrite `lock.md`: T2's full sha, every file the earlier lock listed,
+   can't take that base in; stop and tell the user that the merge must be
+   undone, and the change finished without that base or started over from
+   it. Rewrite `lock.md`: T2's full sha, every file the earlier lock listed,
    and every file T2 created or changed. Stop for the user's sign-off on
    the `Re-lock signed off by:` line: they write it, or explicitly tell you
    to (design rule R6). If you

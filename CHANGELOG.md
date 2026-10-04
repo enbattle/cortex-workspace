@@ -43,9 +43,9 @@ when they were found.
   and a merge that changes `lock.md` fails.
 - *(also in 2.0.0)* A branch could switch off CI's lock check by deleting or
   archiving its own change folder, or by a merge that left its `lock.md`
-  out; `ci-gates.sh` now fails a lock added anywhere in the branch's history
-  and gone at its head. What it can't see, history rewritten before the
-  push, is in the README's Limits.
+  out; `ci-gates.sh` now fails a lock that any commit on the branch added,
+  merges included, and that is gone at its head. What it can't see,
+  history rewritten before the push, is in the README's Limits.
 - A re-lock could change `.cortex/config` and narrow `TEST_GLOBS`; it may
   not change the config at all.
 - A re-lock blessed every change since the previous lock; it now blesses
@@ -56,7 +56,7 @@ when they were found.
 In CI the protection starts once the base branch has the new
 `ci-gates.sh` and `tests-locked.sh`, since both are taken from the base.
 Tests from a separate agent first, for each amendment: tests-locked 248 to
-478 assertions, ci-gates 91 to 171.
+478 assertions, ci-gates 91 to 191.
 
 **Added:** a Limits section in the README (each limit links to where it's
 explained), and a trigger-gated catalog entry for rebasing a locked branch.
