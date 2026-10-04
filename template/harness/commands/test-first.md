@@ -49,11 +49,13 @@ tests to fit it, so the tests stop encoding the spec.
    needs the user's sign-off after implementation.
 6. Run `bash scripts/cortex/tests-locked.sh <change-folder>` and confirm it passes.
 7. **Re-lock**, only when the user has decided this command re-runs because
-   a locked test is wrong (a spec problem `implement` reported). Commit the
-   corrected tests and fixtures alone (commit T2). Rewrite `lock.md`: T2's
-   full sha, every file the earlier lock listed, and every file T2 created
-   or changed. Stop for the user's sign-off on the `Re-lock signed off by:`
-   line: they write it, or explicitly tell you to (design rule R6). If you
+   a locked test is wrong (a spec problem `implement` reported), or after
+   merging a base that changed locked files. T2 is a commit of the corrected
+   tests and fixtures alone, or, after such a merge, the merge commit.
+   Rewrite `lock.md`: T2's full sha, every file the earlier lock listed,
+   and every file T2 created or changed. Stop for the user's sign-off on
+   the `Re-lock signed off by:` line: they write it, or explicitly tell you
+   to (design rule R6). If you
    run as an isolated agent that can't wait for the user, stop here with
    `lock.md` written but uncommitted and say so; the session the user is
    talking to gets the sign-off and commits it. Commit `lock.md` alone as

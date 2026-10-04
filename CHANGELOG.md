@@ -21,16 +21,27 @@ paths, `INSTALL.md` step 5b). In tools that run `test-first` as an isolated
 agent, it stops with `lock.md` drafted, and the session the user is talking
 to gets the sign-off and commits it.
 
-**Fixed: holes in the test lock** (spec Amendment 10; the first two exist in
-2.0.0, see its security note):
+**Fixed: holes in the test lock** (spec Amendments 10 and 11; the first three
+exist in 2.0.0, see its security note):
 
-- A merged side branch that weakened a locked test passed as a base merge.
-  The allowance for a locked file arriving by merge now requires the base
-  when `CORTEX_BASE_REF` is set, which `ci-gates.sh` sets to the base ref.
-  Locally, unset, any merged branch is still accepted (a guardrail, R11).
+- **No merge allowance any more.** A locked file changed by a merge was
+  accepted if it matched a merged parent's version, and three audit rounds
+  each found a way through that rule: merging a side branch that weakened a
+  test, and restoring a test's older, pre-lock version from the base (which
+  then vanished from the pull request's diff). The allowance is removed:
+  any change to a locked file fails unless a signed re-lock's tests commit
+  made it. To bring a locked branch up to date with a base that changed
+  locked files, merge it and re-lock naming the merge commit. A base change
+  to `.cortex/config` can't be taken into a locked change; finish without
+  it or start over from the new base.
 - A merged side branch that brought its own `lock.md` hid the lock chain.
   The lock history is now the branch's first-parent line, and a merge that
   changes `lock.md` fails.
+- A branch could switch off CI's lock check by deleting or archiving its own
+  change folder; `ci-gates.sh` now fails a lock added on the branch and gone
+  at its head.
+- A re-lock could change `.cortex/config` and narrow `TEST_GLOBS`; it may
+  not change the config at all.
 - A re-lock blessed every change since the previous lock; it now blesses
   only its own tests commit, and anything changed earlier still fails.
 - A re-lock may not drop a file the earlier lock listed, and a deleted
@@ -52,12 +63,14 @@ when its trigger fires.
 
 ## 2.0.0 — 2026-10-03
 
-**Security note (added with 2.1.0):** two ways to get a weakened test past
-`tests-locked.sh` exist in 2.0.0, locally and in CI: merging a side branch
-that weakened a locked test (Amendment 4's allowance accepted any merged
-branch, not only the base), and merging a side branch that brought its own
-`lock.md` (history simplification hid the chain). Both are fixed in 2.1.0
-(spec Amendment 10). In 2.0.0 the mitigation is a person reviewing test
+**Security note (added with 2.1.0):** ways to get a weakened test past the lock
+exist in 2.0.0, locally and in CI: merging a side branch that weakened a
+locked test, or resolving a merge to a test's older, pre-lock version
+(Amendment 4's merge allowance accepted both; the second then vanishes
+from the pull request's diff); merging a side branch that brought its own
+`lock.md` (history simplification hid the chain); and deleting or
+archiving the change folder on the branch, which stopped CI checking it.
+All are fixed in 2.1.0 (spec Amendments 10 and 11). In 2.0.0 the mitigation is a person reviewing test
 content in the pull request (Code Owners on the test paths). No repository
 had a real install when this was found.
 

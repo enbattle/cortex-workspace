@@ -113,7 +113,9 @@ Deliberate trade-offs; each links to where it's explained.
 - **The test lock freezes every matching test and fixture** (and
   `.cortex/config`) while a change is in progress, so an implementer can't
   weaken old tests. Changing one means re-running `test-first` with your
-  sign-off; a locked branch merges `main` in rather than rebasing
+  sign-off, and so does merging a `main` that changed locked files; a
+  locked branch merges `main` in rather than rebasing, and can't take in a
+  change to `.cortex/config` at all (start over from the new `main`)
   ([`test-first`](template/harness/commands/test-first.md),
   [rebasing](docs/02-extensions.md)).
 - **Local checks are guardrails, not a boundary.** An agent with full git
