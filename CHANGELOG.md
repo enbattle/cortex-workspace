@@ -1,8 +1,8 @@
 # Changelog
 
-## 2.0.0 — Unreleased
+## 2.0.0 — 2026-10-03
 
-**Before release:** done:
+**Before release** (all done):
 
 - Pilot 2 (the Claude Code adapter run for real from an installed
   repository, `evals/pilots/2026-09-24-pilot-2.md`) and its friction: F1
@@ -18,11 +18,6 @@
   After their fixes, 5 in 129 actions.
 - The pre-release completeness audit (`evals/audits/2026-10-03.md`) and its
   findings.
-
-Still open:
-
-- Date this entry and tag the release once merged; installs should use the
-  tag, not HEAD.
 
 Note: `gates.sh` finds its sibling scripts in its own directory only from
 this release on. No repository installed an earlier revision (2.0.0 is the

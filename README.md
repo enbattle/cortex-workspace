@@ -8,19 +8,22 @@ evidence. It is plain markdown and a few bash scripts, works with any agent
 tool, and ships a Claude Code adapter that enforces as much of the isolation
 as the tool allows.
 
-**Status:** 2.0.0, not yet released (see [CHANGELOG.md](CHANGELOG.md)). The
+**Status:** 2.0.0, released 2026-10-03 (see [CHANGELOG.md](CHANGELOG.md)). The
 scripts are covered by test suites written by a separate agent before the
-scripts were (`tests/`, 7 suites). The whole
-pipeline has run end to end once, on a toy repository
-([pilot 1](evals/pilots/2026-09-23-toy-repo.md)): review caught a real
+scripts were (`tests/`, 7 suites). The whole pipeline has run end to end
+three times, on toy repositories. In
+[pilot 1](evals/pilots/2026-09-23-toy-repo.md), review caught a real
 compatibility break, and a fresh reviewer caught a planted bug the tests
 missed. [Pilot 2](evals/pilots/2026-09-24-pilot-2.md) then ran the Claude
 Code adapter for real from inside an installed repository: each role was
 delegated to its own subagent, the three-commit test lock held, and review
 again caught a real compatibility break. The rebuilt golden task
-([evals/golden/](evals/golden/review-maxlength/)) passes. cortex has not yet
-been used on a real project; treat the first real change as part of the
-evaluation. Release status: see [CHANGELOG.md](CHANGELOG.md).
+([evals/golden/](evals/golden/review-maxlength/)) passes.
+[Pilots 3](evals/pilots/2026-10-03-pilot-3.md) and
+[3b](evals/pilots/2026-10-03-pilot-3b.md) counted the permission prompts a
+person would see, which fell to 5 in 129 actions after their fixes. cortex
+has not yet been used on a real project; treat the first real change as part
+of the evaluation.
 
 ## What you get
 
@@ -60,8 +63,7 @@ Prerequisites: git and bash (Git Bash on Windows).
 
 ```bash
 git clone https://github.com/enbattle/cortex-workspace.git
-# once 2.0.0 is tagged, install from the tag rather than main:
-# git -C cortex-workspace checkout v2.0.0
+git -C cortex-workspace checkout v2.0.0   # install from the release tag, not main
 ```
 
 Then open your repository in your agent tool and say: *"Read and execute
