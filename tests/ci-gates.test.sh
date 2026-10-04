@@ -671,6 +671,166 @@ case_AC77_reused_folder_name() {
     "the dropped-lock line names changes/x"
 }
 
+# ---- AC78-AC81 (Amendment 12, N1 tree-based): every lock a branch commit holds ----
+
+DROPPED_X="ci-gates: FAIL changes/x (lock.md added on this branch is gone)"
+
+case_AC78_lock_replaced_by_directory() {
+  local d; d="$(ci_repo)"
+  git -C "$d" rm -q changes/x/lock.md
+  mkdir -p "$d/changes/x/lock.md"
+  printf 'not a lock\n' > "$d/changes/x/lock.md/note.txt"
+  commit_all "$d" "replace the lock with a directory"
+  assert_true "fixture: HEAD's changes/x/lock.md is a tree" \
+    bash -c 'git -C "$1" ls-tree HEAD changes/x/lock.md | grep -q "^040000 tree "' _ "$d"
+  ci_gates "$d" "$BASE"
+  assert_exit 1 "$CODE" "lock.md replaced by a directory -> exit 1"
+  assert_line "$OUT" "$DROPPED_X" "the dropped-lock line names changes/x"
+  assert_line "$OUT" "ci-gates: check ok" "check still passes"
+}
+
+case_AC78_lock_replaced_by_symlink() {
+  # built with plumbing (core.symlinks may be false); the working tree is
+  # made to match a checkout: a symlink where symlinks work, else a plain
+  # file holding the target
+  local d target='../../tests/b.test.sh' blob; d="$(ci_repo)"
+  blob="$(printf '%s' "$target" | git -C "$d" hash-object -w --stdin)"
+  git -C "$d" rm -q --cached changes/x/lock.md
+  git -C "$d" update-index --add --cacheinfo "120000,$blob,changes/x/lock.md"
+  git -C "$d" commit -q -m "replace the lock with a symlink"
+  rm -f "$d/changes/x/lock.md"
+  git -C "$d" checkout -q -- changes/x/lock.md
+  assert_true "fixture: HEAD's changes/x/lock.md has mode 120000" \
+    bash -c 'git -C "$1" ls-tree HEAD changes/x/lock.md | grep -q "^120000 blob "' _ "$d"
+  assert_true "fixture: the working tree matches HEAD" test -z "$(git -C "$d" status --porcelain)"
+  ci_gates "$d" "$BASE"
+  assert_exit 1 "$CODE" "lock.md replaced by a symlink -> exit 1"
+  assert_line "$OUT" "$DROPPED_X" "the dropped-lock line names changes/x"
+  assert_line "$OUT" "ci-gates: check ok" "check still passes"
+}
+
+case_AC79_merge_with_old_base_commit() {
+  # the base had changes/x/lock.md at B1, then archived it; the branch
+  # merges B1 with a NEW changes/x/lock.md, then drops it with a test edit
+  local d b1 p blob tree m; d="$(base_only)"
+  git -C "$d" checkout -q -B main "$BASE"
+  mkdir -p "$d/changes/x"
+  printf 'Tests-locked-at: 0000000000000000000000000000000000000000\n\n## Locked tests\n\n- tests/a.test.sh\n' \
+    > "$d/changes/x/lock.md"
+  printf '# tasks\n' > "$d/changes/x/tasks.md"
+  commit_all "$d" "base: change x (B1)"
+  b1="$(git -C "$d" rev-parse HEAD)"
+  git -C "$d" mv changes/x changes/archive/x
+  git -C "$d" commit -q -m "base: archive changes/x"
+  git -C "$d" update-ref "refs/remotes/$BASE" HEAD
+  git -C "$d" checkout -q feature
+  git -C "$d" reset -q --hard "$BASE"
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  commit_all "$d" "add tests for changes/x (P)"
+  p="$(git -C "$d" rev-parse HEAD)"
+  blob="$(printf 'Tests-locked-at: %s\n\n## Locked tests\n\n- tests/b.test.sh\n' "$p" \
+    | git -C "$d" hash-object -w --stdin)"
+  git -C "$d" update-index --add --cacheinfo "100644,$blob,changes/x/lock.md"
+  tree="$(git -C "$d" write-tree)"
+  m="$(printf 'merge B1, with a new lock\n' | git -C "$d" commit-tree "$tree" -p "$p" -p "$b1")"
+  git -C "$d" reset -q --hard "$m"
+  printf 'echo weakened\n' > "$d/tests/b.test.sh"
+  git -C "$d" rm -q changes/x/lock.md
+  commit_all "$d" "weaken the test, drop the lock"
+  assert_true "fixture: HEAD~1 is a merge with B1 as its second parent" \
+    test "$(git -C "$d" rev-parse HEAD~1^2)" = "$b1"
+  assert_true "fixture: the merge's lock.md differs from B1's" \
+    test "$(git -C "$d" rev-parse HEAD~1:changes/x/lock.md)" != "$(git -C "$d" rev-parse "$b1:changes/x/lock.md")"
+  assert_true "fixture: the base tip has no changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
+  assert_file_absent "$d/changes/x/lock.md" "fixture: no changes/x/lock.md at HEAD"
+  ci_gates "$d" "$BASE"
+  expect_dropped_lock "new lock in a merge with an old base commit, then dropped"
+  assert_line "$OUT" "$DROPPED_X" "the dropped-lock line names changes/x"
+}
+
+# a folder name holding a tab; git prints the lock.md path quoted
+TAB_FOLDER="changes/a$(printf '\t')b"
+QUOTED_LINE='ci-gates: FAIL "changes/a\tb/lock.md" (a lock.md path git has to quote; rename the folder)'
+
+# tab_lock DIR : commit everything as T, then TAB_FOLDER/lock.md naming T,
+# with plumbing (a Windows filesystem can't hold a tab; there the working
+# tree lacks the file, elsewhere a checkout writes it)
+tab_lock() {
+  local d="$1" t blob
+  commit_all "$d" "add tests for the tab folder"
+  t="$(git -C "$d" rev-parse HEAD)"
+  blob="$(printf 'Tests-locked-at: %s\n\n## Locked tests\n\n- tests/b.test.sh\n' "$t" \
+    | git -C "$d" hash-object -w --stdin)"
+  git -C "$d" -c core.protectNTFS=false update-index --add --cacheinfo "100644,$blob,$TAB_FOLDER/lock.md"
+  git -C "$d" commit -q -m "lock the tab folder"
+  git -C "$d" -c core.protectNTFS=false checkout -q -- . 2>/dev/null || true
+}
+
+case_AC80_tab_folder_kept() {
+  local d; d="$(base_only)"
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  tab_lock "$d"
+  assert_true "fixture: git prints HEAD's lock path quoted" \
+    bash -c 'git -C "$1" ls-tree -r --name-only HEAD | grep -qxF "\"changes/a\\tb/lock.md\""' _ "$d"
+  ci_gates "$d" "$BASE"
+  assert_exit 1 "$CODE" "lock at a folder name with a tab, kept -> exit 1"
+  assert_line "$OUT" "$QUOTED_LINE" "the quoted-path line"
+}
+
+case_AC80_tab_folder_deleted() {
+  local d; d="$(base_only)"
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  tab_lock "$d"
+  git -C "$d" -c core.protectNTFS=false update-index --force-remove "$TAB_FOLDER/lock.md"
+  git -C "$d" commit -q -m "drop the tab folder's lock"
+  rm -rf "${d:?}/$TAB_FOLDER"
+  assert_true "fixture: git prints HEAD^'s lock path quoted" \
+    bash -c 'git -C "$1" ls-tree -r --name-only HEAD^ | grep -qxF "\"changes/a\\tb/lock.md\""' _ "$d"
+  assert_true "fixture: HEAD has no lock under the tab folder" \
+    test -z "$(git -C "$d" ls-tree -r --name-only HEAD -- changes | grep -F 'changes/a\tb' || true)"
+  assert_true "fixture: the working tree matches HEAD" test -z "$(git -C "$d" status --porcelain)"
+  ci_gates "$d" "$BASE"
+  assert_exit 1 "$CODE" "lock at a folder name with a tab, deleted -> exit 1"
+  assert_line "$OUT" "$QUOTED_LINE" "the quoted-path line"
+}
+
+case_AC81_stacked_after_squash() {
+  # branch A locks changes/a; B builds on A; A is squash-merged into the
+  # base, which then archives changes/a; B merges the base and removes its
+  # leftover changes/a
+  local d la sq; d="$(base_only)"
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  lock_folder "$d" changes/a
+  la="$(git -C "$d" rev-parse HEAD)"
+  git -C "$d" checkout -q -b stacked
+  printf 'more\n' > "$d/src/more.txt"
+  commit_all "$d" "B: unrelated work"
+  git -C "$d" checkout -q -B main "$BASE"
+  git -C "$d" merge -q --squash "$la" >/dev/null
+  git -C "$d" commit -q -m "squash-merge A"
+  sq="$(git -C "$d" rev-parse HEAD)"
+  git -C "$d" mv changes/a changes/archive/a
+  git -C "$d" commit -q -m "base: archive changes/a"
+  git -C "$d" update-ref "refs/remotes/$BASE" HEAD
+  git -C "$d" checkout -q stacked
+  git -C "$d" merge -q --no-ff --no-edit "$BASE"
+  git -C "$d" rm -q -r changes/a
+  git -C "$d" commit -q -m "B: remove the leftover changes/a"
+  assert_true "fixture: the squash commit is an ordinary commit" \
+    bash -c '! git -C "$1" cat-file -e "$2^2" 2>/dev/null' _ "$d" "$sq"
+  assert_true "fixture: the squash commit holds A's lock.md blob" \
+    test "$(git -C "$d" rev-parse "$sq:changes/a/lock.md")" = "$(git -C "$d" rev-parse "$la:changes/a/lock.md")"
+  assert_true "fixture: HEAD^ is a merge of the base" \
+    test "$(git -C "$d" rev-parse HEAD^^2)" = "$(git -C "$d" rev-parse "$BASE")"
+  assert_true "fixture: HEAD has no changes/a/lock.md" \
+    bash -c '! git -C "$1" cat-file -e HEAD:changes/a/lock.md 2>/dev/null' _ "$d"
+  ci_gates "$d" "$BASE"
+  assert_not_contains "$OUT" "ci-gates: FAIL changes/a (lock.md added on this branch is gone)" \
+    "no dropped-lock failure for changes/a"
+  assert_not_contains "$OUT" "ci-gates: FAIL changes/a" "no failure for changes/a at all"
+}
+
 case_archived_after_merge() {
   # the usual order: changes/x merged into the base, then a later branch
   # archives it
@@ -823,6 +983,12 @@ run_case "AC75 base deleted a finished lock.md, merged in -> ok" case_AC75_base_
 run_case "AC75 base archived and rewrote a finished lock.md, merged in -> ok" case_AC75_base_archived_lock_merged
 run_case "AC76 lock at changes/[o]ld (pattern name) dropped -> FAIL" case_AC76_pattern_folder_name
 run_case "AC77 lock at a reused folder name dropped -> FAIL" case_AC77_reused_folder_name
+run_case "AC78 lock.md replaced by a directory -> FAIL" case_AC78_lock_replaced_by_directory
+run_case "AC78 lock.md replaced by a symlink -> FAIL" case_AC78_lock_replaced_by_symlink
+run_case "AC79 new lock in a merge with an old base commit, dropped -> FAIL" case_AC79_merge_with_old_base_commit
+run_case "AC80 lock at a folder name with a tab, kept -> FAIL" case_AC80_tab_folder_kept
+run_case "AC80 lock at a folder name with a tab, deleted -> FAIL" case_AC80_tab_folder_deleted
+run_case "AC81 stacked branch after its parent was squash-merged -> no dropped lock" case_AC81_stacked_after_squash
 run_case "AC29 folder archived after its change merged" case_archived_after_merge
 run_case "AC65 base merged into a locked branch, no re-lock -> FAIL" case_base_merged_into_locked_branch
 run_case "AC66 base merged, then a signed re-lock -> ok" case_base_merged_and_relocked
