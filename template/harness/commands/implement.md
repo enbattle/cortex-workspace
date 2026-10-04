@@ -25,7 +25,8 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    one outcome per finding with a one-line reason, and commit the file:
    **fix**; **fix via test-first** (only when a test can exercise real
    behavior; you never write it: report it, and the user decides whether
-   `test-first` re-runs, as in step 2); **known limitation**; or
+   `test-first` re-runs as a re-lock, `test-first` step 7); **known
+   limitation**; or
    **disputed**. A disputed finding stops for the user, who decides: you
    are biased toward rejecting it, the reviewer toward inflating it. So
    does a known limitation on a Medium finding: it is a waiver request, and
@@ -38,7 +39,8 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    test: not one listed in `lock.md`, not an existing test, not a new one.
    Never edit `lock.md` or `.cortex/config` either; both are locked for the
    duration of the change. That is the test writer's job. If a test looks wrong, stop and report it. A wrong
-   test is a spec problem; the user decides whether `test-first` re-runs.
+   test is a spec problem; the user decides whether `test-first` re-runs
+   (a re-lock with their sign-off: `test-first` step 7).
 3. For each task: make the change, run its done-check, check it off in
    `tasks.md` with a one-line note on what was done, and commit. A commit per
    task means a failed attempt can be reverted to the last good task.

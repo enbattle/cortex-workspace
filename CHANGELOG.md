@@ -1,6 +1,79 @@
 # Changelog
 
+## 2.1.0 — Unreleased
+
+**Before release:** the pre-release completeness audit
+(`evals/audits/2026-10-03-2.1.0.md`) and its findings, then a re-run of
+the audit on the corrected branch; then update the README's status and
+install tag, date this entry and tag.
+
+**Added: a signed re-lock** (spec Amendment 9). When a locked test is wrong,
+`implement` says the user may have `test-first` re-run, but the lock check
+refused any second lock commit, so the change could only start over (found
+while answering an outside review of the Limits). Now `test-first` step 7
+commits the corrected tests, then rewrites `lock.md` naming them, with the
+user's `Re-lock signed off by:` line; `tests-locked.sh` accepts a chain of
+lock commits that each directly follow their tests and, after the first,
+carry a sign-off, and the newest governs. The check proves a sign-off
+exists, not who wrote it, as for the approval line: the sign-off makes the
+agent stop, and the safeguard is a person reviewing the test and config
+content in the pull request (branch protection with Code Owners on the test
+paths, `INSTALL.md` step 5b). In tools that run `test-first` as an isolated
+agent, it stops with `lock.md` drafted, and the session the user is talking
+to gets the sign-off and commits it.
+
+**Fixed: holes in the test lock** (spec Amendments 10 to 12). Those marked
+*(also in 2.0.0)* let a weakened test past the lock in 2.0.0, locally and in
+CI; there the mitigation is a person reviewing test content in the pull
+request (Code Owners on the test paths). No repository had a real install
+when they were found.
+
+- **No merge allowance any more** *(also in 2.0.0)*. A locked file changed by a merge was
+  accepted if it matched a merged parent's version, and three audit rounds
+  each found a way through that rule: merging a side branch that weakened a
+  test, and restoring a test's older, pre-lock version from the base (which
+  then vanished from the pull request's diff). The allowance is removed:
+  any change to a locked file fails unless a signed re-lock's tests commit
+  made it. To bring a locked branch up to date with a base that changed
+  locked files, merge it and re-lock naming the merge commit. A base change
+  to `.cortex/config` can't be taken into a locked change; finish without
+  it or start over from the new base.
+- *(also in 2.0.0)* A merged side branch that brought its own `lock.md` hid
+  the lock chain. The lock history is now the branch's first-parent line,
+  and a merge that changes `lock.md` fails.
+- *(also in 2.0.0)* A branch could switch off CI's lock check by deleting or
+  archiving its own change folder, by a merge that left its `lock.md` out,
+  or by replacing it with a directory or symlink; `ci-gates.sh` now reads
+  the `lock.md` files every commit on the branch holds and fails one that is
+  no longer a regular file at its head, unless the base already had that
+  exact lock. What it can't see, history rewritten before the push, is in
+  the README's Limits.
+- A re-lock could change `.cortex/config` and narrow `TEST_GLOBS`; it may
+  not change the config at all.
+- A re-lock blessed every change since the previous lock; it now blesses
+  only its own tests commit, and anything changed earlier still fails.
+- A re-lock may not drop a file the earlier lock listed, and a deleted
+  `lock.md` fails cleanly instead of with a git error.
+
+In CI the protection starts once the base branch has the new
+`ci-gates.sh` and `tests-locked.sh`, since both are taken from the base.
+Tests from a separate agent first, for each amendment: tests-locked 248 to
+478 assertions, ci-gates 91 to 235.
+
+**Added:** a Limits section in the README (each limit links to where it's
+explained), and a trigger-gated catalog entry for rebasing a locked branch.
+
+**Upgrading:** `install.sh` still refuses a repository with a different
+version installed, so moving a 2.0.0 install to 2.1.0 is a manual merge.
+No repository has a real install yet; the upgrade path
+(`docs/02-extensions.md` §4) should be built before a second real install,
+when its trigger fires.
+
 ## 2.0.0 — 2026-10-03
+
+**Security note (added with 2.1.0):** ways to get a weakened test past the
+lock exist in 2.0.0, locally and in CI; see 2.1.0's "Fixed" list, the items
+marked *(also in 2.0.0)*.
 
 **Before release** (all done):
 

@@ -119,8 +119,10 @@ can get around them. The boundary is the pull request. With the user:
    for change folders whose `lock.md` the pull request adds or changes; a
    pull request with no change folder gets only the harness check, and the
    test paths in CODEOWNERS are what protect its tests. To bring a locked
-   branch up to date, merge the base into it; don't rebase (the lock commit
-   must stay in the branch's history).
+   branch up to date, merge the base into it, and if that changed locked
+   files, re-lock with the user's sign-off (`test-first` step 7, naming the
+   merge commit); don't rebase (the lock commit must stay in the branch's
+   history).
 2. Copy `.cortex/ci/github/CODEOWNERS` to `.github/CODEOWNERS`, set the
    owner, and add this repository's test paths (the ones in `TEST_GLOBS`).
 3. Tell the user the repository settings that make both binding (they are

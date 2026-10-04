@@ -11,8 +11,8 @@
 # the scripts that judge it; a fresh checkout has no hidden edits, and any
 # flagged file is refused anyway; and the gates run on the branch as pushed.
 # What no script can judge (the tests' assertions, .cortex/config edits made
-# before the lock, the workflow file itself) is covered by required human
-# review of those paths (CODEOWNERS).
+# before the lock, what a re-lock's sign-off blesses, the workflow file
+# itself) is covered by required human review of those paths (CODEOWNERS).
 #
 # Usage: scripts/cortex/ci-gates.sh <base-ref>
 # Exit:  0 all passed, 1 something failed, 2 usage error.
@@ -68,7 +68,55 @@ else
   fail check
 fi
 
-# 4. Every change folder whose lock was added or changed on this branch.
+# 4. A branch can't drop its own lock (spec Amendments 11 and 12): every
+# change folder's lock.md that a commit this branch brings holds (any commit
+# reachable from HEAD and not from the base, read from its tree, so merges
+# need no special case) must still be a regular file at HEAD, unless the
+# base's history held that exact content at that path: then it is a finished
+# change's lock, not this branch's. A lock is changes/<folder>/lock.md, one
+# folder deep, so archived copies (changes/archive/<folder>/) never count as
+# kept. Paths are compared literally; a name git has to quote can't be, so it
+# fails unless the base's tip holds it unchanged.
+
+# lock_entries : "<path>\t<blob>" for each lock in the trees of the commits
+# named on stdin
+lock_entries() {
+  local c
+  while IFS= read -r c; do
+    g ls-tree -r "$c" -- changes/
+  done | awk -F '\t' '$2 ~ /^"?changes\/[^\/]+\/lock\.md"?$/ && $2 !~ /^"?changes\/archive\// {
+    split($1, m, " "); print $2 "\t" m[3] }' | LC_ALL=C sort -u
+}
+# base_had PATH BLOB : the base's history held BLOB at PATH
+base_had() {
+  local c
+  while IFS= read -r c; do
+    [ -n "$c" ] || continue
+    [ "$(g rev-parse --verify --quiet "$c:$1" || true)" = "$2" ] && return 0
+  done <<<"$(g --literal-pathspecs rev-list --full-history "$base" -- "$1")"
+  return 1
+}
+base_locks="$(printf '%s\n' "$base" | lock_entries)"
+# Sorted, so a path's entries (one per content it had) are adjacent; a path
+# fails once, as soon as one of its contents isn't the base's.
+last_failed=""
+while IFS=$'\t' read -r path blob; do
+  [ -n "$path" ] && [ "$path" != "$last_failed" ] || continue
+  case "$path" in
+    \"*)
+      grep -qxF -- "$path"$'\t'"$blob" <<<"$base_locks" && continue
+      last_failed="$path"
+      fail "$path (a lock.md path git has to quote, so CI can't check it)"
+      continue ;;
+  esac
+  mode="$(g --literal-pathspecs ls-tree HEAD -- "$path" | cut -d ' ' -f 1)"
+  case "$mode" in 100644 | 100755) continue ;; esac
+  base_had "$path" "$blob" && continue
+  last_failed="$path"
+  fail "${path%/lock.md} (lock.md added on this branch is gone)"
+done <<<"$(g rev-list "$base..HEAD" | lock_entries)"
+
+# 5. Every change folder whose lock was added or changed on this branch.
 # Archived changes (changes/archive/) finished earlier and are not gated.
 folders="$(g diff --name-only "$base...HEAD" -- 'changes/*/lock.md' | grep -v '^changes/archive/' | sed 's|/lock\.md$||' | LC_ALL=C sort -u || true)"
 while IFS= read -r folder; do

@@ -18,7 +18,7 @@ A note about this document, in its own spirit: it earned its existence by having
 
 **P5 — Loops terminate; humans decide.** Every automated iteration has a stop condition, a budget, and an escalation path. Judgment calls — merging, waiving, resolving conflicts, spending a third review round — belong to people. An agent that never gives up is not persistent; it is unaccountable.
 
-**P6 — Rigid where the actor would rationalize; judgment everywhere else.** A gate exists because the party it constrains will always have a reason why this case is different, so a gate with exceptions is no gate: approval, the test lock, reviewer isolation and the trust rule stay absolute. Rules about what to adopt, keep or delete are the opposite. There a fixed proxy (an incident count, a firing rate, a deletion quota) stands in for a judgment it can't make, and fails where the judgment matters. Understanding why a practice works elsewhere and checking that the reason holds here is the work, not a shortcut around it. *(Canonical: R14.)*
+**P6 — Rigid where the actor would rationalize; judgment everywhere else.** A gate exists because the party it constrains will always have a reason why this case is different, so a gate with exceptions is no gate: approval, the test lock, reviewer isolation and the trust rule stay absolute for the agent, and only the human opens them (approving a spec, signing a re-lock). Rules about what to adopt, keep or delete are the opposite. There a fixed proxy (an incident count, a firing rate, a deletion quota) stands in for a judgment it can't make, and fails where the judgment matters. Understanding why a practice works elsewhere and checking that the reason holds here is the work, not a shortcut around it. *(Canonical: R14.)*
 
 ---
 
