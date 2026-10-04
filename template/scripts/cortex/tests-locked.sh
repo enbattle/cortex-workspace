@@ -3,8 +3,10 @@
 #
 # Reads <change-folder>/lock.md: a "Tests-locked-at: <sha>" line and a
 # "## Locked tests" list. test-first commits the tests (commit T), then adds
-# lock.md naming T as the very next commit (L), and nothing touches lock.md
-# again, so an implementer can't move the lock by editing it (LOCK moved).
+# lock.md naming T as the very next commit (L). Nothing touches lock.md again
+# unless test-first re-runs: a re-lock commits new tests (T2) and then lock.md
+# naming them (L2), with the user's "Re-lock signed off by:" line, and the
+# newest lock governs (spec Amendment 9). Any other edit is LOCK moved.
 #
 # Locked, and compared with their content at T (committed, staged and
 # unstaged edits and deletions all count): every listed file; every file
@@ -72,20 +74,35 @@ finish
 lock_rel="$(git -C "$folder" rev-parse --show-prefix)lock.md"
 cd "$(git rev-parse --show-toplevel)"
 
-# The lock record: added in exactly one commit, right after the sha it names,
-# and unchanged since.
-lock_commits="$(g log --format=%H -- "$lock_rel")"
+# The lock record (spec Amendments 2 and 9): every commit that touches it,
+# oldest first, directly follows the commit its lock.md names, and each one
+# after the first is a re-lock that carries the user's sign-off. The newest
+# governs, and the working tree's lock.md must equal it (checked below).
+lock_commits="$(g log --reverse --format=%H -- "$lock_rel")"
 n_lock_commits="$(printf '%s' "$lock_commits" | grep -c . || true)"
 if [ "$n_lock_commits" -eq 0 ]; then
   lock moved "$lock_rel is not committed; test-first commits it right after the tests"
-elif [ "$n_lock_commits" -gt 1 ]; then
-  lock moved "$lock_rel was changed after it was written ($n_lock_commits commits touch it)"
 else
-  full_sha="$(g rev-parse --verify --quiet "$sha^{commit}" || true)"
-  parent="$(g rev-parse --verify --quiet "$lock_commits^1" || true)"
-  if [ -z "$full_sha" ] || [ "$parent" != "$full_sha" ]; then
-    lock moved "$lock_rel's commit does not directly follow the commit it names ($sha)"
-  fi
+  i=0
+  while IFS= read -r c; do
+    [ -n "$c" ] || continue
+    i=$((i + 1))
+    content="$(g show "$c:$lock_rel" | tr -d '\r')"
+    named="$(sed -n 's/^Tests-locked-at:[[:space:]]*\([^[:space:]]*\).*/\1/p' <<<"$content" | sed -n 1p)"
+    named_full="$(g rev-parse --verify --quiet "$named^{commit}" || true)"
+    parent="$(g rev-parse --verify --quiet "$c^1" || true)"
+    if [ -z "$named_full" ] || [ "$parent" != "$named_full" ]; then
+      lock moved "$lock_rel's commit $(g rev-parse --short=7 "$c") does not directly follow the commit it names ($named)"
+    fi
+    if [ "$i" -gt 1 ]; then
+      signoff="$(sed -n 's/^Re-lock signed off by:[[:space:]]*//p' <<<"$content" | sed -n 1p)"
+      signoff="${signoff%"${signoff##*[![:space:]]}"}"
+      case "$signoff" in
+        "" | "<"*">")
+          lock moved "$lock_rel was changed after it was written ($n_lock_commits commits touch it) without a re-lock sign-off in $(g rev-parse --short=7 "$c")" ;;
+      esac
+    fi
+  done <<<"$lock_commits"
 fi
 if ! g diff --quiet HEAD -- "$lock_rel" 2>/dev/null || ! g diff --cached --quiet -- "$lock_rel"; then
   lock moved "$lock_rel has uncommitted edits"
