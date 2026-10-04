@@ -347,19 +347,41 @@ ci-gates: FAIL changes/x
 ci-gates: 2 failed" "all steps run and both failures count"
 }
 
-# ---- AC29 (Amendment 4): archived folders not gated; a base merge passes ---------
+# ---- AC29/AC70 (Amendments 4 and 11): archived folders; a dropped lock ----------
+#
+# Amendment 11, M4: a branch that adds a lock.md and no longer has it at HEAD
+# (deleted, or its folder moved under changes/archive/) fails for that folder.
+# Archiving a folder whose lock.md is already on the base stays ungated (D2).
+
+# expect_dropped_lock msg : ci-gates fails for changes/x, and nothing else
+expect_dropped_lock() {
+  assert_exit 1 "$CODE" "$1: exit 1"
+  if grep -qE '^ci-gates: FAIL changes/(archive/)?x( |:|$)' <<<"$OUT"; then pass
+  else fail "$1: a ci-gates: FAIL line for the folder"; show_output; fi
+  assert_line "$OUT" "ci-gates: check ok" "$1: check still passes"
+  assert_true "$1: one failure counted, as the last line" test "$(last_line "$OUT")" = "ci-gates: 1 failed"
+}
 
 case_archived_on_branch() {
+  # was AC29's "folder archived on the branch is not gated": the lock was
+  # added on this branch, so moving it away drops it (AC70)
   local d; d="$(ci_repo)"
   git -C "$d" mv changes/x changes/archive/x
   git -C "$d" commit -q -m "archive changes/x"
   assert_file_exists "$d/changes/archive/x/lock.md" "fixture: lock.md now under changes/archive/"
   ci_gates "$d" "$BASE"
-  assert_exit 0 "$CODE" "archived folder on the branch -> exit 0"
-  expect_ci_lines "ci-gates: using scripts from $BASE
-ci-gates: check ok
-ci-gates: ok" "archived folder is not gated"
-  assert_not_contains "$OUT" "LOCK " "the archived lock.md was not checked"
+  expect_dropped_lock "lock added on the branch, then its folder archived"
+}
+
+case_added_lock_deleted() {
+  local d; d="$(ci_repo)"
+  git -C "$d" rm -q changes/x/lock.md
+  git -C "$d" commit -q -m "drop the lock"
+  assert_file_absent "$d/changes/x/lock.md" "fixture: lock.md deleted"
+  assert_true "fixture: the base has no changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
+  ci_gates "$d" "$BASE"
+  expect_dropped_lock "lock added on the branch, then deleted"
 }
 
 case_archived_after_merge() {
@@ -378,26 +400,60 @@ ci-gates: ok" "archived folder is not gated after the merge"
   assert_not_contains "$OUT" "LOCK " "the archived lock.md was not checked"
 }
 
+# ---- AC65/AC66 (Amendment 11, M1/M2): a base merge is a re-lock -----------------
+
+# move_base DIR [no-config] : the base moves on (edits tests/a.test.sh, matched
+# by TEST_GLOBS, and, unless "no-config", .cortex/config; adds tests/c.test.sh);
+# feature checked out again, not merged
+move_base() {
+  git -C "$1" checkout -q -B main "$BASE"
+  printf 'echo a from base\n' > "$1/tests/a.test.sh"
+  [ "${2-}" = no-config ] || append "$1/.cortex/config" "# base: a later config line"
+  printf 'echo c from base\n' > "$1/tests/c.test.sh"
+  commit_all "$1" "base moves on"
+  git -C "$1" update-ref "refs/remotes/$BASE" HEAD
+  git -C "$1" checkout -q feature
+}
+
+# relock_folder DIR FOLDER : FOLDER/lock.md naming HEAD (the merge), signed,
+# listing tests/b.test.sh, committed as the very next commit
+relock_folder() {
+  local sha; sha="$(git -C "$1" rev-parse HEAD)"
+  printf 'Tests-locked-at: %s\nRe-lock signed off by: Pat Maintainer\n\n## Locked tests\n\n- tests/b.test.sh\n' \
+    "$sha" > "$1/$2/lock.md"
+  commit_all "$1" "re-lock $2 after merging the base"
+}
+
 case_base_merged_into_locked_branch() {
-  # the base moves on (edits a TEST_GLOBS-matched test and .cortex/config,
-  # adds a new matched test); the locked branch merges it, taking its versions
+  # was "base merged into a locked branch -> ok" (Amendment 4, withdrawn):
+  # the merge changed locked files and nothing re-locked them
   local d; d="$(ci_repo)"
-  git -C "$d" checkout -q -B main "$BASE"
-  printf 'echo a from base\n' > "$d/tests/a.test.sh"
-  append "$d/.cortex/config" "# base: a later config line"
-  printf 'echo c from base\n' > "$d/tests/c.test.sh"
-  commit_all "$d" "base moves on"
-  git -C "$d" update-ref "refs/remotes/$BASE" HEAD
-  git -C "$d" checkout -q feature
+  move_base "$d"
   git -C "$d" merge -q --no-edit "$BASE"
   assert_true "fixture: merge took base's test" grep -qF "echo a from base" "$d/tests/a.test.sh"
   ci_gates "$d" "$BASE"
-  assert_exit 0 "$CODE" "locked branch with the base merged in -> exit 0"
+  assert_exit 1 "$CODE" "locked branch with the base merged in, no re-lock -> exit 1"
+  assert_contains "$OUT" "LOCK modified: tests/a.test.sh" "the base tests-locked.sh names the merged test"
+  expect_ci_lines "ci-gates: using scripts from $BASE
+ci-gates: check ok
+ci-gates: FAIL changes/x
+ci-gates: 1 failed" "the folder fails after an un-relocked base merge"
+}
+
+case_base_merged_and_relocked() {
+  local d m; d="$(ci_repo)"
+  move_base "$d" no-config
+  git -C "$d" merge -q --no-edit "$BASE"
+  m="$(git -C "$d" rev-parse HEAD)"
+  relock_folder "$d" changes/x
+  assert_true "fixture: the re-lock follows the merge" test "$(git -C "$d" rev-parse HEAD^1)" = "$m"
+  ci_gates "$d" "$BASE"
+  assert_exit 0 "$CODE" "base merged, then a signed re-lock naming the merge -> exit 0"
   expect_ci_lines "ci-gates: using scripts from $BASE
 ci-gates: check ok
 ci-gates: changes/x ok
-ci-gates: ok" "the folder is gated and passes after a base merge"
-  assert_not_contains "$OUT" "LOCK " "no LOCK lines after a base merge"
+ci-gates: ok" "the folder is gated and passes after a re-locked base merge"
+  assert_not_contains "$OUT" "LOCK " "no LOCK lines after a re-locked base merge"
 }
 
 # ---- AC35 (Amendment 6, F1): the base's parser, never the branch's ----------------
@@ -426,9 +482,9 @@ ci-gates: ok" "base parser: check and folder pass"
 
 case_AC62_side_branch_weakens_locked_test() {
   # a side branch (not reachable from the base) weakens the locked test and
-  # is merged into the locked branch, lock.md untouched: ci-gates.sh runs the
-  # lock with CORTEX_BASE_REF set to its base ref, so the side's version is
-  # an edit, not a base version
+  # is merged into the locked branch, lock.md untouched: the side's version
+  # is an edit (Amendment 11, M1: no merge allowance at all; the local check
+  # that used to accept it without CORTEX_BASE_REF, criterion 61, is withdrawn)
   local d; d="$(ci_repo)"
   git -C "$d" checkout -q -b side
   printf 'echo weakened on side\n' > "$d/tests/b.test.sh"
@@ -441,9 +497,6 @@ case_AC62_side_branch_weakens_locked_test() {
     bash -c '! git -C "$1" merge-base --is-ancestor side "$2"' _ "$d" "$BASE"
   assert_true "fixture: lock.md untouched by the merge" \
     git -C "$d" diff --quiet HEAD^1 HEAD -- changes/x/lock.md
-  # locally (CORTEX_BASE_REF unset) Amendment 4 accepts any merged parent
-  run bash -c 'unset CORTEX_BASE_REF; cd "$1" && bash scripts/cortex/tests-locked.sh changes/x' _ "$d"
-  assert_exit 0 "$CODE" "fixture: the local lock check, without CORTEX_BASE_REF, accepts the merge"
   ci_gates "$d" "$BASE"
   assert_exit 1 "$CODE" "side-branch weakening merged in -> exit 1"
   assert_contains "$OUT" "LOCK modified: tests/b.test.sh" "the base tests-locked.sh names the weakened test"
@@ -473,9 +526,11 @@ run_case "AC24 skip-worktree -> FAIL hidden" case_skip_worktree
 run_case "AC24 assume-unchanged -> FAIL hidden" case_assume_unchanged
 run_case "AC24 two hidden files counted separately" case_two_hidden
 run_case "AC24 hidden + broken lock: both counted" case_hidden_plus_lock_failure
-run_case "AC29 folder archived on the branch is not gated" case_archived_on_branch
+run_case "AC70 lock added on the branch, then archived -> FAIL" case_archived_on_branch
+run_case "AC70 lock added on the branch, then deleted -> FAIL" case_added_lock_deleted
 run_case "AC29 folder archived after its change merged" case_archived_after_merge
-run_case "AC29 base merged into a locked branch -> ok" case_base_merged_into_locked_branch
+run_case "AC65 base merged into a locked branch, no re-lock -> FAIL" case_base_merged_into_locked_branch
+run_case "AC66 base merged, then a signed re-lock -> ok" case_base_merged_and_relocked
 run_case "AC35 a branch's stub _config.sh: the base's parser is used" case_AC35_branch_stub_parser
 run_case "AC62 a merged side branch weakening a locked test fails" case_AC62_side_branch_weakens_locked_test
 summary
