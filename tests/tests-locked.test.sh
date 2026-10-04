@@ -834,6 +834,320 @@ ac37_check() {
 case_AC37_listed() { ac37_check tests/a.test.sh; }
 case_AC37_glob_only() { ac37_check tests/b.test.sh '- tests/a.test.sh'; }
 
+# ---- AC50-55 (Amendment 9, K1/K2): a signed re-lock -------------------------------
+#
+# A re-lock: after T1 and L1 (as above) and further commits, the test writer
+# commits test edits (T2), then rewrites lock.md naming T2 in its own commit L2,
+# with a "Re-lock signed off by: <text>" line.
+
+SIGNED="Re-lock signed off by: Pat Maintainer"
+SIGN_RE='^Re-lock signed off by:'
+RELOCK_LIST=('- tests/a.test.sh' '- `tests/b.test.sh`' '- tests/c.test.sh (new at the re-lock)')
+
+short() { printf '%s' "$1" | cut -c1-7; }
+
+# lock_commit_count DIR -> number of commits touching lock.md
+lock_commit_count() { git -C "$1" log --format=%H -- "$LOCK_REL" | grep -c . || true; }
+
+# first_lock_sha DIR -> T1, the sha the oldest lock commit names (its parent)
+first_lock_sha() {
+  git -C "$1" rev-parse "$(git -C "$1" log --reverse --format=%H -- "$LOCK_REL" | sed -n 1p)^1"
+}
+
+# write_relock DIR SHA SIGN [LIST-LINE...] : write_lock, plus the line SIGN
+# right after Tests-locked-at ("-" writes no sign-off line)
+write_relock() {
+  local d="$1" sha="$2" sign="$3"; shift 3
+  write_lock "$d" "$sha" "$@"
+  if [ "$sign" != "-" ]; then
+    filter_file "$d/$LOCK_REL" awk -v s="$sign" '{ print } /^Tests-locked-at:/ { print s }'
+    grep -qxF -- "$sign" "$d/$LOCK_REL" || { fail "fixture: sign-off not planted: $sign"; return 1; }
+  elif grep -q "$SIGN_RE" "$d/$LOCK_REL"; then
+    fail "fixture: unexpected sign-off line"; return 1
+  fi
+}
+
+# relock_it DIR SIGN [LIST-LINE...] : commit everything as T2, then lock.md
+# naming T2 (with SIGN, as write_relock) as its own commit L2
+relock_it() {
+  local d="$1" sign="$2" sha; shift 2
+  commit_all "$d" "re-lock: test edits"
+  sha="$(git -C "$d" rev-parse HEAD)"
+  write_relock "$d" "$sha" "$sign" "$@"
+  commit_all "$d" "re-lock tests"
+}
+
+# prelock_repo -> T1 and L1, further commits, and T2's edits left uncommitted:
+#   T1: TEST_GLOBS=*.test.sh, tests/a.test.sh, tests/b.test.sh,
+#       tests/old.test.sh (matched, unlisted), src/app.txt; L1 lists a and b
+#   after L1: an implementation commit, then a commit reworking
+#       tests/old.test.sh and widening TEST_GLOBS to "*.test.sh *.spec.sh"
+#   uncommitted (T2's test edits): tests/a.test.sh fixed, tests/c.test.sh and
+#       tests/y.spec.sh added
+prelock_repo() {
+  local d
+  d="$(base_repo)" || return 1
+  printf 'echo old regression\n' > "$d/tests/old.test.sh"
+  lock_it "$d"
+  printf 'app v2\n' > "$d/src/app.txt"
+  commit_all "$d" "implementation"
+  set_config "$d/.cortex/config" TEST_GLOBS '*.test.sh *.spec.sh'
+  printf 'echo old reworked\n' > "$d/tests/old.test.sh"
+  commit_all "$d" "rework the old test, widen TEST_GLOBS"
+  printf 'echo a fixed\n' > "$d/tests/a.test.sh"
+  printf 'echo c\n' > "$d/tests/c.test.sh"
+  printf 'echo y\n' > "$d/tests/y.spec.sh"
+  printf '%s\n' "$d"
+}
+
+# relocked_repo [SIGN] -> prelock_repo, re-locked with RELOCK_LIST and SIGN
+# (default SIGNED): HEAD is L2, HEAD~1 is T2. Locked at T2: a, b, c (listed),
+# old and y.spec.sh (matched by T2's TEST_GLOBS) and .cortex/config: 6 files.
+relocked_repo() {
+  local d sign="${1-$SIGNED}"
+  d="$(prelock_repo)" || return 1
+  relock_it "$d" "$sign" "${RELOCK_LIST[@]}"
+  if [ "$(lock_commit_count "$d")" != 2 ]; then
+    fail "fixture: expected two lock commits"; return 1
+  fi
+  printf '%s\n' "$d"
+}
+
+case_K1_signed_relock_minimal() {
+  local d t2; d="$(locked_repo)"
+  printf 'app v2\n' > "$d/src/app.txt"
+  commit_all "$d" "implementation"
+  printf 'echo a fixed\n' > "$d/tests/a.test.sh"
+  relock_it "$d" "$SIGNED"
+  t2="$(git -C "$d" rev-parse HEAD~1)"
+  assert_true "fixture: two commits touch lock.md" test "$(lock_commit_count "$d")" = 2
+  assert_true "fixture: L2's first parent is T2" test "$(git -C "$d" rev-parse HEAD^1)" = "$t2"
+  assert_file_contains "$d/$LOCK_REL" "Tests-locked-at: $t2" "fixture: lock.md names T2"
+  locked "$d"
+  expect_pass 3 "signed re-lock"
+  assert_contains "$OUT" "since $(short "$t2")" "signed re-lock: success line names T2's short sha"
+}
+
+case_K1_signed_relock_passes() {
+  local d t2; d="$(relocked_repo)"; t2="$(git -C "$d" rev-parse HEAD~1)"
+  assert_true "fixture: L2's first parent is T2" test "$(git -C "$d" rev-parse HEAD^1)" = "$t2"
+  assert_file_contains "$d/$LOCK_REL" "Tests-locked-at: $t2" "fixture: lock.md names T2"
+  locked "$d"
+  # a, b, c listed; old, y.spec.sh matched at T2; .cortex/config
+  expect_pass 6 "signed re-lock with new and matched tests"
+  assert_contains "$OUT" "since $(short "$t2")" "success line names T2's short sha"
+}
+
+# unsigned SIGN msg : the re-lock of case_K1_signed_relock_passes, but with SIGN
+unsigned() {
+  local d; d="$(relocked_repo "$1")"
+  locked "$d"
+  expect_lock moved "" "$2"
+}
+
+case_K1_unsigned_no_line() { unsigned - "re-lock without a sign-off line"; }
+case_K1_unsigned_empty() { unsigned "Re-lock signed off by:" "re-lock with an empty sign-off"; }
+case_K1_unsigned_blank() { unsigned "Re-lock signed off by:   " "re-lock with a blank sign-off"; }
+case_K1_unsigned_placeholder() { unsigned "Re-lock signed off by: <name>" "re-lock with a <name> placeholder"; }
+
+case_K1_relock_parent_not_named_sha() {
+  local d t2; d="$(prelock_repo)"
+  commit_all "$d" "re-lock: test edits"
+  t2="$(git -C "$d" rev-parse HEAD)"
+  printf 'app v3\n' > "$d/src/app.txt"
+  commit_all "$d" "something between T2 and L2"
+  write_relock "$d" "$t2" "$SIGNED" "${RELOCK_LIST[@]}"
+  commit_all "$d" "re-lock tests"
+  assert_true "fixture: L2's parent is not T2" test "$(git -C "$d" rev-parse HEAD^1)" != "$t2"
+  locked "$d"
+  expect_lock moved "" "signed re-lock whose parent is not the named sha"
+}
+
+case_K1_signoff_removed_later() {
+  local d; d="$(relocked_repo)"
+  filter_file "$d/$LOCK_REL" awk -v re="$SIGN_RE" '$0 !~ re'
+  assert_file_not_contains "$d/$LOCK_REL" "Re-lock signed off by" "fixture: sign-off removed"
+  commit_all "$d" "drop the sign-off"
+  locked "$d"
+  expect_lock moved "" "sign-off removed in a later commit"
+}
+
+case_K1_lock_edited_after_relock_committed() {
+  local d; d="$(relocked_repo)"
+  append "$d/$LOCK_REL" "- an extra note"
+  commit_all "$d" "edit lock"
+  locked "$d"
+  expect_lock moved "" "lock.md edited in a later commit, sign-off kept"
+}
+
+case_K1_lock_edited_after_relock_unstaged() {
+  local d; d="$(relocked_repo)"
+  append "$d/$LOCK_REL" "- an extra note"
+  locked "$d"
+  expect_lock moved "" "lock.md edited after a re-lock, unstaged"
+}
+
+case_K1_third_lock_unsigned() {
+  # well placed (its parent is the T3 it names) but unsigned
+  local d; d="$(relocked_repo)"
+  printf 'echo b fixed\n' > "$d/tests/b.test.sh"
+  relock_it "$d" - "${RELOCK_LIST[@]}"
+  assert_true "fixture: three commits touch lock.md" test "$(lock_commit_count "$d")" = 3
+  locked "$d"
+  expect_lock moved "" "a third lock commit without a sign-off"
+}
+
+case_K2_changed_before_t2_passes() {
+  local d t1; d="$(relocked_repo)"; t1="$(first_lock_sha "$d")"
+  assert_true "fixture: a listed test changed between T1 and T2" \
+    test -n "$(git -C "$d" diff "$t1" HEAD -- tests/a.test.sh)"
+  assert_true "fixture: a matched test changed between T1 and T2" \
+    test -n "$(git -C "$d" diff "$t1" HEAD -- tests/old.test.sh)"
+  assert_true "fixture: the config changed between T1 and T2" \
+    test -n "$(git -C "$d" diff "$t1" HEAD -- .cortex/config)"
+  locked "$d"
+  expect_pass 6 "files changed between L1 and T2, locked again at T2"
+}
+
+case_K2_new_listed_modified() {
+  local d; d="$(relocked_repo)"
+  printf 'echo c weakened\n' > "$d/tests/c.test.sh"
+  commit_all "$d" "weaken c"
+  locked "$d"
+  expect_lock modified tests/c.test.sh "test first listed in L2, edited and committed"
+}
+
+case_K2_listed_modified_unstaged() {
+  local d; d="$(relocked_repo)"
+  printf 'echo a weakened\n' > "$d/tests/a.test.sh"
+  locked "$d"
+  expect_lock modified tests/a.test.sh "test listed in L2, edited (unstaged)"
+}
+
+case_K2_matched_modified_staged() {
+  local d; d="$(relocked_repo)"
+  printf 'echo old weakened\n' > "$d/tests/old.test.sh"
+  git -C "$d" add tests/old.test.sh
+  locked "$d"
+  expect_lock modified tests/old.test.sh "unlisted test matching TEST_GLOBS at T2, edited (staged)"
+}
+
+case_K2_t2_globs_modified() {
+  local d; d="$(relocked_repo)"
+  printf 'echo y weakened\n' > "$d/tests/y.spec.sh"
+  commit_all "$d" "weaken y"
+  locked "$d"
+  expect_lock modified tests/y.spec.sh "test matching only T2's TEST_GLOBS, edited"
+}
+
+case_K2_added_after_t2() {
+  local d; d="$(relocked_repo)"
+  printf 'echo e\n' > "$d/tests/e.test.sh"
+  commit_all "$d" "add e"
+  locked "$d"
+  expect_lock added tests/e.test.sh "new test added after T2"
+}
+
+case_K2_added_t2_globs() {
+  local d; d="$(relocked_repo)"
+  printf 'echo z\n' > "$d/tests/z.spec.sh"
+  locked "$d"
+  expect_lock added tests/z.spec.sh "new file matching only T2's TEST_GLOBS (untracked)"
+}
+
+case_K2_config_modified() {
+  local d; d="$(relocked_repo)"
+  set_config "$d/.cortex/config" TEST_GLOBS '*.test.sh'
+  commit_all "$d" "narrow globs after the re-lock"
+  locked "$d"
+  expect_lock modified .cortex/config "config edited after the re-lock"
+}
+
+# relock_merge_repo -> like merge_repo (base "base", branch "feature"), with a
+# signed re-lock on feature before the base moves: T1/L1 lock a and b; T2 fixes
+# tests/a.test.sh; then B1 on base edits tests/b.test.sh (listed),
+# tests/old.test.sh (matched) and .cortex/config, and adds tests/new.test.sh
+relock_merge_repo() {
+  local d
+  d="$(base_repo)" || return 1
+  printf 'echo old regression\n' > "$d/tests/old.test.sh"
+  commit_all "$d" "base B0"
+  git -C "$d" branch base
+  git -C "$d" checkout -q -b feature
+  printf 'feature\n' > "$d/src/feature.txt"
+  lock_it "$d"
+  printf 'app v2\n' > "$d/src/app.txt"
+  commit_all "$d" "implementation"
+  printf 'echo a fixed\n' > "$d/tests/a.test.sh"
+  relock_it "$d" "$SIGNED"
+  git -C "$d" checkout -q base
+  printf 'echo b from base\n' > "$d/tests/b.test.sh"
+  printf 'echo old from base\n' > "$d/tests/old.test.sh"
+  append "$d/.cortex/config" "# base: a later config line"
+  printf 'echo new from base\n' > "$d/tests/new.test.sh"
+  commit_all "$d" "base B1"
+  git -C "$d" checkout -q feature
+  printf '%s\n' "$d"
+}
+
+case_K2_merge_after_relock_passes() {
+  local d t2; d="$(relock_merge_repo)"
+  t2="$(git -C "$d" rev-parse HEAD~1)"
+  git -C "$d" merge -q --no-edit base
+  assert_true "fixture: HEAD is a merge of base" \
+    test "$(git -C "$d" rev-parse HEAD^2)" = "$(git -C "$d" rev-parse base)"
+  assert_true "fixture: merged repo is clean" test -z "$(git -C "$d" status --porcelain)"
+  assert_file_contains "$d/tests/b.test.sh" "echo b from base" "fixture: merge took base's listed test"
+  assert_file_contains "$d/tests/a.test.sh" "echo a fixed" "fixture: T2's fix kept"
+  locked "$d"
+  assert_exit 0 "$CODE" "merge of the base after a re-lock: exits 0"
+  assert_contains "$OUT" "file(s) unchanged since $(short "$t2")" \
+    "merge of the base after a re-lock: success line names T2"
+  assert_not_contains "$OUT$ERR" "LOCK " "merge of the base after a re-lock: no LOCK lines"
+}
+
+case_K2_edit_after_relock_merge() {
+  local d; d="$(relock_merge_repo)"
+  git -C "$d" merge -q --no-edit base
+  printf 'echo b weakened\n' > "$d/tests/b.test.sh"
+  commit_all "$d" "weaken after merge"
+  locked "$d"
+  expect_lock modified tests/b.test.sh "listed test edited on top of a merge after the re-lock"
+}
+
+case_K2_merge_before_t2_not_accepted() {
+  # a merge before T2 is not one "after that sha": restoring the base's
+  # version it brought in, over T2's, is an edit
+  local d; d="$(base_repo)"
+  commit_all "$d" "base B0"
+  git -C "$d" branch base
+  git -C "$d" checkout -q -b feature
+  printf 'feature\n' > "$d/src/feature.txt"
+  lock_it "$d"
+  git -C "$d" checkout -q base
+  printf 'echo b from base\n' > "$d/tests/b.test.sh"
+  commit_all "$d" "base B1"
+  git -C "$d" checkout -q feature
+  git -C "$d" merge -q --no-edit base
+  printf 'echo b fixed\n' > "$d/tests/b.test.sh"
+  relock_it "$d" "$SIGNED"
+  printf 'echo b from base\n' > "$d/tests/b.test.sh"
+  commit_all "$d" "back to the base's b"
+  locked "$d"
+  expect_lock modified tests/b.test.sh "base version from a merge before T2"
+}
+
+case_K1_single_lock_with_signoff() {
+  # AC56: a single lock commit passes with a sign-off line too
+  local d sha; d="$(base_repo)"
+  commit_all "$d" "add tests"
+  sha="$(git -C "$d" rev-parse HEAD)"
+  write_relock "$d" "$sha" "$SIGNED"
+  commit_all "$d" "lock tests"
+  locked "$d"
+  expect_pass 3 "single lock commit with a sign-off line"
+}
+
 run_case "fixture: T, then lock.md in its own commit L" case_fixture_layout
 run_case "pass: untouched locked set" case_pass_untouched
 run_case "pass: non-test changes" case_pass_non_test_changes
@@ -909,4 +1223,27 @@ run_case "AC32 TEST_GLOBS twice: the first wins" case_AC32_twice
 run_case "AC34 a stub _config.sh changes what tests-locked.sh reads" case_AC34_stub_parser
 run_case "AC37 listed test: staged edit, working tree restored" case_AC37_listed
 run_case "AC37 TEST_GLOBS test: staged edit, working tree restored" case_AC37_glob_only
+run_case "AC50 signed re-lock passes" case_K1_signed_relock_minimal
+run_case "AC50 signed re-lock with new and matched tests passes" case_K1_signed_relock_passes
+run_case "AC51 re-lock without a sign-off line" case_K1_unsigned_no_line
+run_case "AC51 re-lock with an empty sign-off" case_K1_unsigned_empty
+run_case "AC51 re-lock with a blank sign-off" case_K1_unsigned_blank
+run_case "AC51 re-lock with a <name> placeholder" case_K1_unsigned_placeholder
+run_case "AC52 signed re-lock whose parent is not the named sha" case_K1_relock_parent_not_named_sha
+run_case "AC53 sign-off removed after a re-lock" case_K1_signoff_removed_later
+run_case "AC53 lock.md edited after a re-lock, committed" case_K1_lock_edited_after_relock_committed
+run_case "AC53 lock.md edited after a re-lock, unstaged" case_K1_lock_edited_after_relock_unstaged
+run_case "AC53 third lock commit without a sign-off" case_K1_third_lock_unsigned
+run_case "AC54 files changed between L1 and T2 pass" case_K2_changed_before_t2_passes
+run_case "AC54 new listed test edited after the re-lock" case_K2_new_listed_modified
+run_case "AC54 listed test edited after the re-lock" case_K2_listed_modified_unstaged
+run_case "AC54 matched test edited after the re-lock" case_K2_matched_modified_staged
+run_case "AC54 test matching T2's TEST_GLOBS edited" case_K2_t2_globs_modified
+run_case "AC54 new test added after T2" case_K2_added_after_t2
+run_case "AC54 new file matching T2's TEST_GLOBS added" case_K2_added_t2_globs
+run_case "AC54 config edited after the re-lock" case_K2_config_modified
+run_case "AC55 merge of the base after a re-lock passes" case_K2_merge_after_relock_passes
+run_case "AC55 listed test edited after that merge" case_K2_edit_after_relock_merge
+run_case "AC55 a merge before T2 is not accepted after the re-lock" case_K2_merge_before_t2_not_accepted
+run_case "AC56 single lock commit with a sign-off line" case_K1_single_lock_with_signoff
 summary
