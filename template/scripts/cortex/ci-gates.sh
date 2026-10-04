@@ -68,18 +68,23 @@ else
   fail check
 fi
 
-# 4. A branch can't drop its own lock (spec Amendment 11): a lock.md that a
-# commit on this branch touched, that the base doesn't have, and that is gone
-# at HEAD (deleted, or moved under changes/archive/) fails. The history, not
-# the net diff: a lock added and then removed on the branch nets out to
-# nothing.
+# 4. A branch can't drop its own lock (spec Amendments 11 and 12): a lock.md
+# that a commit on this branch touched, that the base never had, and that is
+# gone at HEAD (deleted, or moved under changes/archive/) fails. The history,
+# not the net diff: a lock added and then removed on the branch nets out to
+# nothing. Every commit the branch brings counts, on every side of every merge
+# (Amendment 12): without --full-history, git log prunes a merged side the
+# merge's result ignores, and without -m it lists nothing a merge itself
+# changes; either way a merge could drop the lock.
 while IFS= read -r path; do
   [ -n "$path" ] || continue
   case "$path" in changes/archive/*) continue ;; esac
   g cat-file -e "HEAD:$path" 2>/dev/null && continue
-  g cat-file -e "$base:$path" 2>/dev/null && continue
+  # A path the base's history ever had is a finished change's, whatever the
+  # base did with it since; a branch can't add to the base's history.
+  [ -n "$(g rev-list -1 --full-history "$base" -- "$path")" ] && continue
   fail "${path%/lock.md} (lock.md added on this branch is gone)"
-done <<<"$(g log --format= --name-only "$base..HEAD" -- 'changes/*/lock.md' | LC_ALL=C sort -u)"
+done <<<"$(g log --full-history -m --format= --name-only "$base..HEAD" -- 'changes/*/lock.md' | LC_ALL=C sort -u)"
 
 # 5. Every change folder whose lock was added or changed on this branch.
 # Archived changes (changes/archive/) finished earlier and are not gated.
