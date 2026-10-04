@@ -58,7 +58,7 @@ when they were found.
 In CI the protection starts once the base branch has the new
 `ci-gates.sh` and `tests-locked.sh`, since both are taken from the base.
 Tests from a separate agent first, for each amendment: tests-locked 248 to
-478 assertions, ci-gates 91 to 223.
+478 assertions, ci-gates 91 to 235.
 
 **Added:** a Limits section in the README (each limit links to where it's
 explained), and a trigger-gated catalog entry for rebasing a locked branch.

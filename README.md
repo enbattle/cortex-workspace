@@ -117,7 +117,10 @@ Deliberate trade-offs; each links to where it's explained.
   locked branch merges `main` in rather than rebasing, and can't take in a
   change to `.cortex/config` at all (start over from the new `main`)
   ([`test-first`](template/harness/commands/test-first.md),
-  [rebasing](docs/02-extensions.md)).
+  [rebasing](docs/02-extensions.md)). Merge, don't squash, a locked change
+  that other branches build on: after a squash, CI sees the re-locks it
+  dropped as dropped locks on those branches
+  ([spec Amendment 12, N3](docs/specs/2026-09-23-v2-scripts.md)).
 - **Local checks are guardrails, not a boundary.** An agent with full git
   access can get around them; the boundary is CI on the pull request plus
   required human review ([R11](docs/01-design-rules.md),
