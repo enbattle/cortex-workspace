@@ -877,13 +877,15 @@ relock_it() {
   commit_all "$d" "re-lock tests"
 }
 
-# prelock_repo -> T1 and L1, further commits, and T2's edits left uncommitted:
+# prelock_repo -> T1 and L1, a further commit, and T2's edits left uncommitted:
 #   T1: TEST_GLOBS=*.test.sh, tests/a.test.sh, tests/b.test.sh,
 #       tests/old.test.sh (matched, unlisted), src/app.txt; L1 lists a and b
-#   after L1: an implementation commit, then a commit reworking
-#       tests/old.test.sh and widening TEST_GLOBS to "*.test.sh *.spec.sh"
-#   uncommitted (T2's test edits): tests/a.test.sh fixed, tests/c.test.sh and
+#   after L1: an implementation commit (no locked file touched)
+#   uncommitted (T2's edits): tests/old.test.sh reworked, TEST_GLOBS widened
+#       to "*.test.sh *.spec.sh", tests/a.test.sh fixed, tests/c.test.sh and
 #       tests/y.spec.sh added
+# Every locked file changes in T2 itself, the only changes a re-lock blesses
+# (Amendment 10, L1); changes between L1 and T2 are AC57's failing cases.
 prelock_repo() {
   local d
   d="$(base_repo)" || return 1
@@ -893,7 +895,6 @@ prelock_repo() {
   commit_all "$d" "implementation"
   set_config "$d/.cortex/config" TEST_GLOBS '*.test.sh *.spec.sh'
   printf 'echo old reworked\n' > "$d/tests/old.test.sh"
-  commit_all "$d" "rework the old test, widen TEST_GLOBS"
   printf 'echo a fixed\n' > "$d/tests/a.test.sh"
   printf 'echo c\n' > "$d/tests/c.test.sh"
   printf 'echo y\n' > "$d/tests/y.spec.sh"
@@ -997,16 +998,21 @@ case_K1_third_lock_unsigned() {
   expect_lock moved "" "a third lock commit without a sign-off"
 }
 
-case_K2_changed_before_t2_passes() {
+case_K2_changed_in_t2_passes() {
+  # AC57's last sentence (Amendment 10 replaced AC54's third clause): a file
+  # changed in T2 itself is accepted. The changes before T2 that this case
+  # used to bless are now AC57's failing cases (case_L1_*_before_t2).
   local d t1; d="$(relocked_repo)"; t1="$(first_lock_sha "$d")"
-  assert_true "fixture: a listed test changed between T1 and T2" \
-    test -n "$(git -C "$d" diff "$t1" HEAD -- tests/a.test.sh)"
-  assert_true "fixture: a matched test changed between T1 and T2" \
-    test -n "$(git -C "$d" diff "$t1" HEAD -- tests/old.test.sh)"
-  assert_true "fixture: the config changed between T1 and T2" \
-    test -n "$(git -C "$d" diff "$t1" HEAD -- .cortex/config)"
+  assert_true "fixture: no locked file changed between T1 and T2's parent" \
+    test -z "$(git -C "$d" diff "$t1" HEAD~2 -- tests .cortex/config)"
+  assert_true "fixture: T2 changes a listed test" \
+    test -n "$(git -C "$d" diff HEAD~2 HEAD~1 -- tests/a.test.sh)"
+  assert_true "fixture: T2 changes a matched test" \
+    test -n "$(git -C "$d" diff HEAD~2 HEAD~1 -- tests/old.test.sh)"
+  assert_true "fixture: T2 changes the config" \
+    test -n "$(git -C "$d" diff HEAD~2 HEAD~1 -- .cortex/config)"
   locked "$d"
-  expect_pass 6 "files changed between L1 and T2, locked again at T2"
+  expect_pass 6 "files changed in T2 itself, locked again at T2"
 }
 
 case_K2_new_listed_modified() {
@@ -1148,6 +1154,231 @@ case_K1_single_lock_with_signoff() {
   expect_pass 3 "single lock commit with a sign-off line"
 }
 
+# ---- AC57-64 (Amendment 10, L1-L4): the lock's merge and re-lock holes ---------
+#
+# Amendment 10 wins over Amendment 9 where they conflict. CORTEX_BASE_REF (L3)
+# is set only where a case says so; a value inherited from the caller's
+# environment must not leak into the other cases.
+unset CORTEX_BASE_REF
+
+# locked_with_base DIR REF : tests-locked.sh on changes/x with CORTEX_BASE_REF=REF
+locked_with_base() {
+  run bash -c 'cd "$1" && CORTEX_BASE_REF="$2" ./scripts/cortex/tests-locked.sh changes/x' _ "$1" "$2"
+}
+
+# before_t2_repo EDIT-FN -> T1 (base_repo plus tests/old.test.sh, matched and
+# unlisted) and L1 locking a and b; an implementation commit; a commit of what
+# EDIT-FN DIR changes (after L1, before T2); then T2, which fixes only
+# tests/b.test.sh, and a signed L2 naming T2 and listing a and b
+before_t2_repo() {
+  local d edit="$1"
+  d="$(base_repo)" || return 1
+  printf 'echo old regression\n' > "$d/tests/old.test.sh"
+  lock_it "$d"
+  printf 'app v2\n' > "$d/src/app.txt"
+  commit_all "$d" "implementation"
+  "$edit" "$d"
+  commit_all "$d" "edit after L1, before T2"
+  printf 'echo b fixed\n' > "$d/tests/b.test.sh"
+  relock_it "$d" "$SIGNED"
+  if [ "$(lock_commit_count "$d")" != 2 ]; then
+    fail "fixture: expected two lock commits"; return 1
+  fi
+  printf '%s\n' "$d"
+}
+
+edit_listed() { printf 'echo a weakened\n' > "$1/tests/a.test.sh"; }
+edit_matched() { printf 'echo old weakened\n' > "$1/tests/old.test.sh"; }
+edit_config() { append "$1/.cortex/config" "# edited after L1, before T2"; }
+add_matched() { printf 'echo e\n' > "$1/tests/e.test.sh"; }
+
+# before_t2_case EDIT-FN KIND PATH msg : after the signed re-lock, PATH (left
+# untouched by T2) is reported as LOCK KIND; T2's own change is accepted
+before_t2_case() {
+  local d; d="$(before_t2_repo "$1")"
+  assert_true "fixture: T2 does not touch $3" \
+    test -z "$(git -C "$d" diff HEAD~2 HEAD~1 -- "$3")"
+  assert_true "fixture: $3 changed after T1" \
+    test -n "$(git -C "$d" diff "$(first_lock_sha "$d")" HEAD -- "$3")"
+  locked "$d"
+  expect_lock "$2" "$3" "$4"
+  assert_not_contains "$OUT$ERR" "LOCK modified: tests/b.test.sh" "$4: T2's own change is accepted"
+  assert_not_contains "$OUT$ERR" "LOCK moved" "$4: the signed re-lock itself is well formed"
+}
+
+case_L1_listed_before_t2() {
+  before_t2_case edit_listed modified tests/a.test.sh "listed test edited after L1, before T2"
+}
+case_L1_matched_before_t2() {
+  before_t2_case edit_matched modified tests/old.test.sh "matched test edited after L1, before T2"
+}
+case_L1_config_before_t2() {
+  before_t2_case edit_config modified .cortex/config "config edited after L1, before T2"
+}
+case_L1_added_before_t2() {
+  before_t2_case add_matched added tests/e.test.sh "matched test added after L1, before T2"
+}
+
+# side_lock_repo SIGN -> T1 (base_repo committed) on branch "feature" with L1
+# locking a and b; branch "side" from T1 weakens tests/a.test.sh (Ts) and
+# commits a lock.md naming Ts (Ls, with SIGN as write_relock); "side" is then
+# merged into feature, the add/add conflict on lock.md resolved to side's
+side_lock_repo() {
+  local d sign="$1" t1 ts
+  d="$(base_repo)" || return 1
+  git -C "$d" checkout -q -b feature
+  commit_all "$d" "add tests"
+  t1="$(git -C "$d" rev-parse HEAD)"
+  git -C "$d" branch side
+  write_lock "$d" "$t1"
+  commit_all "$d" "lock tests"
+  git -C "$d" checkout -q side
+  printf 'echo a weakened on side\n' > "$d/tests/a.test.sh"
+  commit_all "$d" "side: weaken a"
+  ts="$(git -C "$d" rev-parse HEAD)"
+  write_relock "$d" "$ts" "$sign"
+  commit_all "$d" "side: lock"
+  git -C "$d" checkout -q feature
+  git -C "$d" merge -q --no-ff --no-edit side >/dev/null 2>&1 || true
+  if git -C "$d" rev-parse -q --verify MERGE_HEAD >/dev/null; then
+    git -C "$d" checkout -q --theirs -- "$LOCK_REL"
+    git -C "$d" add -- "$LOCK_REL"
+    git -C "$d" commit -q --no-edit
+  fi
+  printf '%s\n' "$d"
+}
+
+side_lock_case() { # SIGN msg
+  local d; d="$(side_lock_repo "$1")"
+  assert_true "fixture: HEAD is a merge of side" \
+    test "$(git -C "$d" rev-parse HEAD^2)" = "$(git -C "$d" rev-parse side)"
+  assert_true "fixture: the merge took side's lock.md" \
+    git -C "$d" diff --quiet side HEAD -- "$LOCK_REL"
+  assert_true "fixture: the merge's lock.md differs from its first parent's" \
+    test -n "$(git -C "$d" diff HEAD^1 HEAD -- "$LOCK_REL")"
+  assert_file_contains "$d/tests/a.test.sh" "echo a weakened on side" "fixture: the merge took side's test"
+  assert_true "fixture: working tree clean" test -z "$(git -C "$d" status --porcelain)"
+  locked "$d"
+  expect_lock moved "" "$2"
+}
+
+case_L2_side_lock_merged_unsigned() { side_lock_case - "a side branch's lock.md merged in (unsigned)"; }
+case_L2_side_lock_merged_signed() { side_lock_case "$SIGNED" "a side branch's lock.md merged in (signed)"; }
+
+# side_merge_repo PATH -> merge_repo (base "base" moved on, not merged), plus a
+# branch "side" from L that edits PATH, merged into feature (--no-ff);
+# lock.md untouched
+side_merge_repo() {
+  local d path="$1"
+  d="$(merge_repo)" || return 1
+  git -C "$d" checkout -q -b side
+  printf 'echo weakened on side\n' > "$d/$path"
+  commit_all "$d" "side: weaken $path"
+  git -C "$d" checkout -q feature
+  git -C "$d" merge -q --no-ff --no-edit side
+  if [ "$(git -C "$d" rev-parse HEAD^2)" != "$(git -C "$d" rev-parse side)" ]; then
+    fail "fixture: HEAD is not a merge of side"; return 1
+  fi
+  if [ -n "$(git -C "$d" status --porcelain)" ]; then
+    fail "fixture: merged repo is not clean"; return 1
+  fi
+  printf '%s\n' "$d"
+}
+
+side_merge_case() { # PATH msg
+  local d; d="$(side_merge_repo "$1")"
+  assert_true "fixture: one commit touches lock.md" test "$(lock_commit_count "$d")" = 1
+  assert_true "fixture: side is not reachable from base" \
+    bash -c '! git -C "$1" merge-base --is-ancestor side base' _ "$d"
+  assert_file_contains "$d/$1" "echo weakened on side" "fixture: the merge took side's version"
+  locked_with_base "$d" base
+  expect_lock modified "$1" "$2"
+  assert_not_contains "$OUT$ERR" "LOCK moved" "$2: lock.md untouched, not LOCK moved"
+}
+
+case_L3_side_merge_listed() {
+  side_merge_case tests/a.test.sh "CORTEX_BASE_REF set: listed test weakened on a merged side branch"
+}
+case_L3_side_merge_matched() {
+  side_merge_case tests/old.test.sh "CORTEX_BASE_REF set: matched test weakened on a merged side branch"
+}
+
+case_L3_base_merge_with_base_ref() {
+  local d; d="$(merged_repo)"
+  locked_with_base "$d" base
+  # a, b listed; old matched; .cortex/config
+  expect_pass 4 "CORTEX_BASE_REF=base: a merge of the base still passes"
+}
+
+case_L3_base_merge_with_base_sha() {
+  local d; d="$(merged_repo)"
+  locked_with_base "$d" "$(git -C "$d" rev-parse base)"
+  expect_pass 4 "CORTEX_BASE_REF=<sha of base>: a merge of the base still passes"
+}
+
+case_L3_unset_base_merge() {
+  local d; d="$(merged_repo)"
+  run bash -c 'unset CORTEX_BASE_REF; cd "$1" && ./scripts/cortex/tests-locked.sh changes/x' _ "$d"
+  expect_pass 4 "CORTEX_BASE_REF unset: a merge of the base passes"
+}
+
+case_L3_unset_side_merge() {
+  # L3: unset (local runs), Amendment 4 applies unchanged, so any merged
+  # parent's version is accepted; CI's CORTEX_BASE_REF is the boundary
+  local d; d="$(side_merge_repo tests/a.test.sh)"
+  run bash -c 'unset CORTEX_BASE_REF; cd "$1" && ./scripts/cortex/tests-locked.sh changes/x' _ "$d"
+  expect_pass 4 "CORTEX_BASE_REF unset: a merged side branch's version is accepted"
+}
+
+# relock_drop_case GLOBS msg : locked_repo GLOBS (a and b listed); T2 fixes
+# tests/a.test.sh; a signed L2 lists only tests/a.test.sh
+relock_drop_case() {
+  local d; d="$(locked_repo "$1")"
+  printf 'echo a fixed\n' > "$d/tests/a.test.sh"
+  relock_it "$d" "$SIGNED" '- tests/a.test.sh'
+  assert_file_not_contains "$d/$LOCK_REL" "tests/b.test.sh" "fixture: L2 drops tests/b.test.sh"
+  assert_true "fixture: two lock commits" test "$(lock_commit_count "$d")" = 2
+  locked "$d"
+  expect_lock moved "" "$2"
+}
+
+case_L4_relock_drops_path() { relock_drop_case '*.test.sh' "signed re-lock dropping a listed path"; }
+case_L4_relock_drops_path_no_globs() { relock_drop_case "" "signed re-lock dropping a listed path, no TEST_GLOBS"; }
+
+# expect_moved_no_git_error msg
+expect_moved_no_git_error() {
+  assert_exit 1 "$CODE" "$1: exits 1"
+  assert_contains "$OUT$ERR" "LOCK moved" "$1: reports LOCK moved"
+  assert_not_contains "$OUT$ERR" "fatal:" "$1: no git error"
+  assert_not_contains "$OUT" "tests-locked: " "$1: no success line"
+}
+
+case_L4_lock_deleted_then_relocked() {
+  local d; d="$(locked_repo)"
+  git -C "$d" rm -q "$LOCK_REL"
+  git -C "$d" commit -q -m "drop the lock"
+  printf 'echo a fixed\n' > "$d/tests/a.test.sh"
+  relock_it "$d" "$SIGNED"
+  assert_true "fixture: three commits touch lock.md" test "$(lock_commit_count "$d")" = 3
+  assert_true "fixture: lock.md is absent from the deleting commit" \
+    bash -c '! git -C "$1" cat-file -e "HEAD~2:$2" 2>/dev/null' _ "$d" "$LOCK_REL"
+  locked "$d"
+  expect_moved_no_git_error "lock.md deleted, then re-added by a signed re-lock"
+}
+
+case_L4_lock_deleted_then_restored() {
+  local d saved; d="$(locked_repo)"
+  saved="$(cat "$d/$LOCK_REL")"
+  git -C "$d" rm -q "$LOCK_REL"
+  git -C "$d" commit -q -m "drop the lock"
+  mkdir -p "$d/changes/x"
+  printf '%s\n' "$saved" > "$d/$LOCK_REL"
+  commit_all "$d" "restore the lock"
+  assert_true "fixture: three commits touch lock.md" test "$(lock_commit_count "$d")" = 3
+  locked "$d"
+  expect_moved_no_git_error "lock.md deleted, then restored unchanged"
+}
+
 run_case "fixture: T, then lock.md in its own commit L" case_fixture_layout
 run_case "pass: untouched locked set" case_pass_untouched
 run_case "pass: non-test changes" case_pass_non_test_changes
@@ -1234,7 +1465,7 @@ run_case "AC53 sign-off removed after a re-lock" case_K1_signoff_removed_later
 run_case "AC53 lock.md edited after a re-lock, committed" case_K1_lock_edited_after_relock_committed
 run_case "AC53 lock.md edited after a re-lock, unstaged" case_K1_lock_edited_after_relock_unstaged
 run_case "AC53 third lock commit without a sign-off" case_K1_third_lock_unsigned
-run_case "AC54 files changed between L1 and T2 pass" case_K2_changed_before_t2_passes
+run_case "AC57 files changed in T2 itself pass" case_K2_changed_in_t2_passes
 run_case "AC54 new listed test edited after the re-lock" case_K2_new_listed_modified
 run_case "AC54 listed test edited after the re-lock" case_K2_listed_modified_unstaged
 run_case "AC54 matched test edited after the re-lock" case_K2_matched_modified_staged
@@ -1246,4 +1477,20 @@ run_case "AC55 merge of the base after a re-lock passes" case_K2_merge_after_rel
 run_case "AC55 listed test edited after that merge" case_K2_edit_after_relock_merge
 run_case "AC55 a merge before T2 is not accepted after the re-lock" case_K2_merge_before_t2_not_accepted
 run_case "AC56 single lock commit with a sign-off line" case_K1_single_lock_with_signoff
+run_case "AC57 listed test edited after L1, before T2" case_L1_listed_before_t2
+run_case "AC57 matched test edited after L1, before T2" case_L1_matched_before_t2
+run_case "AC57 config edited after L1, before T2" case_L1_config_before_t2
+run_case "AC58 matched test added after L1, before T2" case_L1_added_before_t2
+run_case "AC59 side branch's lock.md merged in, unsigned" case_L2_side_lock_merged_unsigned
+run_case "AC59 side branch's lock.md merged in, signed" case_L2_side_lock_merged_signed
+run_case "AC60 CORTEX_BASE_REF: listed test weakened on a merged side branch" case_L3_side_merge_listed
+run_case "AC60 CORTEX_BASE_REF: matched test weakened on a merged side branch" case_L3_side_merge_matched
+run_case "AC60 CORTEX_BASE_REF: a merge of the base passes" case_L3_base_merge_with_base_ref
+run_case "AC60 CORTEX_BASE_REF as a sha: a merge of the base passes" case_L3_base_merge_with_base_sha
+run_case "AC61 CORTEX_BASE_REF unset: a merge of the base passes" case_L3_unset_base_merge
+run_case "AC61 CORTEX_BASE_REF unset: a merged side branch is accepted" case_L3_unset_side_merge
+run_case "AC63 signed re-lock dropping a listed path" case_L4_relock_drops_path
+run_case "AC63 signed re-lock dropping a listed path, no TEST_GLOBS" case_L4_relock_drops_path_no_globs
+run_case "AC64 lock.md deleted, then re-added by a re-lock" case_L4_lock_deleted_then_relocked
+run_case "AC64 lock.md deleted, then restored" case_L4_lock_deleted_then_restored
 summary

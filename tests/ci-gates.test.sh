@@ -422,6 +422,37 @@ ci-gates: ok" "base parser: check and folder pass"
   assert_true "ci-gates: ok is the last line" test "$(last_line "$OUT")" = "ci-gates: ok"
 }
 
+# ---- AC62 (Amendment 10, L3): the base allowance needs the base ---------------------
+
+case_AC62_side_branch_weakens_locked_test() {
+  # a side branch (not reachable from the base) weakens the locked test and
+  # is merged into the locked branch, lock.md untouched: ci-gates.sh runs the
+  # lock with CORTEX_BASE_REF set to its base ref, so the side's version is
+  # an edit, not a base version
+  local d; d="$(ci_repo)"
+  git -C "$d" checkout -q -b side
+  printf 'echo weakened on side\n' > "$d/tests/b.test.sh"
+  commit_all "$d" "side: weaken the locked test"
+  git -C "$d" checkout -q feature
+  git -C "$d" merge -q --no-ff --no-edit side
+  assert_true "fixture: HEAD is a merge of side" \
+    test "$(git -C "$d" rev-parse HEAD^2)" = "$(git -C "$d" rev-parse side)"
+  assert_true "fixture: side is not reachable from the base" \
+    bash -c '! git -C "$1" merge-base --is-ancestor side "$2"' _ "$d" "$BASE"
+  assert_true "fixture: lock.md untouched by the merge" \
+    git -C "$d" diff --quiet HEAD^1 HEAD -- changes/x/lock.md
+  # locally (CORTEX_BASE_REF unset) Amendment 4 accepts any merged parent
+  run bash -c 'unset CORTEX_BASE_REF; cd "$1" && bash scripts/cortex/tests-locked.sh changes/x' _ "$d"
+  assert_exit 0 "$CODE" "fixture: the local lock check, without CORTEX_BASE_REF, accepts the merge"
+  ci_gates "$d" "$BASE"
+  assert_exit 1 "$CODE" "side-branch weakening merged in -> exit 1"
+  assert_contains "$OUT" "LOCK modified: tests/b.test.sh" "the base tests-locked.sh names the weakened test"
+  expect_ci_lines "ci-gates: using scripts from $BASE
+ci-gates: check ok
+ci-gates: FAIL changes/x
+ci-gates: 1 failed" "the folder fails, nothing else"
+}
+
 run_case "ci-gates.sh shipped and installed executable" case_installed
 run_case "AC25 no argument -> exit 2" case_usage_no_argument
 run_case "AC25 unresolvable ref -> exit 2" case_usage_bad_ref
@@ -446,4 +477,5 @@ run_case "AC29 folder archived on the branch is not gated" case_archived_on_bran
 run_case "AC29 folder archived after its change merged" case_archived_after_merge
 run_case "AC29 base merged into a locked branch -> ok" case_base_merged_into_locked_branch
 run_case "AC35 a branch's stub _config.sh: the base's parser is used" case_AC35_branch_stub_parser
+run_case "AC62 a merged side branch weakening a locked test fails" case_AC62_side_branch_weakens_locked_test
 summary

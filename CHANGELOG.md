@@ -10,8 +10,10 @@ commits the corrected tests, then rewrites `lock.md` naming them, with the
 user's `Re-lock signed off by:` line; `tests-locked.sh` accepts a chain of
 lock commits that each directly follow their tests and, after the first,
 carry a sign-off, and the newest governs. The check proves a sign-off
-exists, not who wrote it: the user's review of `lock.md` in CI is the
-safeguard, as for the approval line. Tests from a separate agent first:
+exists, not who wrote it, as for the approval line: the sign-off makes the
+agent stop, and the safeguard is a person reviewing the test and config
+content in the pull request (branch protection with Code Owners on the test
+paths, `INSTALL.md` step 5b). Tests from a separate agent first:
 tests-locked 248 to 334 assertions.
 
 **Added:** a Limits section in the README (each limit links to where it's
@@ -24,6 +26,15 @@ No repository has a real install yet; the upgrade path
 when its trigger fires.
 
 ## 2.0.0 — 2026-10-03
+
+**Security note (added with 2.1.0):** two ways to get a weakened test past
+`tests-locked.sh` exist in 2.0.0, locally and in CI: merging a side branch
+that weakened a locked test (Amendment 4's allowance accepted any merged
+branch, not only the base), and merging a side branch that brought its own
+`lock.md` (history simplification hid the chain). Both are fixed in 2.1.0
+(spec Amendment 10). In 2.0.0 the mitigation is a person reviewing test
+content in the pull request (Code Owners on the test paths). No repository
+had a real install when this was found.
 
 **Before release** (all done):
 
