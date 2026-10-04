@@ -44,7 +44,8 @@ tests to fit it, so the tests stop encoding the spec.
    `## Criteria to tests` in `tasks.md` and commit it.
 5. Record each **manual-verify** criterion in `tasks.md` as an item that
    needs the user's sign-off after implementation.
-. **Re-lock**, only when the user has decided this command re-runs because
+6. Run `bash scripts/cortex/tests-locked.sh <change-folder>` and confirm it passes.
+7. **Re-lock**, only when the user has decided this command re-runs because
    a locked test is wrong (a spec problem `implement` reported). Commit the
    corrected tests and fixtures alone (commit T2). Rewrite `lock.md`: T2's
    full sha, every file the earlier lock listed, and every file T2 created
@@ -52,6 +53,7 @@ tests to fit it, so the tests stop encoding the spec.
    line: they write it, or explicitly tell you to (design rule R6). Then
    commit `lock.md` alone as the very next commit after T2, update
    `## Criteria to tests` in `tasks.md`, and repeat step 6.
+
 Budget: 3 attempts to get a test failing for the right reason. On the third
 failure, stop and tell the user: the criterion is probably not testable as
 written, which is a spec problem for `spec-clarify`.
