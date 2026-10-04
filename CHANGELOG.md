@@ -1,11 +1,10 @@
 # Changelog
 
-## 2.1.0 — Unreleased
+## 2.1.0 — 2026-10-04
 
-**Before release:** the pre-release completeness audit
-(`evals/audits/2026-10-03-2.1.0.md`) and its findings, then a re-run of
-the audit on the corrected branch; then update the README's status and
-install tag, date this entry and tag.
+**Before release** (all done): the pre-release completeness audit, its
+findings, and three re-checks of the corrected lock check
+(`evals/audits/2026-10-03-2.1.0.md`); the README's status and install tag.
 
 **Added: a signed re-lock** (spec Amendment 9). When a locked test is wrong,
 `implement` says the user may have `test-first` re-run, but the lock check
