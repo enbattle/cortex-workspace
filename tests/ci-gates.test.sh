@@ -530,6 +530,82 @@ case_AC74_lock_only_in_merges() {
     "the dropped-lock line names changes/x"
 }
 
+# ---- AC75 (Amendment 12, N1): a lock path the base ever had is the base's --------
+#
+# Guards existing behavior: merging a base that deleted or archived a finished
+# change's lock.md lists that path in the merge, but the branch never added it.
+
+# base_with_y_lock -> filled install with a finished change changes/y (lock.md
+# and tasks.md) committed as the base; feature branched off it with one
+# ordinary commit
+base_with_y_lock() {
+  local d
+  d="$(filled_install Zqxproj)" || return 1
+  mkdir -p "$d/tests" "$d/src" "$d/changes/y"
+  printf 'echo a\n' > "$d/tests/a.test.sh"
+  printf 'app\n' > "$d/src/app.txt"
+  printf 'Tests-locked-at: 0000000000000000000000000000000000000000\n\n## Locked tests\n\n- tests/a.test.sh\n' \
+    > "$d/changes/y/lock.md"
+  printf '# tasks\n' > "$d/changes/y/tasks.md"
+  commit_all "$d" "base with a finished change folder"
+  git -C "$d" update-ref "refs/remotes/$BASE" HEAD
+  git -C "$d" checkout -q -b feature
+  printf 'app v2\n' > "$d/src/app.txt"
+  commit_all "$d" "feature work"
+  printf '%s\n' "$d"
+}
+
+# base_then_merge DIR : with the base's new commit made on main (checked out),
+# point origin/main at it and merge it into feature with a real merge commit
+base_then_merge() {
+  git -C "$1" update-ref "refs/remotes/$BASE" HEAD
+  git -C "$1" checkout -q feature
+  git -C "$1" merge -q --no-ff --no-edit "$BASE"
+}
+
+# expect_y_merge_shape DIR : fixture checks shared by the AC75 cases
+expect_y_merge_shape() {
+  assert_true "fixture: the base tip has no changes/y/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:changes/y/lock.md" 2>/dev/null' _ "$1" "$BASE"
+  assert_file_absent "$1/changes/y/lock.md" "fixture: no changes/y/lock.md at HEAD"
+  assert_true "fixture: HEAD is a merge" git -C "$1" cat-file -e HEAD^2
+}
+
+case_AC75_base_deleted_lock_merged() {
+  local d; d="$(base_with_y_lock)"
+  git -C "$d" checkout -q -B main "$BASE"
+  git -C "$d" rm -q changes/y/lock.md
+  git -C "$d" commit -q -m "base: drop the finished change's lock"
+  base_then_merge "$d"
+  expect_y_merge_shape "$d"
+  ci_gates "$d" "$BASE"
+  assert_exit 0 "$CODE" "merging a base that deleted changes/y/lock.md -> exit 0"
+  assert_not_contains "$OUT" "FAIL changes/y" "no failure for changes/y"
+  assert_true "ci-gates: ok is the last line" test "$(last_line "$OUT")" = "ci-gates: ok"
+}
+
+case_AC75_base_archived_lock_merged() {
+  local d; d="$(base_with_y_lock)"
+  git -C "$d" checkout -q -B main "$BASE"
+  git -C "$d" mv changes/y changes/archive/y
+  printf '%s\n' 'Tests-locked-at: 2222222222222222222222222222222222222222' \
+    'Re-lock signed off by: Pat Maintainer' '' '## Locked tests' '' \
+    '- tests/archived-one.test.sh' '- tests/archived-two.test.sh' '- tests/archived-three.test.sh' \
+    '' '## Notes' '' 'Archived after release; the locked set was rewritten here' \
+    'so that git sees no rename between the two paths.' \
+    > "$d/changes/archive/y/lock.md"
+  commit_all "$d" "base: archive changes/y, rewriting its lock"
+  base_then_merge "$d"
+  expect_y_merge_shape "$d"
+  assert_file_exists "$d/changes/archive/y/lock.md" "fixture: the archived lock.md is at HEAD"
+  assert_true "fixture: git log -m lists changes/y/lock.md for the merge (no rename seen)" \
+    bash -c 'git -C "$1" log -m -1 --name-only --format= HEAD | grep -qxF changes/y/lock.md' _ "$d"
+  ci_gates "$d" "$BASE"
+  assert_exit 0 "$CODE" "merging a base that archived and rewrote changes/y/lock.md -> exit 0"
+  assert_not_contains "$OUT" "FAIL changes/y" "no failure for changes/y"
+  assert_not_contains "$OUT" "FAIL changes/archive/y" "no failure for changes/archive/y"
+}
+
 case_archived_after_merge() {
   # the usual order: changes/x merged into the base, then a later branch
   # archives it
@@ -678,6 +754,8 @@ run_case "AC72 merge keeping the pre-lock tree drops the lock -> FAIL" case_AC72
 run_case "AC72 the same merge, folder moved under changes/archive/ -> FAIL" case_AC72_merge_prunes_lock_archived
 run_case "AC72 the same merge, archived copy already on the first parent -> FAIL" case_AC72_merge_prunes_lock_archived_first_parent
 run_case "AC74 lock.md added and removed only by merges -> FAIL" case_AC74_lock_only_in_merges
+run_case "AC75 base deleted a finished lock.md, merged in -> ok" case_AC75_base_deleted_lock_merged
+run_case "AC75 base archived and rewrote a finished lock.md, merged in -> ok" case_AC75_base_archived_lock_merged
 run_case "AC29 folder archived after its change merged" case_archived_after_merge
 run_case "AC65 base merged into a locked branch, no re-lock -> FAIL" case_base_merged_into_locked_branch
 run_case "AC66 base merged, then a signed re-lock -> ok" case_base_merged_and_relocked
