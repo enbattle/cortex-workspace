@@ -606,6 +606,71 @@ case_AC75_base_archived_lock_merged() {
   assert_not_contains "$OUT" "FAIL changes/archive/y" "no failure for changes/archive/y"
 }
 
+# ---- AC76/AC77 (Amendment 12, N1 revised): added means against every parent ------
+#
+# A path is added on this branch when a branch commit has it and none of its
+# parents does; paths compare literally; only the base's tip is exempt.
+
+case_AC76_pattern_folder_name() {
+  # the base has changes/old/lock.md; the branch locks changes/[o]ld (a
+  # pattern that would match changes/old) and then deletes that lock.md
+  local d f='changes/[o]ld'; d="$(base_with_old_lock)"
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  lock_tests "$d" "$f" tests/b.test.sh
+  rm "$d/$f/lock.md"
+  commit_all "$d" "drop the [o]ld lock"
+  assert_true "fixture: the folder name is literal on disk" test -d "$d/$f"
+  assert_true "fixture: HEAD^ has the literal path changes/[o]ld/lock.md" \
+    bash -c 'git -C "$1" ls-tree -r --name-only HEAD^ | grep -qxF "changes/[o]ld/lock.md"' _ "$d"
+  assert_true "fixture: HEAD has no changes/[o]ld/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "HEAD:changes/[o]ld/lock.md" 2>/dev/null' _ "$d"
+  assert_file_absent "$d/$f/lock.md" "fixture: no changes/[o]ld/lock.md on disk"
+  assert_true "fixture: the base has changes/old/lock.md" \
+    git -C "$d" cat-file -e "$BASE:changes/old/lock.md"
+  assert_true "fixture: HEAD still has changes/old/lock.md" \
+    git -C "$d" cat-file -e "HEAD:changes/old/lock.md"
+  assert_true "fixture: the base has no changes/[o]ld/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:changes/[o]ld/lock.md" 2>/dev/null' _ "$d" "$BASE"
+  ci_gates "$d" "$BASE"
+  assert_exit 1 "$CODE" "lock added at changes/[o]ld, then deleted -> exit 1"
+  assert_line "$OUT" "ci-gates: FAIL changes/[o]ld (lock.md added on this branch is gone)" \
+    "the dropped-lock line names changes/[o]ld literally"
+  assert_line "$OUT" "ci-gates: check ok" "check still passes"
+  assert_true "one failure counted, as the last line" test "$(last_line "$OUT")" = "ci-gates: 1 failed"
+}
+
+case_AC77_reused_folder_name() {
+  # the base finished changes/x and archived it; the branch reuses the name,
+  # locks it, and drops the new lock
+  local d; d="$(base_only)"
+  git -C "$d" checkout -q -B main "$BASE"
+  mkdir -p "$d/changes/x"
+  printf 'Tests-locked-at: 0000000000000000000000000000000000000000\n\n## Locked tests\n\n- tests/a.test.sh\n' \
+    > "$d/changes/x/lock.md"
+  printf '# tasks\n' > "$d/changes/x/tasks.md"
+  commit_all "$d" "base: finished change x"
+  git -C "$d" mv changes/x changes/archive/x
+  git -C "$d" commit -q -m "base: archive changes/x"
+  git -C "$d" update-ref "refs/remotes/$BASE" HEAD
+  git -C "$d" checkout -q feature
+  git -C "$d" reset -q --hard "$BASE"
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  lock_folder "$d" changes/x
+  git -C "$d" rm -q changes/x/lock.md
+  git -C "$d" commit -q -m "drop the new lock"
+  assert_true "fixture: the base tip has no changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
+  assert_true "fixture: the base's history has changes/x/lock.md" \
+    test -n "$(git -C "$d" log --format=%H "$BASE" -- changes/x/lock.md)"
+  assert_true "fixture: the branch added changes/x/lock.md (HEAD^ has it)" \
+    git -C "$d" cat-file -e HEAD^:changes/x/lock.md
+  assert_file_absent "$d/changes/x/lock.md" "fixture: no changes/x/lock.md at HEAD"
+  ci_gates "$d" "$BASE"
+  expect_dropped_lock "lock added at a folder name the base used before, then deleted"
+  assert_line "$OUT" "ci-gates: FAIL changes/x (lock.md added on this branch is gone)" \
+    "the dropped-lock line names changes/x"
+}
+
 case_archived_after_merge() {
   # the usual order: changes/x merged into the base, then a later branch
   # archives it
@@ -756,6 +821,8 @@ run_case "AC72 the same merge, archived copy already on the first parent -> FAIL
 run_case "AC74 lock.md added and removed only by merges -> FAIL" case_AC74_lock_only_in_merges
 run_case "AC75 base deleted a finished lock.md, merged in -> ok" case_AC75_base_deleted_lock_merged
 run_case "AC75 base archived and rewrote a finished lock.md, merged in -> ok" case_AC75_base_archived_lock_merged
+run_case "AC76 lock at changes/[o]ld (pattern name) dropped -> FAIL" case_AC76_pattern_folder_name
+run_case "AC77 lock at a reused folder name dropped -> FAIL" case_AC77_reused_folder_name
 run_case "AC29 folder archived after its change merged" case_archived_after_merge
 run_case "AC65 base merged into a locked branch, no re-lock -> FAIL" case_base_merged_into_locked_branch
 run_case "AC66 base merged, then a signed re-lock -> ok" case_base_merged_and_relocked
