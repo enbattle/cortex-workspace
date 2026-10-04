@@ -8,7 +8,7 @@ evidence. It is plain markdown and a few bash scripts, works with any agent
 tool, and ships a Claude Code adapter that enforces as much of the isolation
 as the tool allows.
 
-**Status:** 2.0.0, released 2026-10-03 (see [CHANGELOG.md](CHANGELOG.md)). The
+**Status:** 2.1.0, released 2026-10-04 (see [CHANGELOG.md](CHANGELOG.md)). The
 scripts are covered by test suites written by a separate agent before the
 scripts were (`tests/`, 7 suites). The whole pipeline has run end to end
 three times, on toy repositories. In
@@ -63,7 +63,7 @@ Prerequisites: git and bash (Git Bash on Windows).
 
 ```bash
 git clone https://github.com/enbattle/cortex-workspace.git
-git -C cortex-workspace checkout v2.0.0   # install from the release tag, not main
+git -C cortex-workspace checkout v2.1.0   # install from the release tag, not main
 ```
 
 Then open your repository in your agent tool and say: *"Read and execute
