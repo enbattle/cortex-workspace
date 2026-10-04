@@ -14,12 +14,12 @@
 # matching TEST_GLOBS that didn't exist at T (committed later, staged, or
 # untracked) fails too: adding tests is the test writer's job.
 #
-# A branch may bring itself up to date by merging its base: a locked file
-# whose current content is exactly the base's version, as taken by a merge
-# after the lock, is accepted (likewise a new test file that came in whole
-# from the base). Anything else, including a merge resolved to content
-# matching neither side, still fails. Rebasing after the lock is not
-# supported: the lock commit stops being an ancestor.
+# There is no allowance for merges (spec Amendment 11): a merge that changes a
+# locked file fails like any other edit. To bring a locked branch up to date
+# with a base that changed locked files, merge it and re-lock, the merge
+# commit being the re-lock's tests commit. A re-lock blesses only its own
+# tests commit and may not change .cortex/config. Rebasing after the lock is
+# not supported: the lock commit stops being an ancestor.
 #
 # It compares against commits rather than using `git diff` alone, because
 # `git diff` never shows untracked files.
@@ -140,83 +140,39 @@ if ! g merge-base --is-ancestor "$sha" HEAD; then
   finish
 fi
 
-# TEST_GLOBS as configured at the lock (parsed, never sourced), so narrowing
-# it afterwards can't unlock anything.
-globs=""
-if g cat-file -e "$sha:.cortex/config" 2>/dev/null; then
-  globs="$(g show "$sha:.cortex/config" | config_value TEST_GLOBS)"
-fi
-
-# The lock set: the listed files, every file matching TEST_GLOBS at the sha (a
-# diff from git's empty tree lists a commit's files through a pathspec), and
-# the config itself if it existed then.
 empty_tree="$(g hash-object -t tree /dev/null)"
-matched_at_sha=""
-current_matches=""
-if [ -n "$globs" ]; then
-  set -f # the globs are for git, not the shell
-  # shellcheck disable=SC2086 # word-splitting the glob list is intended
-  matched_at_sha="$(g diff --name-only "$empty_tree" "$sha" -- $globs)"
-  # shellcheck disable=SC2086
-  current_matches="$(g ls-files -co --exclude-standard -- $globs)"
-  set +f
-fi
-config_at_sha=""
-g cat-file -e "$sha:.cortex/config" 2>/dev/null && config_at_sha=.cortex/config
-lock_set="$(printf '%s\n%s\n%s\n' "$locked_paths" "$matched_at_sha" "$config_at_sha" | awk 'NF && !seen[$0]++')"
 
-# merged_parents RANGE : the versions a merge on the branch's first-parent
-# line brought in: each merge's non-first parents. With CORTEX_BASE_REF set
-# (ci-gates.sh sets it to the base), only parents that are ancestors of that
-# ref count (Amendment 10, L3); unset, every merged parent does (Amendment 4).
-merged_parents() {
-  local p base=""
-  if [ -n "${CORTEX_BASE_REF:-}" ]; then
-    base="$(g rev-parse --verify --quiet "$CORTEX_BASE_REF^{commit}" || true)"
-    [ -n "$base" ] || return 0
+# globs_at SHA : TEST_GLOBS as configured at SHA (parsed, never sourced), so
+# narrowing it afterwards can't unlock anything.
+globs_at() {
+  g cat-file -e "$1:.cortex/config" 2>/dev/null || return 0
+  g show "$1:.cortex/config" | config_value TEST_GLOBS
+}
+
+# lock_set_at SHA LIST : what a lock naming SHA covers: the listed paths, every
+# file matching TEST_GLOBS at SHA (a diff from git's empty tree lists a
+# commit's files through a pathspec), and the config itself if it existed.
+lock_set_at() {
+  local globs matched="" config=""
+  globs="$(globs_at "$1")"
+  if [ -n "$globs" ]; then
+    set -f # the globs are for git, not the shell
+    # shellcheck disable=SC2086 # word-splitting the glob list is intended
+    matched="$(g diff --name-only "$empty_tree" "$1" -- $globs)"
+    set +f
   fi
-  while IFS= read -r p; do
-    [ -n "$p" ] || continue
-    if [ -z "$base" ] || g merge-base --is-ancestor "$p" "$base"; then
-      printf '%s\n' "$p"
-    fi
-  done <<<"$(g log --first-parent --merges --format='%P' "$1" | awk '{ for (i = 2; i <= NF; i++) print $i }')"
+  g cat-file -e "$1:.cortex/config" 2>/dev/null && config=.cortex/config
+  printf '%s\n%s\n%s\n' "$2" "$matched" "$config" | awk 'NF && !seen[$0]++'
 }
 
-# in_parents PATH BLOB PARENTS : true if PATH has exactly BLOB in one of PARENTS
-in_parents() {
-  local parent
-  [ -n "$2" ] && [ -n "$3" ] || return 1
-  while IFS= read -r parent; do
-    [ -n "$parent" ] || continue
-    [ "$(g rev-parse --verify --quiet "$parent:$1" || true)" = "$2" ] && return 0
-  done <<<"$3"
-  return 1
-}
-
-# A re-lock blesses only its own tests commit (Amendment 10, L1): the
+# A re-lock blesses only its own tests commit (Amendments 10 and 11): the
 # previous lock must still hold, in committed content, at that commit's
-# parent. Reported as if the re-lock hadn't happened.
+# parent, merges included, and the re-lock may not change the config.
+# Reported as if the re-lock hadn't happened.
 while read -r prev tests_commit prev_lock_commit; do
   [ -n "$prev" ] || continue
   at="$(g rev-parse --verify --quiet "$tests_commit^1" || true)"
   [ -n "$at" ] || continue
-  w_parents="$(merged_parents "$prev..$at")"
-  w_globs=""
-  if g cat-file -e "$prev:.cortex/config" 2>/dev/null; then
-    w_globs="$(g show "$prev:.cortex/config" | config_value TEST_GLOBS)"
-  fi
-  w_matched="" w_added=""
-  if [ -n "$w_globs" ]; then
-    set -f
-    # shellcheck disable=SC2086 # word-splitting the glob list is intended
-    w_matched="$(g diff --name-only "$empty_tree" "$prev" -- $w_globs)"
-    # shellcheck disable=SC2086
-    w_added="$(g diff --name-only --diff-filter=A "$prev" "$at" -- $w_globs)"
-    set +f
-  fi
-  w_config=""
-  g cat-file -e "$prev:.cortex/config" 2>/dev/null && w_config=.cortex/config
   w_list="$(g show "$prev_lock_commit:$lock_rel" | tr -d '\r' | listed_paths)"
   while IFS= read -r path; do
     [ -n "$path" ] || continue
@@ -226,34 +182,37 @@ while read -r prev tests_commit prev_lock_commit; do
     if [ -z "$have" ]; then
       lock deleted "$path"
     elif [ "$have" != "$want" ]; then
-      in_parents "$path" "$have" "$w_parents" || lock modified "$path"
+      lock modified "$path"
     fi
-  done <<<"$(printf '%s\n%s\n%s\n' "$w_list" "$w_matched" "$w_config" | awk 'NF && !seen[$0]++')"
-  while IFS= read -r path; do
-    [ -n "$path" ] || continue
-    in_parents "$path" "$(g rev-parse --verify --quiet "$at:$path" || true)" "$w_parents" || lock added "$path"
-  done <<<"$w_added"
+  done <<<"$(lock_set_at "$prev" "$w_list")"
+  w_globs="$(globs_at "$prev")"
+  if [ -n "$w_globs" ]; then
+    set -f
+    # shellcheck disable=SC2086
+    w_added="$(g diff --name-only --diff-filter=A "$prev" "$at" -- $w_globs)"
+    set +f
+    while IFS= read -r path; do
+      [ -z "$path" ] || lock added "$path"
+    done <<<"$w_added"
+  fi
+  config_prev="$(g rev-parse --verify --quiet "$prev:.cortex/config" || true)"
+  config_at="$(g rev-parse --verify --quiet "$at:.cortex/config" || true)"
+  config_relock="$(g rev-parse --verify --quiet "$tests_commit:.cortex/config" || true)"
+  if [ "$config_prev" = "$config_at" ] && [ "$config_at" != "$config_relock" ]; then
+    lock modified ".cortex/config"
+  fi
 done <<<"$relocks"
 
-# The base versions a merge after the newest lock brought in.
-base_parents="$(merged_parents "$sha..HEAD")"
-
-# from_base PATH : true if PATH's working-tree and index content are both
-# exactly its content at one of those merged base commits.
-from_base() {
-  local path="$1" parent want worktree index
-  [ -n "$base_parents" ] && [ -e "$path" ] || return 1
-  worktree="$(g hash-object -- "$path")"
-  index="$(g rev-parse --verify --quiet ":$path" || true)"
-  while IFS= read -r parent; do
-    [ -n "$parent" ] || continue
-    want="$(g rev-parse --verify --quiet "$parent:$path" || true)"
-    if [ -n "$want" ] && [ "$want" = "$worktree" ] && [ "$want" = "$index" ]; then
-      return 0
-    fi
-  done <<<"$base_parents"
-  return 1
-}
+# The newest lock's set, compared with the working tree and the index.
+globs="$(globs_at "$sha")"
+lock_set="$(lock_set_at "$sha" "$locked_paths")"
+current_matches=""
+if [ -n "$globs" ]; then
+  set -f
+  # shellcheck disable=SC2086
+  current_matches="$(g ls-files -co --exclude-standard -- $globs)"
+  set +f
+fi
 
 count=0
 while IFS= read -r path; do
@@ -264,13 +223,13 @@ while IFS= read -r path; do
   elif [ ! -e "$path" ]; then
     lock deleted "$path"
   elif ! g diff --quiet "$sha" -- "$path" || ! g diff --quiet --cached "$sha" -- "$path"; then
-    from_base "$path" || lock modified "$path"
+    lock modified "$path"
   fi
 done <<<"$lock_set"
 
 while IFS= read -r path; do
   [ -n "$path" ] || continue
-  g cat-file -e "$sha:$path" 2>/dev/null || from_base "$path" || lock added "$path"
+  g cat-file -e "$sha:$path" 2>/dev/null || lock added "$path"
 done <<<"$current_matches"
 
 finish

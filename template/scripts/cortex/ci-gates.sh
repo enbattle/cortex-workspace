@@ -11,8 +11,8 @@
 # the scripts that judge it; a fresh checkout has no hidden edits, and any
 # flagged file is refused anyway; and the gates run on the branch as pushed.
 # What no script can judge (the tests' assertions, .cortex/config edits made
-# before the lock, the workflow file itself) is covered by required human
-# review of those paths (CODEOWNERS).
+# before the lock, what a re-lock's sign-off blesses, the workflow file
+# itself) is covered by required human review of those paths (CODEOWNERS).
 #
 # Usage: scripts/cortex/ci-gates.sh <base-ref>
 # Exit:  0 all passed, 1 something failed, 2 usage error.
@@ -68,15 +68,26 @@ else
   fail check
 fi
 
-# 4. Every change folder whose lock was added or changed on this branch.
-# The lock may accept a locked file's version from a merge only when it came
-# from the base (spec Amendment 10), so it gets the base ref.
+# 4. A branch can't drop its own lock (spec Amendment 11): a lock.md that a
+# commit on this branch touched, that the base doesn't have, and that is gone
+# at HEAD (deleted, or moved under changes/archive/) fails. The history, not
+# the net diff: a lock added and then removed on the branch nets out to
+# nothing.
+while IFS= read -r path; do
+  [ -n "$path" ] || continue
+  case "$path" in changes/archive/*) continue ;; esac
+  g cat-file -e "HEAD:$path" 2>/dev/null && continue
+  g cat-file -e "$base:$path" 2>/dev/null && continue
+  fail "${path%/lock.md} (lock.md added on this branch is gone)"
+done <<<"$(g log --format= --name-only "$base..HEAD" -- 'changes/*/lock.md' | LC_ALL=C sort -u)"
+
+# 5. Every change folder whose lock was added or changed on this branch.
 # Archived changes (changes/archive/) finished earlier and are not gated.
 folders="$(g diff --name-only "$base...HEAD" -- 'changes/*/lock.md' | grep -v '^changes/archive/' | sed 's|/lock\.md$||' | LC_ALL=C sort -u || true)"
 while IFS= read -r folder; do
   [ -n "$folder" ] || continue
   [ -f "$folder/lock.md" ] || continue
-  if CORTEX_BASE_REF="$base" bash "$tools/gates.sh" "$folder"; then
+  if bash "$tools/gates.sh" "$folder"; then
     echo "ci-gates: $folder ok"
   else
     fail "$folder"
