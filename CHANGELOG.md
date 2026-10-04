@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.1.0 — Unreleased
+
+**Added: a signed re-lock** (spec Amendment 9). When a locked test is wrong,
+`implement` says the user may have `test-first` re-run, but the lock check
+refused any second lock commit, so the change could only start over (found
+while answering an outside review of the Limits). Now `test-first` step 7
+commits the corrected tests, then rewrites `lock.md` naming them, with the
+user's `Re-lock signed off by:` line; `tests-locked.sh` accepts a chain of
+lock commits that each directly follow their tests and, after the first,
+carry a sign-off, and the newest governs. The check proves a sign-off
+exists, not who wrote it: the user's review of `lock.md` in CI is the
+safeguard, as for the approval line. Tests from a separate agent first:
+tests-locked 248 to 334 assertions.
+
+**Added:** a Limits section in the README (each limit links to where it's
+explained), and a trigger-gated catalog entry for rebasing a locked branch.
+
+**Upgrading:** `install.sh` still refuses a repository with a different
+version installed, so moving a 2.0.0 install to 2.1.0 is a manual merge.
+No repository has a real install yet; the upgrade path
+(`docs/02-extensions.md` §4) should be built before a second real install,
+when its trigger fires.
+
 ## 2.0.0 — 2026-10-03
 
 **Before release** (all done):

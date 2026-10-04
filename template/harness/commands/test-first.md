@@ -38,14 +38,20 @@ tests to fit it, so the tests stop encoding the spec.
 4. Commit the tests on the change branch (commit T). Then, as the **very
    next commit**, copy `harness/templates/change-folder/lock.md` into the
    change folder, fill in T's full sha and one `- <path>` line per test or
-   fixture file T created or changed, and commit it alone. That file is
-   never edited again; existing tests matching `TEST_GLOBS`, and
-   `.cortex/config` itself, are locked automatically. Then fill in
+   fixture file T created or changed, and commit it alone. That file isn't
+   edited again except by a re-lock (step 7); existing tests matching
+   `TEST_GLOBS`, and `.cortex/config` itself, are locked automatically. Then fill in
    `## Criteria to tests` in `tasks.md` and commit it.
 5. Record each **manual-verify** criterion in `tasks.md` as an item that
    needs the user's sign-off after implementation.
-6. Run `bash scripts/cortex/tests-locked.sh <change-folder>` and confirm it passes.
-
+. **Re-lock**, only when the user has decided this command re-runs because
+   a locked test is wrong (a spec problem `implement` reported). Commit the
+   corrected tests and fixtures alone (commit T2). Rewrite `lock.md`: T2's
+   full sha, every file the earlier lock listed, and every file T2 created
+   or changed. Stop for the user's sign-off on the `Re-lock signed off by:`
+   line: they write it, or explicitly tell you to (design rule R6). Then
+   commit `lock.md` alone as the very next commit after T2, update
+   `## Criteria to tests` in `tasks.md`, and repeat step 6.
 Budget: 3 attempts to get a test failing for the right reason. On the third
 failure, stop and tell the user: the criterion is probably not testable as
 written, which is a spec problem for `spec-clarify`.

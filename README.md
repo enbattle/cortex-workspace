@@ -96,6 +96,37 @@ Set `TOOLS` in `.cortex/config`, then run `bash scripts/cortex/adapt.sh`.
 | Gemini CLI | `GEMINI.md` | by instruction |
 | Codex CLI | nothing (reads `AGENTS.md`) | by instruction |
 
+## Limits
+
+Deliberate trade-offs; each links to where it's explained.
+
+- **Not yet used on a real project.** It has run end to end on toy
+  repositories ([pilots](evals/pilots/)); treat your first real change as
+  part of the evaluation.
+- **No upgrade path yet.** `install.sh` refuses a repository with a
+  different version installed, so moving to a later release is a manual
+  merge ([extensions §4](docs/02-extensions.md)).
+- **Every nontrivial change runs the full pipeline:** six stages, four of
+  them in fresh agents; pilot 3's change cost about $6 in agent runs. There
+  is no lighter tier for small fixes yet ([process weight scaled to
+  stakes](docs/02-extensions.md)).
+- **The test lock freezes every matching test and fixture** (and
+  `.cortex/config`) while a change is in progress, so an implementer can't
+  weaken old tests. Changing one means re-running `test-first` with your
+  sign-off; a locked branch merges `main` in rather than rebasing
+  ([`test-first`](template/harness/commands/test-first.md),
+  [rebasing](docs/02-extensions.md)).
+- **Local checks are guardrails, not a boundary.** An agent with full git
+  access can get around them; the boundary is CI on the pull request plus
+  required human review ([R11](docs/01-design-rules.md),
+  [INSTALL.md step 5b](INSTALL.md)).
+- **Enforced isolation only in Claude Code.** In other tools, starting a
+  fresh chat per role is up to you ([supported tools](#supported-agent-tools)).
+- **One repository.** Systems spread over several repositories are a
+  deferred extension ([§7](docs/02-extensions.md)).
+- **The CI template is GitHub-only.** Other hosts need the equivalent set up
+  by hand ([INSTALL.md step 5b](INSTALL.md)).
+
 ## Developing cortex
 
 See [AGENTS.md](AGENTS.md). `bash tests/run.sh` runs every suite; CI runs
