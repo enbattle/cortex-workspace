@@ -399,6 +399,7 @@ case_added_lock_deleted() {
 # merge equals P for every lock.md path and any pathspec log prunes L.
 pruned_lock_merge() {
   local d="$1" first l blob tree m
+  [ -n "$d" ] && [ -d "$d" ] || return 1
   l="$(git -C "$d" rev-parse HEAD)"
   first="$(git -C "$d" rev-parse HEAD^1)"
   blob="$(git -C "$d" rev-parse "$l:changes/x/lock.md")"
@@ -423,6 +424,7 @@ pruned_lock_merge() {
 # expect_pruned_shape DIR : fixture checks that HEAD is the pruned-side merge
 expect_pruned_shape() {
   local d="$1"
+  [ -n "$d" ] && [ -d "$d" ] || return 1
   assert_true "fixture: HEAD^1 has no changes/x/lock.md" \
     bash -c '! git -C "$1" cat-file -e HEAD^1:changes/x/lock.md 2>/dev/null' _ "$d"
   assert_true "fixture: HEAD^2 is the lock commit (adds changes/x/lock.md)" \
@@ -477,6 +479,7 @@ case_AC72_merge_prunes_lock_archived_first_parent() {
 # side_commit DIR NAME -> sha of a commit off the base adding src/NAME.txt
 side_commit() {
   local d="$1" tree
+  [ -n "$d" ] && [ -d "$d" ] || return 1
   git -C "$d" read-tree "$BASE"
   printf '%s\n' "$2" > "$d/src/$2.txt"
   git -C "$d" add "src/$2.txt"
@@ -558,6 +561,7 @@ base_with_y_lock() {
 # base_then_merge DIR : with the base's new commit made on main (checked out),
 # point origin/main at it and merge it into feature with a real merge commit
 base_then_merge() {
+  [ -n "$1" ] && [ -d "$1" ] || return 1
   git -C "$1" update-ref "refs/remotes/$BASE" HEAD
   git -C "$1" checkout -q feature
   git -C "$1" merge -q --no-ff --no-edit "$BASE"
@@ -565,6 +569,7 @@ base_then_merge() {
 
 # expect_y_merge_shape DIR : fixture checks shared by the AC75 cases
 expect_y_merge_shape() {
+  [ -n "$1" ] && [ -d "$1" ] || return 1
   assert_true "fixture: the base tip has no changes/y/lock.md" \
     bash -c '! git -C "$1" cat-file -e "$2:changes/y/lock.md" 2>/dev/null' _ "$1" "$BASE"
   assert_file_absent "$1/changes/y/lock.md" "fixture: no changes/y/lock.md at HEAD"
@@ -751,13 +756,14 @@ case_AC79_merge_with_old_base_commit() {
 
 # a folder name holding a tab; git prints the lock.md path quoted
 TAB_FOLDER="changes/a$(printf '\t')b"
-QUOTED_LINE='ci-gates: FAIL "changes/a\tb/lock.md" (a lock.md path git has to quote; rename the folder)'
+QUOTED_LINE='ci-gates: FAIL "changes/a\tb/lock.md" (a lock.md path git has to quote, so CI can'"'"'t check it)'
 
 # tab_lock DIR : commit everything as T, then TAB_FOLDER/lock.md naming T,
 # with plumbing (a Windows filesystem can't hold a tab; there the working
 # tree lacks the file, elsewhere a checkout writes it)
 tab_lock() {
   local d="$1" t blob
+  [ -n "$d" ] && [ -d "$d" ] || return 1
   commit_all "$d" "add tests for the tab folder"
   t="$(git -C "$d" rev-parse HEAD)"
   blob="$(printf 'Tests-locked-at: %s\n\n## Locked tests\n\n- tests/b.test.sh\n' "$t" \
@@ -829,6 +835,74 @@ case_AC81_stacked_after_squash() {
   assert_not_contains "$OUT" "ci-gates: FAIL changes/a (lock.md added on this branch is gone)" \
     "no dropped-lock failure for changes/a"
   assert_not_contains "$OUT" "ci-gates: FAIL changes/a" "no failure for changes/a at all"
+}
+
+# ---- AC82/AC83 (Amendment 12, N1): fixtures and inherited quoted paths -------------
+
+case_AC82_nested_fixture_lock_deleted() {
+  # the base has changes/y/lock.md; the branch adds a fixture
+  # changes/y/fixtures/lock.md (two folders deep: not a lock), locks
+  # changes/x as usual, then deletes the fixture
+  local d
+  d="$(filled_install Zqxproj)" || return 1
+  [ -n "$d" ] && [ -d "$d" ] || return 1
+  mkdir -p "$d/tests" "$d/src" "$d/changes/y"
+  printf 'echo a\n' > "$d/tests/a.test.sh"
+  printf 'app\n' > "$d/src/app.txt"
+  printf 'Tests-locked-at: 0000000000000000000000000000000000000000\n\n## Locked tests\n\n- tests/a.test.sh\n' \
+    > "$d/changes/y/lock.md"
+  printf '# tasks\n' > "$d/changes/y/tasks.md"
+  commit_all "$d" "base with change folder y"
+  git -C "$d" update-ref "refs/remotes/$BASE" HEAD
+  git -C "$d" checkout -q -b feature
+  mkdir -p "$d/changes/y/fixtures"
+  printf 'Tests-locked-at: 1111111111111111111111111111111111111111\n\n## Locked tests\n\n- tests/fixture.test.sh\n' \
+    > "$d/changes/y/fixtures/lock.md"
+  commit_all "$d" "add a lock.md fixture under changes/y"
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  lock_folder "$d" changes/x
+  git -C "$d" rm -q changes/y/fixtures/lock.md
+  git -C "$d" commit -q -m "drop the fixture"
+  assert_true "fixture: a branch commit held changes/y/fixtures/lock.md" \
+    test -n "$(git -C "$d" log --format=%H "$BASE..HEAD" -- changes/y/fixtures/lock.md)"
+  assert_true "fixture: HEAD has no changes/y/fixtures/lock.md" \
+    bash -c '! git -C "$1" cat-file -e HEAD:changes/y/fixtures/lock.md 2>/dev/null' _ "$d"
+  assert_true "fixture: changes/y/lock.md kept at HEAD" git -C "$d" cat-file -e HEAD:changes/y/lock.md
+  ci_gates "$d" "$BASE"
+  assert_not_contains "$OUT" "ci-gates: FAIL changes/y" "no failure for changes/y or changes/y/fixtures"
+  assert_exit 0 "$CODE" "a deleted nested fixture -> exit 0"
+  expect_ci_lines "ci-gates: using scripts from $BASE
+ci-gates: check ok
+ci-gates: changes/x ok
+ci-gates: ok" "changes/x gated, nothing else"
+}
+
+case_AC83_inherited_tab_lock() {
+  # the base's tip holds a lock at a folder whose name has a tab (plumbing,
+  # as in tab_lock); the branch makes an unrelated commit outside changes/
+  local d
+  d="$(filled_install Zqxproj)" || return 1
+  [ -n "$d" ] && [ -d "$d" ] || return 1
+  mkdir -p "$d/tests" "$d/src"
+  printf 'echo a\n' > "$d/tests/a.test.sh"
+  printf 'app\n' > "$d/src/app.txt"
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  tab_lock "$d"
+  git -C "$d" update-ref "refs/remotes/$BASE" HEAD
+  git -C "$d" checkout -q -b feature 2>/dev/null
+  printf 'app v2\n' > "$d/src/app.txt"
+  git -C "$d" add src/app.txt   # not add -A: Windows can't hold the tab path
+  git -C "$d" commit -q -m "unrelated work"
+  assert_true "fixture: the base tip holds the quoted lock path" \
+    bash -c 'git -C "$1" ls-tree -r --name-only "$2" | grep -qxF "\"changes/a\\tb/lock.md\""' _ "$d" "$BASE"
+  assert_true "fixture: HEAD holds it with the same blob" \
+    test "$(git -C "$d" rev-parse "HEAD:$TAB_FOLDER/lock.md")" = "$(git -C "$d" rev-parse "$BASE:$TAB_FOLDER/lock.md")"
+  assert_true "fixture: the branch touches nothing under changes/" \
+    test -z "$(git -C "$d" diff --name-only "$BASE" HEAD -- changes)"
+  ci_gates "$d" "$BASE"
+  assert_not_contains "$OUT" 'ci-gates: FAIL "changes/a\tb/lock.md"' "no failure for the inherited quoted path"
+  assert_exit 0 "$CODE" "inherited tab-named lock -> exit 0"
+  assert_true "ci-gates: ok is the last line" test "$(last_line "$OUT")" = "ci-gates: ok"
 }
 
 case_archived_after_merge() {
@@ -989,6 +1063,8 @@ run_case "AC79 new lock in a merge with an old base commit, dropped -> FAIL" cas
 run_case "AC80 lock at a folder name with a tab, kept -> FAIL" case_AC80_tab_folder_kept
 run_case "AC80 lock at a folder name with a tab, deleted -> FAIL" case_AC80_tab_folder_deleted
 run_case "AC81 stacked branch after its parent was squash-merged -> no dropped lock" case_AC81_stacked_after_squash
+run_case "AC82 a nested lock.md fixture deleted -> no failure" case_AC82_nested_fixture_lock_deleted
+run_case "AC83 tab-named lock inherited from the base -> no failure" case_AC83_inherited_tab_lock
 run_case "AC29 folder archived after its change merged" case_archived_after_merge
 run_case "AC65 base merged into a locked branch, no re-lock -> FAIL" case_base_merged_into_locked_branch
 run_case "AC66 base merged, then a signed re-lock -> ok" case_base_merged_and_relocked
