@@ -68,27 +68,43 @@ else
   fail check
 fi
 
-# 4. A branch can't drop its own lock (spec Amendments 11 and 12): a lock.md
-# added on this branch that is gone at HEAD (deleted, or moved under
-# changes/archive/) and that the base doesn't have fails. Added on this branch:
-# some commit the branch brings, on any side of any merge, has the path and
-# none of that commit's parents does, so a merge that adds a lock.md neither
-# side had counts and a merge bringing in the base's own doesn't. The history,
-# not the net diff: a lock added and then removed nets out to nothing. Paths
-# are compared literally, never as pathspecs.
-added="$(g log --full-history -m --no-renames --diff-filter=A --format='>%H %P' \
-  --name-only "$base..HEAD" -- 'changes/*/lock.md' |
-  awk '/^>/ { c = substr($1, 2); parents[c] = NF - 1; next }
-       NF { seen[c SUBSEP $0]++ }
-       END { for (k in seen) { split(k, a, SUBSEP); if (seen[k] >= parents[a[1]]) print a[2] } }' |
-  LC_ALL=C sort -u)"
-while IFS= read -r path; do
-  [ -n "$path" ] || continue
-  case "$path" in changes/archive/*) continue ;; esac
-  g cat-file -e "HEAD:$path" 2>/dev/null && continue
-  g cat-file -e "$base:$path" 2>/dev/null && continue
+# 4. A branch can't drop its own lock (spec Amendments 11 and 12): every
+# change folder's lock.md that a commit this branch brings holds (any commit
+# reachable from HEAD and not from the base, read from its tree, so merges
+# need no special case) must still be a regular file at HEAD, unless the
+# base's history held that exact content at that path: then it is a finished
+# change's lock, not this branch's. Archived copies (changes/archive/) don't
+# count as kept. Paths are compared literally; a name git has to quote fails.
+lock_entries="$(g rev-list "$base..HEAD" | while IFS= read -r c; do
+  g ls-tree -r "$c" -- changes/
+done | awk -F '\t' '$2 ~ /^"?changes\/.+\/lock\.md"?$/ && $2 !~ /^"?changes\/archive\// {
+  split($1, m, " "); print $2 "\t" m[3] }' | LC_ALL=C sort -u)"
+# base_had PATH BLOB : the base's history held BLOB at PATH
+base_had() {
+  local c
+  while IFS= read -r c; do
+    [ -n "$c" ] || continue
+    [ "$(g rev-parse --verify --quiet "$c:$1" || true)" = "$2" ] && return 0
+  done <<<"$(g --literal-pathspecs rev-list --full-history "$base" -- "$1")"
+  return 1
+}
+# Sorted, so a path's entries (one per content it had) are adjacent; a path
+# fails once, as soon as one of its contents isn't the base's.
+last_failed=""
+while IFS=$'\t' read -r path blob; do
+  [ -n "$path" ] && [ "$path" != "$last_failed" ] || continue
+  case "$path" in
+    \"*)
+      last_failed="$path"
+      fail "$path (a lock.md path git has to quote; rename the folder)"
+      continue ;;
+  esac
+  mode="$(g --literal-pathspecs ls-tree HEAD -- "$path" | cut -d ' ' -f 1)"
+  case "$mode" in 100644 | 100755) continue ;; esac
+  base_had "$path" "$blob" && continue
+  last_failed="$path"
   fail "${path%/lock.md} (lock.md added on this branch is gone)"
-done <<<"$added"
+done <<<"$lock_entries"
 
 # 5. Every change folder whose lock was added or changed on this branch.
 # Archived changes (changes/archive/) finished earlier and are not gated.
