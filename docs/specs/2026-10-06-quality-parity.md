@@ -195,7 +195,8 @@ replace the default one. So this plan measures before deciding.
 - [x] 20. Refresh the golden fixture (`refresh.sh`; the template changed),
   before item 16.
 - [ ] 21. `CHANGELOG.md` entry (done); the full `bash tests/run.sh` and CI
-  pass (open: on the pull request); `VERSION` 2.2.0 at release (additive:
+  pass (done: PR #21, CI run 37520357526 at `a794d23`); `VERSION` 2.2.0 at
+  release (open; additive:
   no command contract, required file or template field is removed or
   renamed; the new knowledge file is a stub).
 - [x] 22. A completeness audit before release (root `AGENTS.md`),

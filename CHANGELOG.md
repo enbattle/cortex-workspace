@@ -2,9 +2,9 @@
 
 ## 2.2.0 — Unreleased
 
-**Before release:** the full `bash tests/run.sh` and CI pass on the pull
-request, a date here, `VERSION`, and a tag. The completeness audit is done
-(`evals/audits/2026-10-06.md`).
+**Before release:** a date here, `VERSION`, and a tag. Done: the
+completeness audit (`evals/audits/2026-10-06.md`), and the full suites and
+CI on PR #21.
 
 **Added: quality parity with pstack, fitted to cortex**
 (`docs/specs/2026-10-06-quality-parity.md`). A comparison of quality layers
