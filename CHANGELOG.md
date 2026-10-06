@@ -1,10 +1,10 @@
 # Changelog
 
-## 2.2.0 — Unreleased
+## 2.2.0 — 2026-10-06
 
-**Before release:** a date here, `VERSION`, and a tag. Done: the
-completeness audit (`evals/audits/2026-10-06.md`), and the full suites and
-CI on PR #21.
+**Before release** (all done): the completeness audit
+(`evals/audits/2026-10-06.md`) and its findings; the full suites and CI on
+PR #21; the README's status and install tag.
 
 **Added: quality parity with pstack, fitted to cortex**
 (`docs/specs/2026-10-06-quality-parity.md`). A comparison of quality layers
