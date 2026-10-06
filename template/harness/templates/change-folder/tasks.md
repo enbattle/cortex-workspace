@@ -19,8 +19,9 @@ commit, so nothing that edits tasks.md can move it. -->
 
 ## Verification
 
-<!-- implement records how it ran the changed thing the way a user would,
-and what it saw (the review checklist says what counts). -->
+<!-- implement records here what its step 6 asks for: how it ran the
+changed thing the way a user would and what it saw, and for an interface
+change, the blast radius. -->
 
 ## Gate output
 

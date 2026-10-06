@@ -2,7 +2,8 @@
 
 ## Problem
 
-<!-- What is wrong or missing today, for whom, and how we know. -->
+<!-- What is wrong or missing today, for whom, and how we know. For a bug
+fix: how to reproduce it, and the root cause (or "not known yet"). -->
 
 ## Desired outcome
 

@@ -54,10 +54,18 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    session they are talking to to do it (design rule R6). You never renew it
    yourself.
 5. Update any doc the change makes stale: `AGENTS.md`, `docs/knowledge/`,
-   a README. Only what actually changed.
+   a README. Only what actually changed. That includes the verification
+   recipe, `docs/knowledge/verification.md`: add or update the entry for a
+   feature the change adds or alters, and fix a step of it that no longer
+   works.
 6. Verify the change on the real artifact, as the "Verification on the real
-   artifact" section of `harness/policies/review-checklist.md` describes, and
-   paste the evidence under `## Verification` in `tasks.md`. If it can't run
+   artifact" section of `harness/policies/review-checklist.md` describes,
+   following the verification recipe where it covers the feature, and paste
+   the evidence under `## Verification` in `tasks.md`, naming the entries of
+   `docs/knowledge/verification.md` you used (so review may read them). If
+   the change affects an interface, record its blast radius there too: the
+   callers you found, with the search that found them, and the result of
+   running at least one existing caller against the change. If it can't run
    here (a permission prompt nobody can answer, for example), stop and give
    the user the exact command and the output to expect; record what they
    report, and never hand off to `review` with it unrun. Then, before

@@ -28,14 +28,28 @@ boundary case is Low, unless a criterion depends on it.
 
 ## Verification on the real artifact
 
-`implement` records this under `## Verification` in `tasks.md`; review repeats it.
+`implement` records this under `## Verification` in `tasks.md`, following the
+verification recipe (`docs/knowledge/verification.md`); review repeats it.
 
 - [ ] The changed thing was run the way a user would, matched to what changed: a command by its real invocation and output; an endpoint by a real request and response; a user-facing flow by walking it; a migration by applying it (and rolling it back) on a copy; a library by calling it from a caller's position. "It builds" or "the tests pass" is not this evidence.
 
-## Simplicity (constitution E4)
+## Design and simplicity (constitution E4)
+
+`spec-clarify` designs to this section; review checks the code against it.
+E4 wins any tie: no item here justifies a layer, type or abstraction the
+criteria don't need. The items apply to code the change touches, not to
+nearby code. The first two items are E4 itself, so a breach is a
+constitution breach. The others are Low unless the finding names a concrete
+cost (a caller that breaks, a defect the shape invites).
 
 - [ ] No logic or fact is duplicated where the copies must change together.
 - [ ] Nothing is built beyond the criteria: no unused option, speculative abstraction, dead code, or compatibility path kept for internal callers.
+- [ ] Interfaces are shaped from the call site: the caller's code reads plainly.
+- [ ] Invalid states are hard to represent, where the language's types express it cheaply, rather than guarded by conditionals scattered across callers.
+- [ ] Each new unit has one reason to change.
+- [ ] Dependencies point the way the architecture overview says (when the change folder names it), and no new cycle appears.
+- [ ] A constraint is a type, a test or a lint rule where it can be, not only a comment; comments say why, not what.
+- [ ] Names match the glossary (when the change folder names it).
 
 ## Security (every change; the external-surface pass goes deeper)
 
@@ -46,7 +60,7 @@ boundary case is Low, unless a criterion depends on it.
 
 ## Interfaces and operations
 
-- [ ] Interface changes are compatible or come with a migration, and every consumer is accounted for.
+- [ ] Interface changes are compatible or come with a migration, and every consumer is accounted for: the blast radius in `tasks.md` names the search that found them, and review runs its own search rather than trusting the list.
 - [ ] New failure modes are logged or observable; nothing fails silently.
 - [ ] The rollback plan in `design.md` would actually work.
 

@@ -1,5 +1,51 @@
 # Changelog
 
+## 2.2.0 — Unreleased
+
+**Before release:** a date here, `VERSION`, and a tag. Done: the
+completeness audit (`evals/audits/2026-10-06.md`), and the full suites and
+CI on PR #21.
+
+**Added: quality parity with pstack, fitted to cortex**
+(`docs/specs/2026-10-06-quality-parity.md`). A comparison of quality layers
+rated cortex behind pstack on verification, design and review breadth. This
+release takes the mechanisms, not the features. It changes markdown only,
+with no script change and no new required field.
+
+- **A verification recipe**, `docs/knowledge/verification.md`: how to start
+  the software, check it's healthy and stop it, and a feature map (how a
+  user reaches each feature, how to drive it, what proves it worked).
+  `implement` follows it and keeps it current, and `review` repeats it. The
+  change folder names it, so it stays within review's inputs (R4).
+- **"Design and simplicity"** replaces the checklist's Simplicity section.
+  It adds call-site-first interfaces, invalid states made hard to represent
+  where types make that cheap, one reason to change, dependency direction,
+  constraints as types, tests or lint rules, and glossary names. It is
+  written under E4: E4 wins any tie, it covers only touched code, its two
+  E4 items keep a constitution breach's severity, and the other items are
+  Low unless a finding names a concrete cost. `spec-clarify`
+  designs to it and shows each alternative's call site. E4 itself is
+  unchanged: it already scopes DRY to copies that must change together, and
+  YAGNI to the criteria.
+- **`spec-new`** checks why code exists before changing it. A bug fix's
+  proposal records how to reproduce it and its root cause.
+- **Blast radius:** an interface change records the callers found, the
+  search that found them, and an existing caller run against it. Review
+  runs its own search.
+- **`INSTALL.md`** suggests lint gates for design rules (types, complexity,
+  duplication, dependency boundaries) and seeds the recipe.
+- **Catalog:** a smoke-test gate (`VERIFY_CMD`) entry with its trigger, and
+  the pstack re-scan. A Sonnet second reviewer was measured on the golden
+  task and not adopted: it found the plant but nothing the default reviewer
+  missed (`evals/golden/review-maxlength/results/2026-10-06.md`).
+
+**For installed repositories:** upgrades are still a manual merge. Bring
+over the changed harness files (`implement.md`, `review.md`,
+`spec-clarify.md`, `spec-new.md`, `review-checklist.md`, `permissions.md`,
+and the change-folder templates `proposal.md`, `design.md` and `tasks.md`),
+and add `docs/knowledge/verification.md` with its row in
+`docs/knowledge/index.md`.
+
 ## 2.1.0 — 2026-10-04
 
 **Before release** (all done): the pre-release completeness audit, its
