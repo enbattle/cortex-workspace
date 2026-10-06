@@ -22,9 +22,17 @@ unknown size, a refactor) and draft its proposal with the user.
    packages it touches in the proposal.
 2. Read `docs/knowledge/index.md` and only the knowledge files it points to
    for this area, plus the code the change will touch. A proposal written
-   without reading the code invites a mismatched implementation.
+   without reading the code invites a mismatched implementation. Before
+   changing or removing a behavior, check why it exists: the history of
+   those lines, and the change folder or pull request that added them.
+   Note in the proposal anything there that bears on the change; a
+   deliberate behavior removed by accident is a regression no new test
+   catches.
 3. Draft `proposal.md` with the user: the problem, the desired outcome,
-   acceptance criteria, non-goals, and affected areas. Acceptance criteria
+   acceptance criteria, non-goals, and affected areas. For a bug fix, the
+   problem records how to reproduce it and its root cause, or says the
+   cause isn't known yet so `spec-clarify` asks: a fix aimed at the symptom
+   passes a test written for the symptom. Acceptance criteria
    must be objectively checkable: concrete numbers, behaviors, error cases
    and edge cases. Reject a vague one ("users can log in") and push for the
    precise version ("a wrong password returns 401 with no hint whether the

@@ -2,9 +2,11 @@
 
 ## Approach
 
+<!-- Include the call site: a few lines of how a caller uses the change. -->
+
 ## Alternatives considered
 
-<!-- Each with the reason it was rejected. -->
+<!-- Each with its call site and the reason it was rejected. -->
 
 ## Interface and data changes
 

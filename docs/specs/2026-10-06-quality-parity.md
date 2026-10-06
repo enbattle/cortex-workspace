@@ -1,9 +1,8 @@
 # Plan: quality parity with pstack, the cortex way
 
-Status: **draft, 2026-10-06; not approved.** Agreed in outline in discussion
-with the maintainer (2026-10-05 to 2026-10-06); the template is not edited
-until this plan is approved. A point-in-time record once approved: the
-completeness audit maps every item below to evidence.
+Status: **approved by the maintainer, 2026-10-06**, with both open questions
+answered (at the end). A point-in-time record: the completeness audit maps
+every item below to evidence.
 
 ## Context
 
@@ -211,7 +210,9 @@ replace the default one. So this plan measures before deciding.
 - Scripts and their suites: no change. `tests/check.test.sh` must still pass
   against the template (no tool name in the new knowledge file, C2).
 
-## Open questions for the maintainer
+## Questions, answered by the maintainer on 2026-10-06
+
+Q1: this lands first, as 2.2.0. Q2: Sonnet.
 
 - **Q1. Order against the 3.0.0 spec** (`docs/specs/2026-10-05-v3-removable-layout.md`,
   draft, untracked on `spec/v3-removable-layout`). Proposed: this lands

@@ -36,7 +36,10 @@ toward the spec, not polite to it.
    **manual-verify** (with the reason no test can). `test-first` consumes
    this marking.
 5. Fill `design.md`: approach, alternatives considered and why each was
-   rejected, risks, rollback plan. Fill `tasks.md`: small, ordered tasks,
+   rejected, risks, rollback plan. Design to the "Design and simplicity"
+   section of `harness/policies/review-checklist.md`, and show each
+   alternative's call site: a few lines of the caller's code, so the
+   options are compared from where they are used. Fill `tasks.md`: small, ordered tasks,
    each with a done-check that can be run or observed. Until the last task
    the locked tests still fail, so an earlier done-check names the tests it
    runs, not the whole test command. A task can't edit a file the test lock

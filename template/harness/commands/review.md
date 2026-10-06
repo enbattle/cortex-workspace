@@ -34,9 +34,11 @@ against the change before approving it.
 3. Re-run the gates yourself rather than trusting `tasks.md`:
    `bash scripts/cortex/gates.sh <change-folder>`. A failing gate is a finding.
    Then repeat the verification on the real artifact that `tasks.md` records
-   under `## Verification` (the checklist says what counts). If there is no
-   record, run it yourself: a missing record is Low; a verification that
-   fails is a finding at the severity of what fails.
+   under `## Verification` (the checklist says what counts), following the
+   entries of `docs/knowledge/verification.md` it names. If there is no
+   record, run it yourself: a missing record is Low; a recipe step you can't
+   follow as written is Low; a verification that fails is a finding at the
+   severity of what fails.
 4. Verify each acceptance criterion is actually met, not that code exists
    that looks related. Check each manual-verify item is listed for the user.
 5. Walk `harness/policies/review-checklist.md` item by item.

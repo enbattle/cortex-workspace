@@ -30,7 +30,12 @@ Ask, in one batch where you can:
 1. The project's name, and one sentence on what the repository is.
 2. The build, test and lint commands. Detect candidates first (`package.json`
    scripts, a `Makefile`, `pyproject.toml`, `Cargo.toml`, CI workflows) and
-   ask the user to confirm them rather than asking from scratch.
+   ask the user to confirm them rather than asking from scratch. Suggest
+   that the lint command also run what the stack offers for type checking,
+   a complexity limit, duplicate detection and dependency-boundary rules:
+   these turn items of the review checklist's "Design and simplicity"
+   section into gates. They are the project's tools; add only the ones the
+   user agrees to.
 3. What the test runner loads (for `TEST_GLOBS`): not just how test files
    are named, but every helper, fixture and setup file it picks up. Check the
    runner's discovery rules; for example `node --test` loads more than
@@ -46,10 +51,14 @@ Ask, in one batch where you can:
    get explicit approval for each.
 6. Terms that are overloaded or confused in this codebase (glossary seeds),
    and the main components and who owns them (architecture seeds).
+7. How to start the software, check it's healthy, and stop it (for
+   `docs/knowledge/verification.md`), if there is something to run. Its
+   feature rows are filled in later, as changes touch each feature.
 
 Then fill in `.cortex/config`, the placeholders in `AGENTS.md` (keep it at 60
-lines or fewer), the project section of `docs/constitution.md` (P1, P2, ...), `docs/knowledge/glossary.md`
-and `docs/knowledge/architecture.md`. Delete any entry in
+lines or fewer), the project section of `docs/constitution.md` (P1, P2, ...), `docs/knowledge/glossary.md`,
+`docs/knowledge/architecture.md` and, where known, the start, check and stop
+section of `docs/knowledge/verification.md`. Delete any entry in
 `docs/deferred-practices.md` that can never apply here, with a one-line reason.
 
 Rules while filling in: nothing under `harness/` may name the project, and
