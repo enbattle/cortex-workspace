@@ -19,12 +19,9 @@ commit, so nothing that edits tasks.md can move it. -->
 
 ## Verification
 
-<!-- implement records how it ran the changed thing the way a user would,
-and what it saw (the review checklist says what counts), naming the entries
-of docs/knowledge/verification.md it followed. For a change that affects an
-interface, also its blast radius: the callers found, the search that found
-them, and an existing caller run against the change. -->
-
+<!-- implement records here what its step 6 asks for: how it ran the
+changed thing the way a user would and what it saw, and for an interface
+change, the blast radius. -->
 
 ## Gate output
 

@@ -25,9 +25,3 @@ directory the repository ignores). -->
 | Feature | How a user reaches it | How to drive it here | What proves it worked |
 | --- | --- | --- | --- |
 | | | | |
-
-## Evidence
-
-<!-- What to paste into a change's tasks.md: the command and its output, the
-request and the response, or the observed state. Never secrets or personal
-data. -->

@@ -10,7 +10,8 @@ toward the spec, not polite to it.
 
 - A change folder with a drafted `proposal.md` (from `spec-new`). If there is
   none, stop and tell the user to run `spec-new`.
-- Load `docs/constitution.md`, `docs/knowledge/glossary.md`, and
+- Load `docs/constitution.md`, `docs/knowledge/glossary.md`, the "Design
+  and simplicity" section of `harness/policies/review-checklist.md`, and
   only the knowledge files the proposal's affected areas point to.
 
 ## Procedure
@@ -37,10 +38,12 @@ toward the spec, not polite to it.
    this marking.
 5. Fill `design.md`: approach, alternatives considered and why each was
    rejected, risks, rollback plan. Design to the "Design and simplicity"
-   section of `harness/policies/review-checklist.md`, and show each
-   alternative's call site: a few lines of the caller's code, so the
-   options are compared from where they are used. Fill `tasks.md`: small, ordered tasks,
-   each with a done-check that can be run or observed. Until the last task
+   section of the review checklist. Show the call site of the approach and
+   of each alternative (a few lines of the caller's code), so the options
+   are compared from where they are used, and name in `design.md` the
+   knowledge files the design relies on (the architecture overview, the
+   glossary), so review may read them. Fill `tasks.md`: small, ordered
+   tasks, each with a done-check that can be run or observed. Until the last task
    the locked tests still fail, so an earlier done-check names the tests it
    runs, not the whole test command. A task can't edit a file the test lock
    covers (a non-test file matching `TEST_GLOBS`, such as the test runner's

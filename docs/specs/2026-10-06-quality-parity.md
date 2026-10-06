@@ -194,13 +194,42 @@ replace the default one. So this plan measures before deciding.
   blast radius) and what was measured instead of adopted.
 - [x] 20. Refresh the golden fixture (`refresh.sh`; the template changed),
   before item 16.
-- [x] 21. `CHANGELOG.md` entry; the full `bash tests/run.sh` and CI pass;
-  `VERSION` 2.2.0 at release (additive: no command contract, required file
-  or template field is removed or renamed; the new knowledge file is a
-  stub).
-- [ ] 22. A completeness audit before release (root `AGENTS.md`),
+- [ ] 21. `CHANGELOG.md` entry (done); the full `bash tests/run.sh` and CI
+  pass (open: on the pull request); `VERSION` 2.2.0 at release (additive:
+  no command contract, required file or template field is removed or
+  renamed; the new knowledge file is a stub).
+- [x] 22. A completeness audit before release (root `AGENTS.md`),
   including its nomination of something to delete or merge. This plan's own
-  nomination: the Simplicity section, merged into item 7.
+  nomination: the Simplicity section, merged into item 7. Recorded in
+  `evals/audits/2026-10-06.md`.
+
+## As built
+
+From the completeness audit, each confirmed with the code:
+
+- Item 7: the preamble's severity rule names both E4 items as constitution
+  breaches (the plan's rule 3 exempted only duplication, so "nothing built
+  beyond the criteria" would have been Low against `review.md`'s High for a
+  constitution breach). The architecture and glossary items apply "when the
+  change folder names it" (R4).
+- Item 8: `spec-clarify` now loads the checklist's Design and simplicity
+  section (a new load, about 15 lines: the plan wrongly said both roles
+  already loaded it), shows the call site of the approach as well as each
+  alternative, and names in `design.md` the knowledge files the design
+  relies on, so review may read them.
+- Items 4 and 15: the `tasks.md` comment points at `implement` step 6
+  instead of restating it; step 6 names `docs/knowledge/verification.md`,
+  which is what puts the recipe within review's inputs.
+- Item 1: the recipe's Evidence section was deleted (the audit's
+  nomination): the checklist's verification line says what counts, and its
+  Security item covers secrets in committed files.
+
+## Follow-ups (not in this release)
+
+- Rebuild the golden fixture so its proposal documents the AC7 migration
+  (`results/2026-10-06.md`, Observations): the control should have one
+  right answer.
+- The 3.0.0 spec's layout list gains `knowledge/verification.md` (Q1).
 
 ## Not changed
 

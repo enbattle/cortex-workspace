@@ -61,11 +61,11 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
 6. Verify the change on the real artifact, as the "Verification on the real
    artifact" section of `harness/policies/review-checklist.md` describes,
    following the verification recipe where it covers the feature, and paste
-   the evidence under `## Verification` in `tasks.md`, naming the recipe
-   entries you used. If the change affects an interface, record its blast
-   radius there too: the callers you found, with the search that found
-   them, and the result of running at least one existing caller against the
-   change. If it can't run
+   the evidence under `## Verification` in `tasks.md`, naming the entries of
+   `docs/knowledge/verification.md` you used (so review may read them). If
+   the change affects an interface, record its blast radius there too: the
+   callers you found, with the search that found them, and the result of
+   running at least one existing caller against the change. If it can't run
    here (a permission prompt nobody can answer, for example), stop and give
    the user the exact command and the output to expect; record what they
    report, and never hand off to `review` with it unrun. Then, before

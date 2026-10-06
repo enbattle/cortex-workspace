@@ -38,18 +38,18 @@ verification recipe (`docs/knowledge/verification.md`); review repeats it.
 `spec-clarify` designs to this section; review checks the code against it.
 E4 wins any tie: no item here justifies a layer, type or abstraction the
 criteria don't need. The items apply to code the change touches, not to
-nearby code. A design finding is Low unless it names a concrete cost (a
-caller that breaks, a defect the shape invites); duplication of a rule whose
-copies must change together breaches E4 and is rated as such.
+nearby code. The first two items are E4 itself, so a breach is a
+constitution breach. The others are Low unless the finding names a concrete
+cost (a caller that breaks, a defect the shape invites).
 
 - [ ] No logic or fact is duplicated where the copies must change together.
 - [ ] Nothing is built beyond the criteria: no unused option, speculative abstraction, dead code, or compatibility path kept for internal callers.
 - [ ] Interfaces are shaped from the call site: the caller's code reads plainly.
 - [ ] Invalid states are hard to represent, where the language's types express it cheaply, rather than guarded by conditionals scattered across callers.
 - [ ] Each new unit has one reason to change.
-- [ ] Dependencies point the way `docs/knowledge/architecture.md` says, and no new cycle appears.
+- [ ] Dependencies point the way the architecture overview says (when the change folder names it), and no new cycle appears.
 - [ ] A constraint is a type, a test or a lint rule where it can be, not only a comment; comments say why, not what.
-- [ ] Names match `docs/knowledge/glossary.md`.
+- [ ] Names match the glossary (when the change folder names it).
 
 ## Security (every change; the external-surface pass goes deeper)
 

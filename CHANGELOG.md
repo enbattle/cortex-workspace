@@ -2,8 +2,9 @@
 
 ## 2.2.0 — Unreleased
 
-**Before release:** the completeness audit (plan item 22), a date here,
-`VERSION`, and a tag.
+**Before release:** the full `bash tests/run.sh` and CI pass on the pull
+request, a date here, `VERSION`, and a tag. The completeness audit is done
+(`evals/audits/2026-10-06.md`).
 
 **Added: quality parity with pstack, fitted to cortex**
 (`docs/specs/2026-10-06-quality-parity.md`). A comparison of quality layers
@@ -20,8 +21,9 @@ with no script change and no new required field.
   It adds call-site-first interfaces, invalid states made hard to represent
   where types make that cheap, one reason to change, dependency direction,
   constraints as types, tests or lint rules, and glossary names. It is
-  written under E4: E4 wins any tie, it covers only touched code, and a
-  design finding is Low unless it names a concrete cost. `spec-clarify`
+  written under E4: E4 wins any tie, it covers only touched code, its two
+  E4 items keep a constitution breach's severity, and the other items are
+  Low unless a finding names a concrete cost. `spec-clarify`
   designs to it and shows each alternative's call site. E4 itself is
   unchanged: it already scopes DRY to copies that must change together, and
   YAGNI to the criteria.
