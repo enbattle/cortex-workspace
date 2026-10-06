@@ -194,11 +194,10 @@ replace the default one. So this plan measures before deciding.
   blast radius) and what was measured instead of adopted.
 - [x] 20. Refresh the golden fixture (`refresh.sh`; the template changed),
   before item 16.
-- [ ] 21. `CHANGELOG.md` entry (done); the full `bash tests/run.sh` and CI
-  pass (done: PR #21, CI run 37520357526 at `a794d23`); `VERSION` 2.2.0 at
-  release (open; additive:
-  no command contract, required file or template field is removed or
-  renamed; the new knowledge file is a stub).
+- [x] 21. `CHANGELOG.md` entry; the full `bash tests/run.sh` and CI pass
+  (PR #21, CI run 37520357526 at `a794d23`); `VERSION` 2.2.0 at release
+  (on `release/2.2.0`; additive: no command contract, required file or
+  template field is removed or renamed; the new knowledge file is a stub).
 - [x] 22. A completeness audit before release (root `AGENTS.md`),
   including its nomination of something to delete or merge. This plan's own
   nomination: the Simplicity section, merged into item 7. Recorded in
