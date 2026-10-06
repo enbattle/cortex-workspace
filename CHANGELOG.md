@@ -39,8 +39,12 @@ with no script change and no new required field.
   task and not adopted: it found the plant but nothing the default reviewer
   missed (`evals/golden/review-maxlength/results/2026-10-06.md`).
 
-**For installed repositories:** add `docs/knowledge/verification.md` and its
-index row. Upgrades are still a manual merge.
+**For installed repositories:** upgrades are still a manual merge. Bring
+over the changed harness files (`implement.md`, `review.md`,
+`spec-clarify.md`, `spec-new.md`, `review-checklist.md`, `permissions.md`,
+and the change-folder templates `proposal.md`, `design.md` and `tasks.md`),
+and add `docs/knowledge/verification.md` with its row in
+`docs/knowledge/index.md`.
 
 ## 2.1.0 — 2026-10-04
 

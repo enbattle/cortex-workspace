@@ -42,7 +42,11 @@ from a caller's position (the proposal's examples, which hold at
 `golden-clean`); the source, tests, proposal and plant are unchanged.
 The change folder has no `brief.md` (added by `spec-clarify` since): the
 brief informs the approval, not the review, so the fixture wasn't rebuilt
-for it. Otherwise only its installed copies have been refreshed. The
+for it. Nor has it `docs/knowledge/verification.md` or a blast-radius
+record in `tasks.md` (added in 2.2.0; `refresh.sh` leaves `docs/` and
+`changes/` alone): reviewers rate their absence Low or not at all and run
+the check themselves, so a run tests how review handles a change made
+before them. Otherwise only its installed copies have been refreshed. The
 current tags are in the bundle, and each results file records the commits
 it ran against.
 
