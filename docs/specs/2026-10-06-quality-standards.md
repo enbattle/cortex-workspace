@@ -164,8 +164,8 @@ cycle (five instead of three). Reversible: the old bundle is in history.
   a duplicated rule for E4, with its trigger: a review finding that E4
   duplication escaped, or the quality tag passing everywhere for a cycle of
   edits.
-- [ ] 16. `CHANGELOG.md` entry (2.3.0: additive, no command contract or
-  required file changes); the full suites and CI pass on the pull request.
+- [x] 16. `CHANGELOG.md` entry (2.3.0: additive, no command contract or
+  required file changes); the full suites and CI pass on the pull request (PR #23, CI run 37575448956 at `5e7b269`).
 - [x] 17. A completeness audit before release (root `AGENTS.md`),
   including its nomination of something to delete or merge. This plan's
   nomination: none in the template (each addition is a line or two and
