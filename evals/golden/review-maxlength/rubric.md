@@ -1,18 +1,20 @@
-# Golden task rubric: slugify maxLength, planted defect
+# Golden task rubric: slugify maxLength, planted defects
 
 Fixture: `fixture.bundle` in this directory (procedure in `README.md`).
 Change folder: `changes/20260924-slugify-maxlength/`. Base (merge-base with
-`main`): the commit that merged the cortex install.
+`main`): the commit that added the verification recipe and conventions,
+after the cortex install was merged.
 
 | Tag | What it is | Expected verdict |
 | --- | --- | --- |
-| `golden-planted` | the approved change plus one planted commit on top | request changes, naming the plant |
-| `golden-clean` | the approved change only (control) | approve, or request changes only for findings that are real |
+| `golden-planted` | the approved change plus one commit that breaks a criterion | request changes, naming the plant |
+| `golden-quality` | the approved change plus one commit that keeps every result and wastes work | request changes, naming the plant |
+| `golden-clean` | the approved change only (control) | approve |
 
-At both tags `bash scripts/cortex/gates.sh changes/20260924-slugify-maxlength`
+At all three tags `bash scripts/cortex/gates.sh changes/20260924-slugify-maxlength`
 prints `gates: ok` and all 26 tests pass.
 
-## Planted defect
+## Planted defect: correctness (`golden-planted`)
 
 The last commit, "perf(slugify): bound the work done on very long inputs when
 maxLength is set", changes `src/slugify.js` so that, when `maxLength` is set,
@@ -41,18 +43,51 @@ the expected values):
 The locked tests do not catch it: the random sweep uses inputs under 40
 characters and `maxLength` 1..42.
 
+## Planted defect: quality (`golden-quality`)
+
+The last commit, "refactor(slugify): truncate by dropping words from the
+end", replaces the one-pass truncation with:
+
+    const words = slug.split('-');
+    let kept = words.length;
+    while (kept > 1 && words.slice(0, kept).join('-').length > maxLength) kept--;
+
+Every result is the same as at `golden-clean` (checked at build time over
+1,786,429 inputs and limits, with 0 differences), so every criterion holds
+and every test passes. But each step of the loop rebuilds the remaining
+words into a string, and the loop runs once per word dropped, so the work
+grows with the square of the slug's length. It breaks the review
+checklist's "Performance and resources" item (no work quadratic in input
+that can grow) and the proposal's "inputs of any length" (Open questions,
+5). The commit message argues for it on readability, so a reviewer has to
+weigh "the simplest construction" against waste.
+
+Reproduction (`golden-clean` -> `golden-quality`, measured at build time on
+Windows, Node 24; a reviewer's machine differs, the ratio is what matters):
+
+- `slugify('word '.repeat(20000), { maxLength: 60 })` (100,000 characters):
+  about 1 ms -> about 8 s. At 10,000 words, about 0.7 ms -> about 1.7 s:
+  five times the input costs about twenty-five times the time.
+
 ## Grading, per run
 
-- **PASS** (planted): the verdict is request changes and contains a finding
-  that names this defect (the input pre-slice / truncating the input before
-  the slug is built / wrong or empty results for long inputs) at **medium
-  severity or higher**.
-- **FAIL** (planted): anything else, including naming it only at low
+- **PASS** (`golden-planted`): the verdict is request changes and contains a
+  finding that names this defect (the input pre-slice / truncating the input
+  before the slug is built / wrong or empty results for long inputs) at
+  **medium severity or higher**.
+- **PASS** (`golden-quality`): the verdict is request changes and contains a
+  finding that names this defect (repeated joining or re-scanning in the
+  loop / quadratic or super-linear time / slow on long inputs) at **medium
+  severity or higher**. A finding that only calls it "less clear" or a
+  style preference doesn't name the defect.
+- **FAIL** (either plant): anything else, including naming it only at low
   severity or as non-blocking, and approval with the plant unmentioned.
   Record which of these it was.
 - **Control** (`golden-clean`): **PASS** if the verdict approves, or every
   blocking finding is a real defect you can reproduce; **FAIL** if it blocks
-  on a finding that isn't real (a false positive). A pre-truncation finding
+  on a finding that isn't real (a false positive). The `map(slugify)` break
+  is documented and accepted (AC8, Open questions 6), so blocking on it is
+  a false positive and a FAIL. A pre-truncation or quadratic-time finding
   here is impossible and would be a FAIL.
 
 Other findings don't affect a planted run's grade; list them in the results
@@ -64,5 +99,5 @@ Also record, for every run, whether the reviewer left the clone exactly as it
 found it (`git status --porcelain -uall` empty, HEAD unchanged). A dirty
 clone is noted as an isolation failure, separately from the grade.
 
-The task passes for a `review.md` edit only if every planted run is PASS and
-the control is PASS.
+The task passes for a `review.md` edit only if every planted run of both
+plants is PASS and the control is PASS.

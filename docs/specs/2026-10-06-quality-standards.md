@@ -62,15 +62,15 @@ defect, waste on growing input) and makes it something the author writes to
 and the reviewer checks. Fit: every code change. Cost: the lines above.
 Reversible: text edits.
 
-- [ ] 1. `implement.md`: Preconditions load the checklist's "Design and
+- [x] 1. `implement.md`: Preconditions load the checklist's "Design and
   simplicity" and "Performance and resources" sections; step 3 writes each
   task's code to them and to the repository's conventions. This is the
   routing `test-first` already uses for the Tests section.
-- [ ] 2. Checklist, Design and simplicity, a new item: *the simplest
+- [x] 2. Checklist, Design and simplicity, a new item: *the simplest
   construction that meets the criteria, so a reader new to the code follows
   it without the conversation that produced it.* Low unless a finding names
   a concrete cost (the section's existing rule).
-- [ ] 3. Checklist, Design and simplicity, a new item: *new code follows the
+- [x] 3. Checklist, Design and simplicity, a new item: *new code follows the
   patterns the repository's conventions name, or failing that, the ones
   nearby code uses for the same problem (errors, logging, data access,
   validation). A pattern that breaks the constitution, a security rule or a
@@ -78,17 +78,17 @@ Reversible: text edits.
   is a design decision: `design.md` names both and why, the user approves
   it with the spec, and the conventions record it so later changes follow
   it.*
-- [ ] 4. `spec-clarify.md` step 5: when the nearby pattern for the change's
+- [x] 4. `spec-clarify.md` step 5: when the nearby pattern for the change's
   problem is dated or weaker, raise it with the user, who chooses: follow it
   (recorded as known debt in `design.md`), adopt the better one for this
   change (recorded in the conventions), or migrate the old uses as a change
   of its own. `implement` step 4 (stop on divergence) already covers finding
   it late.
-- [ ] 5. `review.md` step 8: a new instance of a defect that exists
+- [x] 5. `review.md` step 8: a new instance of a defect that exists
   elsewhere in the code is introduced by this diff, not already present.
   Without this sentence a copied bad pattern can be filed as pre-existing
   and never block.
-- [ ] 6. Checklist, a new section, **Performance and resources**:
+- [x] 6. Checklist, a new section, **Performance and resources**:
   - *No waste that grows with input: no work quadratic in input that can
     grow, no I/O or query inside a loop where one call serves, and no
     unbounded memory growth. Every resource (file, connection, lock,
@@ -99,16 +99,16 @@ Reversible: text edits.
   Severity: under `review.md`'s existing scale, waste with a realistic
   trigger is a Medium (a real defect outside the criteria); a leaked
   resource on an error path likewise.
-- [ ] 7. `INSTALL.md` step 3, question 2: besides type checking, a
+- [x] 7. `INSTALL.md` step 3, question 2: besides type checking, a
   complexity limit, duplicate detection and dependency-boundary rules,
   suggest a formatter and the stack's standard style guide, and name the
   style guide in `AGENTS.md`'s conventions. This makes "consistent" a gate.
-- [ ] 8. `INSTALL.md` step 3, a new question for an existing codebase:
+- [x] 8. `INSTALL.md` step 3, a new question for an existing codebase:
   *which patterns here shouldn't be copied, and what replaces each?*
   Answers go into `AGENTS.md`'s conventions while they fit its 60 lines
   (the template has 39), or into a knowledge file it routes to, under the
   existing rule for content longer than a routing line.
-- [ ] 9. `permissions.md`: `implement` reads the checklist (already listed);
+- [x] 9. `permissions.md`: `implement` reads the checklist (already listed);
   no change unless items 1-8 change a row. Checked, not assumed.
 
 ### Golden fixture rebuild (evals)
@@ -118,7 +118,7 @@ control is only as good as its single right answer. Fit: every edit to the
 review text runs it (root `AGENTS.md`). Cost: one rebuild, two more runs per
 cycle (five instead of three). Reversible: the old bundle is in history.
 
-- [ ] 10. **Tests first.** `refresh.sh` and `tests/golden-fixture.test.sh`
+- [x] 10. **Tests first.** `refresh.sh` and `tests/golden-fixture.test.sh`
   know two tags. A spec section here states the new behavior: both treat
   `golden-quality` like `golden-planted` (the test fails, naming the file,
   when that tag changes a harness file; the refresh rewrites and checks all
@@ -126,7 +126,7 @@ cycle (five instead of three). Reversible: the old bundle is in history.
   test cases from that section, committed before `refresh.sh` changes
   (root `AGENTS.md`). The suite's existing assertion counts stay unchanged.
   The section is "Fixture tags" below.
-- [ ] 11. Rebuild the fixture from the current template, following the
+- [x] 11. Rebuild the fixture from the current template, following the
   golden README's build steps, with these differences in the change folder:
   - **The control gets one right answer:** the proposal names the
     `map(slugify)` case under compatibility; `design.md` gives the
@@ -139,7 +139,7 @@ cycle (five instead of three). Reversible: the old bundle is in history.
     files it relies on.
   - Source, tests and both existing plants keep their behavior, so the
     rubric's reproductions stay valid.
-- [ ] 12. A third tag, **`golden-quality`**: `golden-clean` plus one commit
+- [x] 12. A third tag, **`golden-quality`**: `golden-clean` plus one commit
   that rewrites truncation so it builds the result word by word and
   re-scans what it has built on each step. Before it is accepted:
   - gates and all tests pass at the tag;
@@ -148,7 +148,7 @@ cycle (five instead of three). Reversible: the old bundle is in history.
   - the slowdown is large and repeatable at a stated input size (seconds
     against milliseconds), not timing noise;
   - `golden-clean` has none of it, and the plant adds no second defect.
-- [ ] 13. `rubric.md` and the golden README: the control's expected verdict
+- [x] 13. `rubric.md` and the golden README: the control's expected verdict
   is approve, and blocking on `map(slugify)` is now a false positive (FAIL);
   `golden-quality` passes only with request changes naming the repeated
   re-scan at Medium or higher; the procedure runs `golden-planted` twice,
@@ -206,6 +206,30 @@ bundle, the committed-bundle case fails, as tests written first do.
    `src/`, `test/` and `package.json` are unchanged and `gates.sh` prints
    `gates: ok`.
 
+## As built
+
+- **Item 3:** the pattern item replaces the checklist's "follows the
+  conventions in `AGENTS.md`" item (now merged, one source), and the
+  "Conventions and docs" section is now "Docs". The template router gains a
+  `## Conventions` section (no `TODO`, so C12 holds), because the checklist
+  and `INSTALL.md` point at "`AGENTS.md`'s conventions" and the router had
+  no place for them.
+- **Item 11, the version (maintainer's decision, 2026-10-07):** the fixture
+  locks `package.json` during a change (it holds the test command), so the
+  change can't bump `slugkit` to 0.2.0; `implement` couldn't edit it, and
+  `spec-clarify` would flag it. The change adds a `CHANGELOG.md` entry
+  headed `0.2.0 (unreleased)` with the migration, and the proposal says the
+  bump happens at the library's release.
+- **Item 11, criteria:** the migration note is a new criterion, AC8
+  (manual-verify), done by a new task, T4; Open questions gains answer 6
+  (the callback break accepted, over ignoring a number, which P3 forbids).
+- **Item 12:** the plant drops words from the end until the rest fits,
+  rebuilding the remaining string each step. Checked at build time: 0
+  differences from `golden-clean` over 1,786,429 inputs and limits; gates
+  and all 26 tests pass at each tag; at 100,000 characters, about 1 ms
+  against about 8 s, and five times the input costs about twenty-five times
+  the time.
+
 ## Not changed
 
 - The constitution and `docs/01-design-rules.md`.
@@ -217,7 +241,8 @@ bundle, the committed-bundle case fails, as tests written first do.
 
 ## Questions, answered by the maintainer on 2026-10-07
 
-Q1: 2.3.0. Q2: yes, `slugkit` 0.2.0.
+Q1: 2.3.0. Q2: yes, `slugkit` 0.2.0, then (once the lock conflict surfaced)
+a changelog entry now and the bump at the library's release (As built).
 
 - **Q1.** Version: 2.3.0 (additive). Agreed?
 - **Q2.** The fixture's own version bump for the AC7 migration (item 11):

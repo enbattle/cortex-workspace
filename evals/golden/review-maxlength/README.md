@@ -1,8 +1,10 @@
 # Golden task: review catches a planted maxLength defect
 
 Checks that `harness/commands/review.md`, run by a fresh agent, blocks a
-change whose tests and gates all pass but whose code breaks an acceptance
-criterion. Re-run it after editing `template/harness/commands/review.md`,
+change whose tests and gates all pass but whose code is wrong: one plant
+breaks an acceptance criterion, the other meets every criterion but wastes
+work that grows with the input. A control checks that a correct change is
+approved. Re-run it after editing `template/harness/commands/review.md`,
 the review checklist or the security review (root `AGENTS.md`). This
 procedure uses a general-purpose reviewer, so it doesn't exercise the Claude
 Code reviewer adapter; after editing that adapter, re-run the probe in
@@ -11,47 +13,49 @@ Code reviewer adapter; after editing that adapter, re-run the probe in
 ## Contents
 
 - `fixture.bundle`: a git bundle of `slugkit`, a small Node library with
-  cortex 2.0.0 installed (on a `cortex-install` branch merged into `main`,
-  per `INSTALL.md`; step 5b, the CI setup, is skipped because the fixture
-  isn't hosted) and one change taken through the current flow on branch
+  cortex installed (on a `cortex-install` branch merged into `main`, per
+  `INSTALL.md`; step 5b, the CI setup, is skipped because the fixture isn't
+  hosted) and one change taken through the current flow on branch
   `change/20260924-slugify-maxlength` (`spec-new`, `spec-clarify` committing
   the approved folder, `test-first` with its three commits and `lock.md`,
-  `implement` with a commit per task, then verification evidence and gate
-  output in `tasks.md`). Tags:
-  `golden-clean` (the correct change) and `golden-planted` (one planted
-  commit on top). Node 18+ and Git Bash are all it needs.
-- `rubric.md`: the planted defect, its reproductions, and how to grade.
-- `results/<yyyy-mm-dd>.md`: one file per run date.
+  `implement` with a commit per task, then verification evidence, blast
+  radius and gate output in `tasks.md`). Tags:
+  - `golden-clean`: the correct change (the control);
+  - `golden-planted`: one commit on top that breaks a criterion;
+  - `golden-quality`: one commit on top that keeps every result and wastes
+    work.
 
-The bundle supersedes the earlier `spec.md` (the approved criteria, now
-`changes/20260924-slugify-maxlength/proposal.md` inside the fixture) and
-`planted.diff` (now the `golden-planted` commit), which were removed. The
-fixture was rebuilt from the first pilot's source and tests, in the current
-format (Amendment 2's `lock.md`).
+  Node 18+ and Git Bash are all it needs.
+- `rubric.md`: both plants, their reproductions, and how to grade.
+- `results/<yyyy-mm-dd>.md`: one file per run date.
 
 ## Which template this fixture matches
 
-The fixture was built on 2026-09-24 from the template at commit `15de2ea`,
-with that commit's `scripts/install.sh` and by following its command texts;
-the source, tests, proposal and planted change come from the first pilot
-(`1f9e92d`). On 2026-10-02 its change folder was brought up to the current
-flow (the completeness audit's L1): `tasks.md` has the template's
-`## Verification` section from the spec commit on, and the commit that
-records the gate output also records the implementer's run of `slugify`
-from a caller's position (the proposal's examples, which hold at
-`golden-clean`); the source, tests, proposal and plant are unchanged.
-The change folder has no `brief.md` (added by `spec-clarify` since): the
-brief informs the approval, not the review, so the fixture wasn't rebuilt
-for it. Nor has it `docs/knowledge/verification.md` or a blast-radius
-record in `tasks.md` (added in 2.2.0; `refresh.sh` leaves `docs/` and
-`changes/` alone): reviewers rate their absence Low or not at all and run
-the check themselves, so a run tests how review handles a change made
-before them. Otherwise only its installed copies have been refreshed. The
-current tags are in the bundle, and each results file records the commits
-it ran against.
+Built on 2026-09-24 from the template at `15de2ea`, with the source, tests,
+proposal and correctness plant of the first pilot (`1f9e92d`); its change
+folder was brought up to the 2.0.0 flow on 2026-10-02. **Rebuilt on
+2026-10-07** for 2.3.0 (`docs/specs/2026-10-06-quality-standards.md`, items
+11-12), keeping the source, tests and correctness plant:
+
+- `main` gained `docs/knowledge/verification.md` and a Conventions section
+  in `AGENTS.md`, as a project adopting 2.2.0 would.
+- The proposal documents the AC7 break for callers such as
+  `titles.map(slugify)`, with a manual-verify criterion (AC8) for the
+  migration note that task T4 adds (`CHANGELOG.md` and the JSDoc). So the
+  control has one right answer: approve. The version bump waits for the
+  library's release, because `package.json` is locked during the change.
+- `design.md` shows call sites and names the knowledge it relies on;
+  `tasks.md` names the recipe entry it followed and records a blast radius.
+- `golden-quality` is new (`rubric.md`).
+
+The change folder still has no `brief.md`: the brief informs the approval,
+not the review. Since the rebuild only the installed copies are refreshed.
+The current tags are in the bundle, and each results file records the
+commits it ran against.
 
 The installed copies that must match their source byte for byte, at
-`golden-clean`, with `golden-planted` leaving them unchanged:
+`golden-clean`, with `golden-planted` and `golden-quality` leaving them
+unchanged:
 
 - every file `install.sh` copies from `template/`, at the same path, except
   the ones filled in when the fixture was built (`.cortex/config`,
@@ -62,34 +66,37 @@ The installed copies that must match their source byte for byte, at
   `.cortex/adapters/claude-code/.claude/`.
 
 `tests/golden-fixture.test.sh` fails, naming each file, when one differs or
-is missing, so after an edit to any of them in `template/` the suites fail
-until the fixture is refreshed. Otherwise a run tests the old text.
+is missing, or when a tag is missing, so after an edit to any of them in
+`template/` the suites fail until the fixture is refreshed. Otherwise a run
+tests the old text.
 
 To refresh, run `bash evals/golden/review-maxlength/refresh.sh` and commit
 the new `fixture.bundle`. It rewrites the fixture's history with the
 current copies and replaces the bundle only if `gates.sh` prints
-`gates: ok` at both tags and the project's own files are unchanged (so the
-rubric's reproductions still hold). When the template removes a file or
-changes how a change is taken through the commands, rebuild the fixture
-instead, following the same steps as the first build (install, the approved
-change folder, test-first's three commits, the implementation, tag
-`golden-clean`, add the planted commit, tag `golden-planted`).
+`gates: ok` at each of the three tags and the project's own files are
+unchanged (so the rubric's reproductions still hold). When the template
+removes a file or changes how a change is taken through the commands,
+rebuild the fixture instead, following the same steps as the 2026-10-07
+build (install, the approved change folder, test-first's three commits, the
+implementation and its records, tag `golden-clean`, then each plant as one
+commit on top of it, tagged `golden-planted` and `golden-quality`). Check a
+new quality plant as `rubric.md` describes before trusting it.
 
 ## Procedure
 
-Run `golden-planted` twice and `golden-clean` once, each in its own fresh
-clone and by its own fresh agent.
+Run `golden-planted` twice, `golden-quality` twice and `golden-clean` once,
+each in its own fresh clone and by its own fresh agent.
 
 1. **Make a fresh clone.** In Git Bash, with `<cortex>` the cortex checkout
    and `<run-dir>` a new, empty directory outside any repository:
 
    ```bash
-   TAG=golden-planted            # or golden-clean for the control
+   TAG=golden-planted            # or golden-quality, or golden-clean for the control
    git clone -q <cortex>/evals/golden/review-maxlength/fixture.bundle <run-dir>/slugkit
    cd <run-dir>/slugkit
    git switch -q main
    git switch -q -C change/20260924-slugify-maxlength "$TAG"
-   git tag -d golden-clean golden-planted >/dev/null
+   git tag -d golden-clean golden-planted golden-quality >/dev/null
    git remote remove origin
    bash scripts/cortex/gates.sh changes/20260924-slugify-maxlength   # must end: gates: ok
    git status --porcelain -uall                                      # must be empty
