@@ -1,11 +1,11 @@
 # Changelog
 
-## 2.3.0 — Unreleased
+## 2.3.0 — 2026-10-07
 
-**Before release:** a date here, `VERSION`, the README's status and install
-tag, and a tag. Done: the golden cycle
-(`evals/golden/review-maxlength/results/2026-10-07.md`), the completeness
-audit (`evals/audits/2026-10-07.md`), and the full suites and CI on PR #23.
+**Before release** (all done): the golden cycle
+(`evals/golden/review-maxlength/results/2026-10-07.md`); the completeness
+audit (`evals/audits/2026-10-07.md`) and its findings; the full suites and
+CI on PR #23; the README's status and install tag.
 
 **Changed: review's inputs** (design rule R4). Review now reads the
 repository's `AGENTS.md` files, since the checklist checks code against
