@@ -29,32 +29,55 @@ expected_pairs() {
   printf '.cortex/version\tVERSION\n'
 }
 
+# The fixture's three tags; the compared files must be identical at all three.
+TAGS="golden-clean golden-planted golden-quality"
+
 # fixture_drift CLONE SRC : prints one line per mismatch, exits 1 if any.
+#   missing-tag <tag>
 #   stale <path> (differs from <source>)
 #   missing <path> (<source> exists)
 #   planted-changes <path>
-# Three git calls in all, not one per file (process start-up is slow on
-# Windows).
+#   quality-changes <path>
+# A missing tag skips the comparisons that need it. At most five git calls
+# in all, not one per file (process start-up is slow on Windows).
 fixture_drift() {
-  local clone="$1" src="$2" pairs out
+  local clone="$1" src="$2" pairs out have t
   pairs="$(expected_pairs "$src")"
+  # shellcheck disable=SC2086 # TAGS is a word list
+  have=" $(git -C "$clone" tag -l $TAGS | tr '\n' ' ')"
   out="$(
     {
+      for t in $TAGS; do
+        case "$have" in *" $t "*) ;; *) printf 'T\t%s\n' "$t" ;; esac
+      done
       cut -f2 <<<"$pairs" | (cd "$src" && xargs git hash-object --no-filters --) |
         paste - <(printf '%s\n' "$pairs") | awk -F'\t' '{ print "S\t" $2 "\t" $3 "\t" $1 }'
-      git -C "$clone" ls-tree -r golden-clean | awk -F'\t' '{ split($1, m, " "); print "F\t" $2 "\t" m[3] }'
-      cut -f1 <<<"$pairs" | xargs git -C "$clone" diff --name-only golden-clean golden-planted -- |
-        sed 's/^/P\t/'
+      case "$have" in *" golden-clean "*)
+        git -C "$clone" ls-tree -r golden-clean | awk -F'\t' '{ split($1, m, " "); print "F\t" $2 "\t" m[3] }'
+        printf 'C\n'
+        case "$have" in *" golden-planted "*)
+          cut -f1 <<<"$pairs" | xargs git -C "$clone" diff --name-only golden-clean golden-planted -- |
+            sed 's/^/P\t/' ;;
+        esac
+        case "$have" in *" golden-quality "*)
+          cut -f1 <<<"$pairs" | xargs git -C "$clone" diff --name-only golden-clean golden-quality -- |
+            sed 's/^/Q\t/' ;;
+        esac ;;
+      esac
     } | awk -F'\t' '
+      $1 == "T" { print "missing-tag " $2; next }
       $1 == "S" { n++; path[n] = $2; source[n] = $3; want[n] = $4; next }
+      $1 == "C" { clean = 1; next }
       $1 == "F" { have[$2] = $3; next }
-      $1 == "P" { planted[++np] = $2 }
+      $1 == "P" { planted[++np] = $2; next }
+      $1 == "Q" { quality[++nq] = $2 }
       END {
-        for (i = 1; i <= n; i++) {
+        for (i = 1; clean && i <= n; i++) {
           if (!(path[i] in have)) print "missing " path[i] " (" source[i] " exists)"
           else if (have[path[i]] != want[i]) print "stale " path[i] " (differs from " source[i] ")"
         }
         for (i = 1; i <= np; i++) print "planted-changes " planted[i]
+        for (i = 1; i <= nq; i++) print "quality-changes " quality[i]
       }'
   )"
   [ -z "$out" ] || { printf '%s\n' "$out"; return 1; }
@@ -129,7 +152,48 @@ case_planted_tag_changes_harness() {
   assert_line "$OUT" "planted-changes harness/commands/review.md" "names the file the planted tag changes"
 }
 
+# work_copy -> a working clone of the committed bundle, to move tags in
+work_copy() {
+  local w
+  w="$(mktemp -d "$TEST_TMP/work.XXXXXX")"
+  git clone -q "$BUNDLE" "$w"
+  printf '%s\n' "$w"
+}
+
+# rebundle WORK NAME -> a bare clone of WORK's refs, via a new bundle
+rebundle() {
+  local b="$TEST_TMP/$2.bundle"
+  git -C "$1" bundle create -q "$b" --all 2>/dev/null
+  clone_bundle "$b"
+}
+
+case_planted_quality_changes_harness() {
+  local w
+  w="$(work_copy)"
+  git -C "$w" -c advice.detachedHead=false checkout -q golden-clean
+  append "$w/harness/commands/review.md" "quality edit"
+  git -C "$w" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -q -am "edit review.md"
+  git -C "$w" tag -f golden-quality >/dev/null
+  run fixture_drift "$(rebundle "$w" quality)" "$ROOT"
+  assert_exit 1 "$CODE" "golden-quality changing a harness file fails"
+  assert_line "$OUT" "quality-changes harness/commands/review.md" "names the file the quality tag changes"
+}
+
+case_planted_quality_tag_deleted() {
+  local w
+  w="$(work_copy)"
+  # Exists first (the bundle may or may not carry it yet), then deleted.
+  git -C "$w" tag -f golden-quality golden-clean >/dev/null
+  git -C "$w" tag -d golden-quality >/dev/null
+  run fixture_drift "$(rebundle "$w" no-quality)" "$ROOT"
+  assert_exit 1 "$CODE" "a missing golden-quality tag fails"
+  assert_line "$OUT" "missing-tag golden-quality" "names the missing tag"
+  assert_not_contains "$ERR" "fatal" "the comparisons needing the tag are skipped, not crashed"
+}
+
 run_case "committed fixture.bundle matches template/" case_committed_bundle_matches
 run_case "planted: every drifted or missing source file is named" case_planted_source_drift
 run_case "planted: golden-planted changing a harness file is named" case_planted_tag_changes_harness
+run_case "planted: golden-quality changing a harness file is named" case_planted_quality_changes_harness
+run_case "planted: a deleted golden-quality tag is named" case_planted_quality_tag_deleted
 summary
