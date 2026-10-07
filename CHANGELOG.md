@@ -2,8 +2,14 @@
 
 ## 2.3.0 — Unreleased
 
-**Before release:** the golden cycle, the completeness audit, the full
-suites and CI on the pull request, a date here, `VERSION`, and a tag.
+**Before release:** the full suites and CI on the pull request, a date
+here, `VERSION`, the README's status and install tag, and a tag. Done: the
+golden cycle (`evals/golden/review-maxlength/results/2026-10-07.md`) and
+the completeness audit (`evals/audits/2026-10-07.md`).
+
+**Changed: review's inputs** (design rule R4). Review now reads the
+repository's `AGENTS.md` files, since the checklist checks code against
+their conventions; the router was already read by every agent.
 
 **Added: quality standards for the code itself**
 (`docs/specs/2026-10-06-quality-standards.md`). It is still markdown only,
@@ -45,6 +51,7 @@ with no template script change and no new required field.
 
 **For installed repositories:** upgrades are still a manual merge. Bring
 over `implement.md`, `review.md`, `spec-clarify.md`, `review-checklist.md`,
+`permissions.md`, `.cortex/design-rules.md` (from `docs/01-design-rules.md`),
 and the template `AGENTS.md`'s Conventions section (merge it into yours).
 
 ## 2.2.0 — 2026-10-06

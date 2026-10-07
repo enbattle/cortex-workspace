@@ -10,8 +10,8 @@ against the change before approving it.
 
 - **Isolation (design rule R4, in `.cortex/design-rules.md`).** You are running in a fresh context. Your
   only inputs are: the diff, the change folder, `docs/constitution.md`,
-  `harness/policies/review-checklist.md`, and knowledge files the change
-  folder names. If this conversation contains the change's planning or
+  `harness/policies/review-checklist.md`, the repository's `AGENTS.md`
+  files (their conventions), and knowledge files the change folder names. If this conversation contains the change's planning or
   implementation, refuse and tell the user to start a fresh context. A
   command or skill invoked inside the implementing session is not a fresh
   context.

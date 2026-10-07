@@ -37,8 +37,10 @@ folder was brought up to the 2.0.0 flow on 2026-10-02. **Rebuilt on
 2026-10-07** for 2.3.0 (`docs/specs/2026-10-06-quality-standards.md`, items
 11-12), keeping the source, tests and correctness plant:
 
-- `main` gained `docs/knowledge/verification.md` and a Conventions section
-  in `AGENTS.md`, as a project adopting 2.2.0 would.
+- `main` gained `docs/knowledge/verification.md`, a Conventions section in
+  `AGENTS.md`, and the template's constitution rules E, S and W (its own
+  P1-P3 kept; the 2026-09-24 build predated E4), as a project on 2.2.0
+  has them.
 - The proposal documents the AC7 break for callers such as
   `titles.map(slugify)`, with a manual-verify criterion (AC8) for the
   migration note that task T4 adds (`CHANGELOG.md` and the JSDoc). So the

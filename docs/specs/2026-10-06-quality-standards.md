@@ -166,7 +166,7 @@ cycle (five instead of three). Reversible: the old bundle is in history.
   edits.
 - [ ] 16. `CHANGELOG.md` entry (2.3.0: additive, no command contract or
   required file changes); the full suites and CI pass on the pull request.
-- [ ] 17. A completeness audit before release (root `AGENTS.md`),
+- [x] 17. A completeness audit before release (root `AGENTS.md`),
   including its nomination of something to delete or merge. This plan's
   nomination: none in the template (each addition is a line or two and
   replaces nothing); in the evals, the rebuild retires the README's notes
@@ -201,7 +201,8 @@ bundle, the committed-bundle case fails, as tests written first do.
 4. The existing cases keep their assertions, and the existing planted
    cases still name exactly what they name today (the seven-line count in
    the source-drift case holds once the bundle has all three tags).
-5. `refresh.sh` (not a suite; changed after the tests, checked by them):
+5. `refresh.sh` (not a suite; changed after the tests, which check the
+   bundle it produces, not the script):
    rewrites all three tags; refuses the new bundle unless, at each tag,
    `src/`, `test/` and `package.json` are unchanged and `gates.sh` prints
    `gates: ok`.
@@ -227,12 +228,43 @@ bundle, the committed-bundle case fails, as tests written first do.
   rebuilding the remaining string each step. Checked at build time: 0
   differences from `golden-clean` over 1,786,429 inputs and limits; gates
   and all 26 tests pass at each tag; at 100,000 characters, about 1 ms
-  against about 8 s, and five times the input costs about twenty-five times
-  the time.
+  against about 8 s, and at 10,000, 0.1 ms against 65 ms: ten times the
+  input costs about a hundred times the time.
+
+From the completeness audit (`evals/audits/2026-10-07.md`):
+
+- **Item 9:** checked: `permissions.md` already gives `implement` "the
+  review checklist", so no row changed for items 1-8. The review row
+  gained `AGENTS.md` (next bullet).
+- **R4 (maintainer's decision, 2026-10-07), against "Not changed" below:**
+  review's inputs now include the repository's `AGENTS.md` files, in R4,
+  `review.md` and `permissions.md`. The checklist checks code against
+  their conventions, and R4 didn't list them; the gap predates this plan,
+  and item 3 made it load-bearing. Isolation isn't weakened: R4 keeps the
+  reviewer from the implementation conversation, and the router is
+  project instructions every agent reads first.
+- **Item 11, the constitution:** the first golden cycle found the
+  fixture's constitution predated E4 (and W1's current wording) while the
+  checklist cites E4. The rebuild gives the fixture the template's E, S
+  and W rules, keeping its own P1-P3 (`15fd3ec`).
+- **Item 10, `refresh.sh` with three tags:** run three times during the
+  rebuild, each printing `gates: ok` for `golden-clean`,
+  `golden-planted` and `golden-quality`; the last run (bundle in
+  `15fd3ec`, refreshed again after the audit's checklist edits) is the
+  committed one.
+- **Checklist, from the audit:** the Performance section's intro sentence
+  merged into its third item (the audit's nomination: the rule was stated
+  twice); the pattern item's last sentence points at `spec-clarify` step 5
+  instead of restating it; the preamble says nearby code is the pattern
+  item's reference, not its subject.
+- **Cost (R13), measured by the audit:** the checklist grew from 76 to 86
+  lines; the commands by about 100 words; `implement` now also loads two
+  checklist sections (about 400 words) on every run.
 
 ## Not changed
 
-- The constitution and `docs/01-design-rules.md`.
+- The constitution. `docs/01-design-rules.md` changed only in R4, on the
+  maintainer's decision after the audit (As built).
 - The template's scripts (`scripts/cortex/`). Item 10 changes only the
   evals' `refresh.sh` and its test suite, tests first.
 - The catalog's "Performance and observability budgets" entry stays
