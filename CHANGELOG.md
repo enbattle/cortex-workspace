@@ -1,5 +1,52 @@
 # Changelog
 
+## 2.3.0 — Unreleased
+
+**Before release:** the golden cycle, the completeness audit, the full
+suites and CI on the pull request, a date here, `VERSION`, and a tag.
+
+**Added: quality standards for the code itself**
+(`docs/specs/2026-10-06-quality-standards.md`). It is still markdown only,
+with no template script change and no new required field.
+
+- **`implement` writes to the quality bar.** Before, only `test-first`
+  (Tests) and `spec-clarify` (Design) were pointed at the checklist; the
+  implementer met the bar only when review rejected its work. It now loads
+  the "Design and simplicity" and "Performance and resources" sections and
+  writes each task's code to them and to the conventions.
+- **Design and simplicity, two items:**
+  - The simplest construction that meets the criteria, so a reader new to
+    the code follows it.
+  - New code follows the conventions, or else nearby patterns. A pattern
+    that breaks the constitution, a security rule or a lint gate is never
+    copied. A better pattern is a decision the user approves and the
+    conventions record. This replaces the old conventions item.
+- **Related rules:**
+  - `spec-clarify` raises dated patterns with the user.
+  - `review` counts a copied defect as introduced, so it blocks.
+- **Performance and resources**, a new checklist section: no waste that
+  grows with input, no I/O or query inside a loop where one call serves,
+  resources released on every path. Optimization beyond that only when a
+  criterion asks for it, and measured.
+- **`INSTALL.md`:**
+  - It suggests a formatter and the stack's style guide in the lint
+    command.
+  - It asks which patterns shouldn't be copied.
+  - The template `AGENTS.md` gains a Conventions section to hold the
+    answers.
+- **Golden task:**
+  - The fixture is rebuilt. The control now has one right answer: the
+    `map(slugify)` break is documented (AC8).
+  - The 2.2.0 recipe and blast-radius paths are exercised.
+  - A new `golden-quality` tag holds a quality plant: same results,
+    quadratic work.
+  - `refresh.sh` and its suite handle three tags; the tests were written
+    first, by a separate agent.
+
+**For installed repositories:** upgrades are still a manual merge. Bring
+over `implement.md`, `review.md`, `spec-clarify.md`, `review-checklist.md`,
+and the template `AGENTS.md`'s Conventions section (merge it into yours).
+
 ## 2.2.0 — 2026-10-06
 
 **Before release** (all done): the completeness audit
