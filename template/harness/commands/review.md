@@ -52,6 +52,8 @@ against the change before approving it.
    the same inputs. Its findings join yours.
 8. Label every finding as introduced by this diff or already present. Only
    introduced findings block approval; list the rest separately for the user.
+   A new instance of a defect that exists elsewhere in the code (a copied
+   pattern) is introduced by this diff.
    Each finding names a realistic trigger: a real caller or input, a
    plausible edit, or a documented threat. A finding with none is labelled
    *theoretical* and rated Low. Severity weighs impact against likelihood,

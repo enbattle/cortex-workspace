@@ -35,7 +35,8 @@ verification recipe (`docs/knowledge/verification.md`); review repeats it.
 
 ## Design and simplicity (constitution E4)
 
-`spec-clarify` designs to this section; review checks the code against it.
+`spec-clarify` designs to this section, `implement` writes code to it, and
+review checks the code against it.
 E4 wins any tie: no item here justifies a layer, type or abstraction the
 criteria don't need. The items apply to code the change touches, not to
 nearby code. The first two items are E4 itself, so a breach is a
@@ -44,12 +45,24 @@ cost (a caller that breaks, a defect the shape invites).
 
 - [ ] No logic or fact is duplicated where the copies must change together.
 - [ ] Nothing is built beyond the criteria: no unused option, speculative abstraction, dead code, or compatibility path kept for internal callers.
+- [ ] The simplest construction that meets the criteria: a reader new to the code follows it without the conversation that produced it.
+- [ ] New code follows the patterns the repository's conventions name (`AGENTS.md`, and a package's own), or failing that the ones nearby code uses for the same problem (errors, logging, data access, validation). A pattern that breaks the constitution, a security rule or a lint gate is never copied. A better pattern chosen over the nearby one is in `design.md` with the reason, approved with the spec, and recorded in the conventions.
 - [ ] Interfaces are shaped from the call site: the caller's code reads plainly.
 - [ ] Invalid states are hard to represent, where the language's types express it cheaply, rather than guarded by conditionals scattered across callers.
 - [ ] Each new unit has one reason to change.
 - [ ] Dependencies point the way the architecture overview says (when the change folder names it), and no new cycle appears.
 - [ ] A constraint is a type, a test or a lint rule where it can be, not only a comment; comments say why, not what.
 - [ ] Names match the glossary (when the change folder names it).
+
+## Performance and resources
+
+`implement` writes code to this section; review checks it. It is a check
+against waste, not a license to optimize: work beyond it is E4's
+speculative work unless a criterion asks for it.
+
+- [ ] No waste that grows with input: no work quadratic in input that can grow, no I/O or query inside a loop where one call serves, no unbounded memory growth.
+- [ ] Every resource (file, connection, lock, timer) is released on every path, including error paths.
+- [ ] Performance work beyond these is there only because a criterion asks for it, and it is measured.
 
 ## Security (every change; the external-surface pass goes deeper)
 
@@ -64,9 +77,8 @@ cost (a caller that breaks, a defect the shape invites).
 - [ ] New failure modes are logged or observable; nothing fails silently.
 - [ ] The rollback plan in `design.md` would actually work.
 
-## Conventions and docs
+## Docs
 
-- [ ] The code follows the conventions in `AGENTS.md` (and a package's own `AGENTS.md`).
 - [ ] Docs the change made stale are updated; any spec deviation is in `design.md`'s `## As built`.
 
 ## Process rules only review can check

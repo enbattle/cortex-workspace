@@ -28,6 +28,10 @@ Build, test and lint commands live in `.cortex/config` (`BUILD_CMD`,
 `TEST_CMD`, `LINT_CMD`); `bash scripts/cortex/gates.sh <change-folder>` runs them
 with the test lock and the harness check.
 
+## Conventions
+
+<!-- The style guide the lint command enforces, the patterns new code follows, and patterns not to copy with what replaces each. One line each; when they outgrow this file, move them to a knowledge file and route to it here. -->
+
 ## Rules
 
 - **Trivial changes** (a typo, formatting, a comment) skip the pipeline, with a descriptive commit message. If it's unclear whether a change is trivial, it isn't; ask.
