@@ -153,13 +153,13 @@ cycle (five instead of three). Reversible: the old bundle is in history.
   `golden-quality` passes only with request changes naming the repeated
   re-scan at Medium or higher; the procedure runs `golden-planted` twice,
   `golden-quality` twice and `golden-clean` once.
-- [ ] 14. Run the golden cycle once, after items 1-13 (all review-text
+- [x] 14. Run the golden cycle once, after items 1-13 (all review-text
   edits land first, so the runs happen once), and record it in
   `results/<date>.md`.
 
 ### Catalog and release
 
-- [ ] 15. `docs/02-extensions.md`, "Golden-task evals" tier 2: record the
+- [x] 15. `docs/02-extensions.md`, "Golden-task evals" tier 2: record the
   quality plant, and as a catalog note (not built) a second quality plant,
   a duplicated rule for E4, with its trigger: a review finding that E4
   duplication escaped, or the quality tag passing everywhere for a cycle of
