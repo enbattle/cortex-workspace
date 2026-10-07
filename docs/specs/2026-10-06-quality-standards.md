@@ -1,9 +1,8 @@
 # Plan: quality standards for the code itself (2.3.0)
 
-Status: **draft, 2026-10-06; not approved.** Agreed in outline in discussion
-with the maintainer on 2026-10-06. Nothing in `template/` or `evals/`
-changes until this plan is approved. A point-in-time record once approved:
-the completeness audit maps every item below to evidence.
+Status: **approved by the maintainer, 2026-10-07**, with both open questions
+answered (at the end). A point-in-time record: the completeness audit maps
+every item below to evidence.
 
 ## Context
 
@@ -126,6 +125,7 @@ cycle (five instead of three). Reversible: the old bundle is in history.
   three tags). A separate agent that hasn't seen the change writes the
   test cases from that section, committed before `refresh.sh` changes
   (root `AGENTS.md`). The suite's existing assertion counts stay unchanged.
+  The section is "Fixture tags" below.
 - [ ] 11. Rebuild the fixture from the current template, following the
   golden README's build steps, with these differences in the change folder:
   - **The control gets one right answer:** the proposal names the
@@ -172,6 +172,40 @@ cycle (five instead of three). Reversible: the old bundle is in history.
   replaces nothing); in the evals, the rebuild retires the README's notes
   on what the fixture predates.
 
+## Fixture tags (spec for item 10)
+
+The check is `fixture_drift` in `tests/golden-fixture.test.sh`; it is test
+code, so the separate agent writes the check and its planted cases together
+from this section. The fixture rebuild (items 11-12) is what makes the
+committed bundle pass again: between the tests commit and the rebuilt
+bundle, the committed-bundle case fails, as tests written first do.
+
+1. The fixture has three tags: `golden-clean`, `golden-planted` and
+   `golden-quality`. The harness files compared (the existing
+   `expected_pairs`) must be identical at all three.
+2. `fixture_drift` reports, one line each, as today:
+   `stale <path> (differs from <source>)`, `missing <path> (<source>
+   exists)`, `planted-changes <path>` (golden-planted differs from
+   golden-clean on a compared file); and, new:
+   - `quality-changes <path>`: golden-quality differs from golden-clean on
+     a compared file;
+   - `missing-tag <tag>`: one of the three tags doesn't exist in the
+     bundle. Then the comparisons that need that tag are skipped, not
+     crashed.
+3. New planted cases, each built from a copy of the committed bundle:
+   - golden-quality moved to a commit that changes
+     `harness/commands/review.md`: exit 1, and the line
+     `quality-changes harness/commands/review.md`;
+   - golden-quality deleted: exit 1, and the line
+     `missing-tag golden-quality`.
+4. The existing cases keep their assertions, and the existing planted
+   cases still name exactly what they name today (the seven-line count in
+   the source-drift case holds once the bundle has all three tags).
+5. `refresh.sh` (not a suite; changed after the tests, checked by them):
+   rewrites all three tags; refuses the new bundle unless, at each tag,
+   `src/`, `test/` and `package.json` are unchanged and `gates.sh` prints
+   `gates: ok`.
+
 ## Not changed
 
 - The constitution and `docs/01-design-rules.md`.
@@ -181,7 +215,9 @@ cycle (five instead of three). Reversible: the old bundle is in history.
   deferred: item 6 checks for waste, while budgets (numeric targets
   enforced in CI) still wait for their trigger.
 
-## Open questions for the maintainer
+## Questions, answered by the maintainer on 2026-10-07
+
+Q1: 2.3.0. Q2: yes, `slugkit` 0.2.0.
 
 - **Q1.** Version: 2.3.0 (additive). Agreed?
 - **Q2.** The fixture's own version bump for the AC7 migration (item 11):
