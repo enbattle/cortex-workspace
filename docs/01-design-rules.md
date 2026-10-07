@@ -37,7 +37,8 @@ commands, layout), and it may never relax the constitution, the security
 rules, or any gate.
 
 **R4 — Reviewer isolation.** Review runs in a fresh context whose only inputs
-are the diff, the change folder, the constitution, the review checklist, and
+are the diff, the change folder, the constitution, the review checklist, the
+repository's `AGENTS.md` files (the conventions review checks against), and
 knowledge files the change folder names. It never sees the implementation
 conversation. A skill or command invoked for review runs inside the calling
 session unless it explicitly delegates, so invoking one is not isolation. How

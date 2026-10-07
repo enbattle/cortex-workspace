@@ -31,11 +31,12 @@ Ask, in one batch where you can:
 2. The build, test and lint commands. Detect candidates first (`package.json`
    scripts, a `Makefile`, `pyproject.toml`, `Cargo.toml`, CI workflows) and
    ask the user to confirm them rather than asking from scratch. Suggest
-   that the lint command also run what the stack offers for type checking,
-   a complexity limit, duplicate detection and dependency-boundary rules:
+   that the lint command also run what the stack offers for formatting
+   (checked, not rewritten), its standard style guide, type checking, a
+   complexity limit, duplicate detection and dependency-boundary rules:
    these turn items of the review checklist's "Design and simplicity"
    section into gates. They are the project's tools; add only the ones the
-   user agrees to.
+   user agrees to, and name the style guide in `AGENTS.md`'s conventions.
 3. What the test runner loads (for `TEST_GLOBS`): not just how test files
    are named, but every helper, fixture and setup file it picks up. Check the
    runner's discovery rules; for example `node --test` loads more than
@@ -54,6 +55,9 @@ Ask, in one batch where you can:
 7. How to start the software, check it's healthy, and stop it (for
    `docs/knowledge/verification.md`), if there is something to run. Its
    feature rows are filled in later, as changes touch each feature.
+8. For an existing codebase: which patterns here shouldn't be copied, and
+   what replaces each? They go into `AGENTS.md`'s conventions while they fit
+   its 60 lines, or into a knowledge file it routes to.
 
 Then fill in `.cortex/config`, the placeholders in `AGENTS.md` (keep it at 60
 lines or fewer), the project section of `docs/constitution.md` (P1, P2, ...), `docs/knowledge/glossary.md`,

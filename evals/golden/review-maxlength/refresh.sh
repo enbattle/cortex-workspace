@@ -6,9 +6,10 @@
 # rewritten test commit. Source, tests, planted content, messages, authors
 # and dates stay as they are.
 #
-# The bundle is replaced only if gates.sh prints "gates: ok" at both tags and
-# the project's own files (src/, test/, package.json) are unchanged at both,
-# which also keeps the rubric's reproductions valid. A file removed from
+# The bundle is replaced only if gates.sh prints "gates: ok" at each of the
+# three tags (golden-clean, golden-planted, golden-quality) and the project's
+# own files (src/, test/, package.json) are unchanged at each, which also
+# keeps the rubric's reproductions valid. A file removed from
 # template/ is not removed from the fixture; rebuild it then (README).
 #
 # Usage: evals/golden/review-maxlength/refresh.sh
@@ -30,8 +31,10 @@ for b in main cortex-install "change/${folder#changes/}"; do
   git branch -q -f "$b" "origin/$b"
 done
 git remote remove origin
-old_clean="$(git rev-parse golden-clean)"
-old_planted="$(git rev-parse golden-planted)"
+before=""
+for tag in golden-clean golden-planted golden-quality; do
+  before="$before $tag=$(git rev-parse "$tag")"
+done
 
 # Sourced by filter-branch at each commit, in the commit's tree, with its
 # map function in scope.
@@ -63,8 +66,8 @@ FILTER_BRANCH_SQUELCH_WARNING=1 git filter-branch -f \
   --tree-filter ". '$work/filter.sh'" --tag-name-filter cat -- --branches --tags >/dev/null 2>&1
 
 failed=0
-for pair in "golden-clean $old_clean" "golden-planted $old_planted"; do
-  tag="${pair% *}" old="${pair#* }"
+for pair in $before; do
+  tag="${pair%=*}" old="${pair#*=}"
   for path in src test package.json; do
     if [ "$(git rev-parse "$old:$path")" != "$(git rev-parse "$tag:$path")" ]; then
       echo "refresh: FAIL $path changed at $tag"

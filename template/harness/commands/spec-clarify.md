@@ -42,8 +42,13 @@ toward the spec, not polite to it.
    of each alternative (a few lines of the caller's code), so the options
    are compared from where they are used, and name in `design.md` the
    knowledge files the design relies on (the architecture overview, the
-   glossary), so review may read them. Fill `tasks.md`: small, ordered
-   tasks, each with a done-check that can be run or observed. Until the last task
+   glossary), so review may read them. When the pattern nearby code uses
+   for the change's problem is dated or weaker than a known better one,
+   raise it with the user, who chooses: follow it (recorded in `design.md`
+   as known debt), adopt the better one for this change (recorded in the
+   conventions), or migrate the old uses as a change of its own. Fill
+   `tasks.md`: small, ordered tasks, each with a done-check that can be run
+   or observed. Until the last task
    the locked tests still fail, so an earlier done-check names the tests it
    runs, not the whole test command. A task can't edit a file the test lock
    covers (a non-test file matching `TEST_GLOBS`, such as the test runner's

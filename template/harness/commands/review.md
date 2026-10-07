@@ -10,8 +10,8 @@ against the change before approving it.
 
 - **Isolation (design rule R4, in `.cortex/design-rules.md`).** You are running in a fresh context. Your
   only inputs are: the diff, the change folder, `docs/constitution.md`,
-  `harness/policies/review-checklist.md`, and knowledge files the change
-  folder names. If this conversation contains the change's planning or
+  `harness/policies/review-checklist.md`, the repository's `AGENTS.md`
+  files (their conventions), and knowledge files the change folder names. If this conversation contains the change's planning or
   implementation, refuse and tell the user to start a fresh context. A
   command or skill invoked inside the implementing session is not a fresh
   context.
@@ -52,6 +52,8 @@ against the change before approving it.
    the same inputs. Its findings join yours.
 8. Label every finding as introduced by this diff or already present. Only
    introduced findings block approval; list the rest separately for the user.
+   A new instance of a defect that exists elsewhere in the code (a copied
+   pattern) is introduced by this diff.
    Each finding names a realistic trigger: a real caller or input, a
    plausible edit, or a documented threat. A finding with none is labelled
    *theoretical* and rated Low. Severity weighs impact against likelihood,

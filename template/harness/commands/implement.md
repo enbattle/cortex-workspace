@@ -14,8 +14,10 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
   missing step (`test-first`).
 - `bash scripts/cortex/tests-locked.sh <change-folder>` passes before you start.
 - You are on the change branch.
-- Load `docs/constitution.md`, the repository's `AGENTS.md`, and
-  only the knowledge files the change folder names.
+- Load `docs/constitution.md`, the repository's `AGENTS.md`, the "Design
+  and simplicity" and "Performance and resources" sections of
+  `harness/policies/review-checklist.md`, and only the knowledge files the
+  change folder names.
 
 ## Procedure
 
@@ -41,7 +43,8 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    duration of the change. That is the test writer's job. If a test looks wrong, stop and report it. A wrong
    test is a spec problem; the user decides whether `test-first` re-runs
    (a re-lock with their sign-off: `test-first` step 7).
-3. For each task: make the change, run its done-check, check it off in
+3. For each task: make the change, written to those two checklist sections
+   and the repository's conventions, run its done-check, check it off in
    `tasks.md` with a one-line note on what was done, and commit. A commit per
    task means a failed attempt can be reverted to the last good task.
 4. When reality diverges from the spec (a different mechanism, a changed
