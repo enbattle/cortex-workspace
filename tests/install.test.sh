@@ -244,7 +244,7 @@ case_newer_installed_refused() {
   assert_true "A1: a refused cortex/version line" has_line_starting "$OUT$ERR" "refused "
   # A1: a version refusal names both versions
   assert_contains "$OUT$ERR" "$(this_version)" "names the clone's version too (A1)"
-  assert_true "nothing copied"test "$(tree_files "$d")" = "$before"
+  assert_true "nothing copied" test "$(tree_files "$d")" = "$before"
   assert_file_absent "$d/cortex/AGENTS.md" "removed file not restored"
 }
 
