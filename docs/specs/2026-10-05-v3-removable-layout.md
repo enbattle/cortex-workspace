@@ -1,9 +1,10 @@
 # Spec: cortex 3.0.0, one directory, clean install and removal
 
-Status: **draft, 2026-10-05, rebased on 2.3.0 on 2026-10-07; not
-approved.** Drafted from a discussion with the maintainer (2026-10-04 to
-2026-10-07); the maintainer's answers to the open questions are recorded
-under "Resolved questions". Nothing below is built. A point-in-time record
+Status: **approved by the maintainer on 2026-10-08 (pull request #25).**
+Drafted 2026-10-05, rebased on 2.3.0 on 2026-10-07, from a discussion with
+the maintainer (2026-10-04 to 2026-10-08); the maintainer's answers to the
+open questions are recorded under "Resolved questions". Nothing below is
+built yet. A point-in-time record
 once approved: the scripts and `docs/01-design-rules.md` are authoritative
 after it lands.
 
