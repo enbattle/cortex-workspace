@@ -304,7 +304,7 @@ in a stable sorted order:
 
 ```
 created	<path>	<blob sha at write time>
-block	<path>	<block id>	<blob sha of the block's content at write time>
+block	<path>	<block id>	<blob sha of the block's content at write time>	<sep (A6)>
 entry	<path>	<the exact line>
 ```
 
@@ -741,3 +741,80 @@ don't close them off.
   placed in a release: approvals bound to an identity, review run in CI by
   an isolated reviewer, structured pipeline metrics, sandboxed execution,
   CI providers beyond GitHub, and autonomy tiers earned from the record.
+
+## Amendment 1 (2026-10-08): details the test writer needed
+
+Status: **approved by the maintainer on 2026-10-08.** Raised by the first
+test-writing round, where the spec left a behavior the tests must pin down.
+
+- **A1. Output lines.** `install.sh`, `adapt.sh` and `remove.sh` print one
+  line per action, from one vocabulary. Paths are relative to the
+  repository root.
+
+  | Line | Meaning |
+  | --- | --- |
+  | `created <path>` | a file written where none was |
+  | `block <path> <id>` | a block inserted or rewritten |
+  | `unchanged <path>` | nothing to do |
+  | `replaced <path>` | upgrade: unedited, replaced by the new version |
+  | `merged <path>` | upgrade: both sides' edits merged cleanly |
+  | `kept <path> (<reason>)` | left in place: `edited`, `removed upstream, edited`, `edited after install` |
+  | `deleted <path> (changed upstream)` | upgrade: the user deleted it; upstream changed it |
+  | `conflict <path>` | upgrade: markers left for a person |
+  | `entry <path> <line>` | a line to merge (adapt) or remove (remove) by hand |
+  | `removed <path>` / `removed block <path> <id>` | removal of a recorded file or block |
+  | `overwrote edited block <path> <id>` | adapt rewrote a block a user had edited |
+  | `config <KEY>=<default>` | upgrade: a key the new version added |
+  | `reference <path>:<line>: <text>` | remove step 2: a project line naming `cortex/` |
+  | `records <dir>` | remove step 3: where the records went (or `records deleted`) |
+  | `refused <cause>: <reason>` | any refusal; a version refusal names both versions |
+  | `unreleased: <commit>` | D3 |
+
+  Summaries, one line each, last: `install: <c> created, <b> blocks`
+  (the footprint records this run wrote; on an empty repository
+  `install: 1 created, 1 blocks`);
+  `upgrade <old> -> <new>: <r> replaced, <m> merged, <k> conflicts`;
+  `remove: <r> removed, <k> kept, <e> entries to remove by hand`. The
+  hosting steps and CHANGELOG notes are free text before the summary.
+- **A2. Exit codes.** Every refusal, by any of the three scripts, exits 2
+  (D11's refusal of an unrecorded cortex-named file by `adapt.sh`
+  included). An upgrade that leaves conflicts exits 1, after finishing every
+  other file. A stop for confirmation (remove steps 1 and 2) exits 0, as the
+  spec says. Success exits 0.
+- **A3. Which files hold blocks.** Files with a cortex-named path
+  (`.claude/agents/cortex-*.md`, `.claude/skills/cortex-*/SKILL.md`,
+  `.cursor/rules/cortex.mdc`, `.github/workflows/cortex.yml`) are whole
+  files, recorded `created`. Files whose name a tool fixes and a project may
+  share (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
+  `.github/copilot-instructions.md`, `.github/CODEOWNERS`) always carry
+  cortex's content in a block, whether cortex created the file or not.
+- **A4. The `cortex:generated` marker is dropped.** The footprint records
+  which files are cortex's; a marker would be a second record of the same
+  fact (E4). C9 finds generated skills by path.
+- **A5. Block sources.** `template/blocks/AGENTS.md` holds the block's
+  content without the markers; install adds them. C8 ignores blank lines
+  inside the `claude` block. `tests/golden-fixture.test.sh` compares the
+  fixture's root block with `template/blocks/AGENTS.md`, as it compares
+  installed files with `template/cortex/`.
+- **A6. What a block's insertion added, recorded.** A `block` record gains a
+  fifth field, `sep`: `0` when nothing was added before the block (an
+  empty or created file), `1` when one blank line was added, `2` when a
+  final newline and a blank line were added (the file didn't end in one).
+  Removal takes away exactly that, so a round trip restores the file byte
+  for byte. Line endings follow the file's (D15).
+- **A7. Footprint determinism.** Records after the format line are sorted
+  with `LC_ALL=C sort`. A `created` sha is `git hash-object` of the file; a
+  `block` sha is `git hash-object` of the lines between its markers.
+- **A8. Interactive** means standard input is a terminal (`[ -t 0 ]`).
+  Otherwise `remove.sh` asks nothing: steps 1 and 2 stop without their
+  flags, and records follow step 3's non-interactive default.
+- **A9. Smaller details from the second round.** A release's
+  consumer-action notes are its CHANGELOG entry's
+  `**For installed repositories:**` paragraph (as 2.2.0 and 2.3.0 wrote
+  them); "every version passed" is each version above the installed one up
+  to the new one. Block ids are `agents`, `claude`, `gemini`, `copilot`
+  and `codeowners`. The root block's 15-line limit counts its marker lines.
+  C13 names the affected path, not `cortex/footprint`. A user's file at a
+  path upstream adds is a conflict and counts in the upgrade summary's
+  conflicts. Lines outside A1's table (a note such as codex reading
+  `AGENTS.md` natively) are allowed as free text before the summary.

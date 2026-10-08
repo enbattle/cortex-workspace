@@ -1,25 +1,25 @@
 #!/usr/bin/env bash
-# Tests for scripts/cortex/tests-locked.sh (spec acceptance criteria 6, 9 and,
+# Tests for cortex/bin/tests-locked.sh (spec acceptance criteria 6, 9 and,
 # under Amendment 2, 14-16).
 #
 # Lock layout (Amendment 2, B1): test-first commits the tests (commit T), then
 # adds <change-folder>/lock.md naming T in its own commit L, whose first
 # parent is T. Every fixture below builds exactly that: T, then L, then any
-# further commits. The lock also covers .cortex/config (B2), which counts in
+# further commits. The lock also covers cortex/config (B2), which counts in
 # the success line when it existed at T, so a fresh install's counts are
 # "locked tests + 1".
 set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
-LOCK_REL="changes/x/lock.md"
+LOCK_REL="cortex/changes/x/lock.md"
 
-# write_lock DIR SHA [LIST-LINE...] : changes/x/lock.md naming SHA ("-" omits
+# write_lock DIR SHA [LIST-LINE...] : cortex/changes/x/lock.md naming SHA ("-" omits
 # the Tests-locked-at line). With no list lines, locks tests/a.test.sh and
 # tests/b.test.sh (the second wrapped in backticks). A "## Notes" section
 # follows the list, so the list must end at the next heading.
 write_lock() {
   local d="$1" sha="$2"; shift 2
-  mkdir -p "$d/changes/x"
+  mkdir -p "$d/cortex/changes/x"
   {
     printf '<!-- lock record, written once by test-first -->\n\n'
     if [ "$sha" != "-" ]; then printf 'Tests-locked-at: %s\n\n' "$sha"; fi
@@ -39,7 +39,7 @@ write_lock() {
 base_repo() {
   local d globs="${1-*.test.sh}"
   d="$(fresh_install)" || return 1
-  set_config "$d/.cortex/config" TEST_GLOBS "$globs"
+  set_config "$d/cortex/config" TEST_GLOBS "$globs"
   mkdir -p "$d/tests" "$d/src"
   printf 'echo a\n' > "$d/tests/a.test.sh"
   printf 'echo b\n' > "$d/tests/b.test.sh"
@@ -68,7 +68,7 @@ locked_repo() {
 lock_sha() { git -C "$1" rev-parse HEAD~1; }
 
 locked() { # dir [change-folder] -> run tests-locked.sh from the repo root
-  run bash -c 'cd "$1" && ./scripts/cortex/tests-locked.sh "$2"' _ "$1" "${2:-changes/x}"
+  run bash -c 'cd "$1" && ./cortex/bin/tests-locked.sh "$2"' _ "$1" "${2:-cortex/changes/x}"
 }
 
 expect_lock() { # kind detail msg
@@ -91,13 +91,13 @@ case_fixture_layout() {
   assert_true "fixture: that commit is HEAD" \
     test "$(git -C "$d" log --format=%H -- "$LOCK_REL")" = "$(git -C "$d" rev-parse HEAD)"
   assert_file_contains "$d/$LOCK_REL" "Tests-locked-at: $sha" "fixture: lock.md names T"
-  assert_file_absent "$d/changes/x/tasks.md" "fixture: no tasks.md is needed"
+  assert_file_absent "$d/cortex/changes/x/tasks.md" "fixture: no tasks.md is needed"
 }
 
 case_pass_untouched() {
   local d sha; d="$(locked_repo)"; sha="$(lock_sha "$d")"
   locked "$d"
-  # a, b + .cortex/config (B2)
+  # a, b + cortex/config (B2)
   expect_pass 3 "untouched locked set"
   assert_contains "$OUT" "since $(printf '%s' "$sha" | cut -c1-7)" "success line names the short sha"
 }
@@ -108,21 +108,21 @@ case_pass_non_test_changes() {
   printf 'new\n' > "$d/src/new.txt"
   commit_all "$d" "implementation"
   printf 'more\n' >> "$d/src/app.txt"
-  printf '%s\n' '- [x] done' > "$d/changes/x/tasks.md"
+  printf '%s\n' '- [x] done' > "$d/cortex/changes/x/tasks.md"
   locked "$d"
   assert_exit 0 "$CODE" "implementation changes outside tests (and tasks.md) are fine"
 }
 
 case_pass_from_subdir() {
   local d; d="$(locked_repo)"
-  run bash -c 'cd "$1/src" && ../scripts/cortex/tests-locked.sh ../changes/x' _ "$d"
+  run bash -c 'cd "$1/src" && ../cortex/bin/tests-locked.sh ../cortex/changes/x' _ "$d"
   assert_exit 0 "$CODE" "runs from a subdirectory of the repo"
   assert_contains "$OUT" "tests-locked: 3 file(s) unchanged since" "success from subdir"
 }
 
 case_usage_error() {
   local d; d="$(locked_repo)"
-  run bash -c 'cd "$1" && ./scripts/cortex/tests-locked.sh' _ "$d"
+  run bash -c 'cd "$1" && ./cortex/bin/tests-locked.sh' _ "$d"
   assert_exit 2 "$CODE" "no argument is a usage error (exit 2)"
 }
 
@@ -230,11 +230,11 @@ case_missing_locked_at() {
 
 case_missing_lock_file() {
   local d; d="$(locked_repo)"
-  mkdir -p "$d/changes/empty"
+  mkdir -p "$d/cortex/changes/empty"
   printf 'Tests-locked-at: %s\n\n## Locked tests\n\n- tests/a.test.sh\n' "$(lock_sha "$d")" \
-    > "$d/changes/empty/tasks.md"
+    > "$d/cortex/changes/empty/tasks.md"
   commit_all "$d" "a tasks.md is not a lock record"
-  locked "$d" changes/empty
+  locked "$d" cortex/changes/empty
   expect_lock missing "" "missing lock.md (tasks.md is no longer read)"
 }
 
@@ -275,7 +275,7 @@ locked_repo_with_old() {
 case_A1_pass_counts_listed_plus_matched() {
   local d; d="$(locked_repo_with_old)"
   locked "$d"
-  # a, b listed (and matched), old matched only, + .cortex/config: 4, each
+  # a, b listed (and matched), old matched only, + cortex/config: 4, each
   # counted once; helper.sh does not match TEST_GLOBS
   expect_pass 4 "untouched listed + matched tests"
 }
@@ -346,7 +346,7 @@ case_A1_placeholder_globs_passes() {
   assert_exit 0 "$CODE" "a placeholder TEST_GLOBS counts as unset"
 }
 
-# ---- AC14 (B1, B2): lock.md can't be moved; .cortex/config is locked -------------
+# ---- AC14 (B1, B2): lock.md can't be moved; cortex/config is locked -------------
 
 case_B1_lock_edited_unstaged() {
   local d; d="$(locked_repo)"
@@ -432,27 +432,27 @@ case_B1_trailing_note() {
 }
 
 config_mod() { # msg
-  expect_lock modified .cortex/config "$1"
+  expect_lock modified cortex/config "$1"
 }
 
 case_B2_config_narrowed_unstaged() {
   local d; d="$(locked_repo)"
-  set_config "$d/.cortex/config" TEST_GLOBS 'tests/a.test.sh'
+  set_config "$d/cortex/config" TEST_GLOBS 'tests/a.test.sh'
   locked "$d"
   config_mod "TEST_GLOBS narrowed, unstaged"
 }
 
 case_B2_config_narrowed_staged() {
   local d; d="$(locked_repo)"
-  set_config "$d/.cortex/config" TEST_GLOBS 'tests/a.test.sh'
-  git -C "$d" add .cortex/config
+  set_config "$d/cortex/config" TEST_GLOBS 'tests/a.test.sh'
+  git -C "$d" add cortex/config
   locked "$d"
   config_mod "TEST_GLOBS narrowed, staged"
 }
 
 case_B2_config_narrowed_committed() {
   local d; d="$(locked_repo)"
-  set_config "$d/.cortex/config" TEST_GLOBS 'tests/a.test.sh'
+  set_config "$d/cortex/config" TEST_GLOBS 'tests/a.test.sh'
   commit_all "$d" "narrow globs"
   locked "$d"
   config_mod "TEST_GLOBS narrowed, committed"
@@ -460,14 +460,14 @@ case_B2_config_narrowed_committed() {
 
 case_B2_config_command_changed() {
   local d; d="$(locked_repo)"
-  set_config "$d/.cortex/config" TEST_CMD 'true'
+  set_config "$d/cortex/config" TEST_CMD 'true'
   locked "$d"
   config_mod "a gate command changed"
 }
 
 case_B2_narrowing_does_not_unlock() {
   local d; d="$(locked_repo_with_old)"
-  set_config "$d/.cortex/config" TEST_GLOBS 'tests/a.test.sh'
+  set_config "$d/cortex/config" TEST_GLOBS 'tests/a.test.sh'
   printf 'echo weakened\n' > "$d/tests/old.test.sh"
   locked "$d"
   config_mod "narrowed TEST_GLOBS"
@@ -476,7 +476,7 @@ case_B2_narrowing_does_not_unlock() {
 
 case_B2_narrowing_still_flags_added() {
   local d; d="$(locked_repo)"
-  set_config "$d/.cortex/config" TEST_GLOBS 'tests/a.test.sh'
+  set_config "$d/cortex/config" TEST_GLOBS 'tests/a.test.sh'
   printf 'echo c\n' > "$d/tests/c.test.sh"
   locked "$d"
   config_mod "narrowed TEST_GLOBS"
@@ -486,7 +486,7 @@ case_B2_narrowing_still_flags_added() {
 case_B2_widening_at_lock_is_used() {
   # TEST_GLOBS empty in the working tree, set at the lock: the lock's wins
   local d; d="$(locked_repo_with_old)"
-  set_config "$d/.cortex/config" TEST_GLOBS ''
+  set_config "$d/cortex/config" TEST_GLOBS ''
   rm "$d/tests/old.test.sh"
   locked "$d"
   config_mod "TEST_GLOBS emptied"
@@ -495,7 +495,7 @@ case_B2_widening_at_lock_is_used() {
 
 case_B2_config_absent_at_lock_not_counted() {
   local d; d="$(base_repo "")"
-  rm "$d/.cortex/config"
+  rm "$d/cortex/config"
   lock_it "$d"
   locked "$d"
   expect_pass 2 "config absent at the lock is not counted"
@@ -510,7 +510,7 @@ NA_OLD="tests/naïve.test.sh"   # matched by TEST_GLOBS, not listed
 odd_paths_repo() {
   local d
   d="$(fresh_install)" || return 1
-  set_config "$d/.cortex/config" TEST_GLOBS '*.test.sh'
+  set_config "$d/cortex/config" TEST_GLOBS '*.test.sh'
   mkdir -p "$d/tests" "$d/tests/sub dir"
   printf 'echo sp\n' > "$d/$SP"
   printf 'echo na\n' > "$d/$NA"
@@ -523,7 +523,7 @@ odd_paths_repo() {
 case_B4_untouched() {
   local d; d="$(odd_paths_repo)"
   locked "$d"
-  # 4 tests + .cortex/config
+  # 4 tests + cortex/config
   expect_pass 5 "spaced and non-ASCII paths, untouched"
 }
 
@@ -564,7 +564,7 @@ case_B4_non_ascii_added() {
   expect_lock added "tests/über.test.sh" "new non-ASCII test"
 }
 
-# ---- AC16: CRLF lock.md and .cortex/config ----------------------------------------
+# ---- AC16: CRLF lock.md and cortex/config ----------------------------------------
 
 no_cr() { # text msg  (a bash pattern, since grep may strip CRs)
   case "$1" in *$'\r'*) fail "$2"; show_output ;; *) pass ;; esac
@@ -575,7 +575,7 @@ to_crlf() { filter_file "$1" awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }'; }
 crlf_repo() {
   local d sha
   d="$(base_repo)" || return 1
-  to_crlf "$d/.cortex/config"
+  to_crlf "$d/cortex/config"
   commit_all "$d" "add tests"
   sha="$(git -C "$d" rev-parse HEAD)"
   write_lock "$d" "$sha"
@@ -583,7 +583,7 @@ crlf_repo() {
   commit_all "$d" "lock tests"
   # (tr + cmp, not grep: Git Bash's grep strips CRs before matching)
   if tr -d '\r' < "$d/$LOCK_REL" | cmp -s - "$d/$LOCK_REL" \
-    || tr -d '\r' < "$d/.cortex/config" | cmp -s - "$d/.cortex/config"; then
+    || tr -d '\r' < "$d/cortex/config" | cmp -s - "$d/cortex/config"; then
     fail "fixture: CRLF not planted"; return 1
   fi
   if [ -n "$(git -C "$d" status --porcelain)" ]; then
@@ -617,7 +617,7 @@ case_crlf_globs_added() {
 case_crlf_globs_unlisted() {
   local d; d="$(base_repo)"
   printf 'echo old\n' > "$d/tests/old.test.sh"
-  to_crlf "$d/.cortex/config"
+  to_crlf "$d/cortex/config"
   lock_it "$d"
   printf 'echo weakened\n' > "$d/tests/old.test.sh"
   locked "$d"
@@ -629,7 +629,7 @@ case_crlf_globs_unlisted() {
 # Amendment 11 withdrew D1 (criteria 26-27): a merge that changes a locked file
 # fails like any other edit, unless a signed re-lock names the merge commit as
 # its tests commit, with lock.md committed as the very next commit (M2). A
-# re-lock may not change .cortex/config (M3). Rebasing still fails (AC28).
+# re-lock may not change cortex/config (M3). Rebasing still fails (AC28).
 
 # merge_repo [no-config] -> a locked branch whose base has moved on, not yet
 # merged:
@@ -637,7 +637,7 @@ case_crlf_globs_unlisted() {
 #     tests/b.test.sh, tests/old.test.sh (matched, unlisted), src/app.txt
 #   feature (checked out): T adds src/feature.txt, L locks a and b
 #   B1 on "base": edits tests/a.test.sh (listed), tests/old.test.sh (matched,
-#     unlisted) and, unless "no-config" is given, .cortex/config; adds
+#     unlisted) and, unless "no-config" is given, cortex/config; adds
 #     tests/new.test.sh (matched)
 merge_repo() {
   local d cfg="${1-}"
@@ -651,7 +651,7 @@ merge_repo() {
   git -C "$d" checkout -q base
   printf 'echo a from base\n' > "$d/tests/a.test.sh"
   printf 'echo old from base\n' > "$d/tests/old.test.sh"
-  [ "$cfg" = no-config ] || append "$d/.cortex/config" "# base: a later config line"
+  [ "$cfg" = no-config ] || append "$d/cortex/config" "# base: a later config line"
   printf 'echo new from base\n' > "$d/tests/new.test.sh"
   commit_all "$d" "base B1"
   git -C "$d" checkout -q feature
@@ -687,7 +687,7 @@ relock_merge() {
 
 # relocked_merge_repo -> merged_repo no-config, re-locked as M2 says: HEAD is
 # L2, HEAD~1 the merge. Locked at the merge: a, b (listed), old and new
-# (matched) and .cortex/config: 5 files.
+# (matched) and cortex/config: 5 files.
 relocked_merge_repo() {
   local d
   d="$(merged_repo no-config)" || return 1
@@ -699,7 +699,7 @@ relocked_merge_repo() {
 expect_merge_failures() {
   expect_lock modified tests/a.test.sh "$1"
   assert_contains "$OUT$ERR" "LOCK modified: tests/old.test.sh" "$1: matched test the merge changed"
-  assert_contains "$OUT$ERR" "LOCK modified: .cortex/config" "$1: config the merge changed"
+  assert_contains "$OUT$ERR" "LOCK modified: cortex/config" "$1: config the merge changed"
   assert_contains "$OUT$ERR" "LOCK added: tests/new.test.sh" "$1: matched test the merge added"
 }
 
@@ -711,7 +711,7 @@ case_M1_merge_base_fails() {
     grep -qF "Tests-locked-at: $sha" "$d/$LOCK_REL"
   assert_file_contains "$d/tests/a.test.sh" "echo a from base" "fixture: merge took base's listed test"
   assert_file_contains "$d/tests/old.test.sh" "echo old from base" "fixture: merge took base's matched test"
-  assert_file_contains "$d/.cortex/config" "# base: a later config line" "fixture: merge took base's config"
+  assert_file_contains "$d/cortex/config" "# base: a later config line" "fixture: merge took base's config"
   assert_file_exists "$d/tests/new.test.sh" "fixture: merge brought base's new test"
   locked "$d"
   expect_merge_failures "merge of the base, no re-lock"
@@ -728,9 +728,9 @@ case_M2_merge_relock_passes() {
   assert_true "fixture: the merge changed a listed test" \
     test -n "$(git -C "$d" diff HEAD~2 HEAD~1 -- tests/a.test.sh)"
   assert_true "fixture: the merge left the config as locked" \
-    test -z "$(git -C "$d" diff HEAD~2 HEAD~1 -- .cortex/config)"
+    test -z "$(git -C "$d" diff HEAD~2 HEAD~1 -- cortex/config)"
   locked "$d"
-  # a, b listed; old, new matched at the merge; .cortex/config
+  # a, b listed; old, new matched at the merge; cortex/config
   expect_pass 5 "merge of the base, then a signed re-lock naming it"
   assert_contains "$OUT" "since $(short "$m")" "merge + re-lock: success line names the merge commit"
 }
@@ -776,10 +776,10 @@ case_D1_edit_after_merge_staged() {
 
 case_D1_config_edit_after_merge() {
   local d; d="$(relocked_merge_repo)"
-  set_config "$d/.cortex/config" TEST_GLOBS 'tests/a.test.sh'
+  set_config "$d/cortex/config" TEST_GLOBS 'tests/a.test.sh'
   commit_all "$d" "narrow globs after merge"
   locked "$d"
-  expect_lock modified .cortex/config "config edited on top of a re-locked base merge"
+  expect_lock modified cortex/config "config edited on top of a re-locked base merge"
 }
 
 case_D1_new_test_edit_after_merge() {
@@ -827,11 +827,11 @@ case_D1_merge_resolved_to_neither_matched() {
 case_D1_merge_resolved_config_to_neither() {
   local d; d="$(merge_repo)"
   git -C "$d" merge -q --no-commit --no-ff base >/dev/null 2>&1
-  set_config "$d/.cortex/config" TEST_GLOBS 'tests/a.test.sh'
-  git -C "$d" add .cortex/config
+  set_config "$d/cortex/config" TEST_GLOBS 'tests/a.test.sh'
+  git -C "$d" add cortex/config
   git -C "$d" commit -q --no-edit
   locked "$d"
-  expect_lock modified .cortex/config "merge resolving the config to neither side"
+  expect_lock modified cortex/config "merge resolving the config to neither side"
 }
 
 case_D1_rebase_onto_moved_base() {
@@ -919,13 +919,13 @@ case_M1_fabricated_merge_with_base_ref() {
 case_M3_relock_narrows_globs() {
   # AC69: T2 narrows TEST_GLOBS (and fixes a listed test); a signed L2 names T2
   local d; d="$(locked_repo)"
-  set_config "$d/.cortex/config" TEST_GLOBS 'tests/a.test.sh'
+  set_config "$d/cortex/config" TEST_GLOBS 'tests/a.test.sh'
   printf 'echo a fixed\n' > "$d/tests/a.test.sh"
   relock_it "$d" "$SIGNED"
   assert_true "fixture: T2 changes the config" \
-    test -n "$(git -C "$d" diff HEAD~2 HEAD~1 -- .cortex/config)"
+    test -n "$(git -C "$d" diff HEAD~2 HEAD~1 -- cortex/config)"
   locked "$d"
-  expect_lock modified .cortex/config "signed re-lock whose tests commit narrows TEST_GLOBS"
+  expect_lock modified cortex/config "signed re-lock whose tests commit narrows TEST_GLOBS"
   assert_not_contains "$OUT$ERR" "LOCK moved" "narrowing re-lock: the re-lock itself is well formed"
 }
 
@@ -933,21 +933,21 @@ case_M3_relock_widens_globs() {
   # the Amendment 9 fixture that widened TEST_GLOBS in T2: now refused (M3)
   local d; d="$(relocked_repo "$SIGNED" widen)"
   assert_true "fixture: T2 changes the config" \
-    test -n "$(git -C "$d" diff HEAD~2 HEAD~1 -- .cortex/config)"
+    test -n "$(git -C "$d" diff HEAD~2 HEAD~1 -- cortex/config)"
   locked "$d"
-  expect_lock modified .cortex/config "signed re-lock whose tests commit widens TEST_GLOBS"
+  expect_lock modified cortex/config "signed re-lock whose tests commit widens TEST_GLOBS"
 }
 
 case_M3_merge_relock_with_config() {
   # AC66 applied to AC65's merge that also changed the config: the re-lock's
-  # tests commit (the merge) changes .cortex/config, which M3 refuses; the
+  # tests commit (the merge) changes cortex/config, which M3 refuses; the
   # test files the merge changed are blessed by the sign-off
   local d; d="$(merged_repo)"
   relock_merge "$d"
   assert_true "fixture: the merge changed the config" \
-    test -n "$(git -C "$d" diff HEAD~2 HEAD~1 -- .cortex/config)"
+    test -n "$(git -C "$d" diff HEAD~2 HEAD~1 -- cortex/config)"
   locked "$d"
-  expect_lock modified .cortex/config "re-locked merge of a base that changed the config"
+  expect_lock modified cortex/config "re-locked merge of a base that changed the config"
   assert_not_contains "$OUT$ERR" "LOCK modified: tests/a.test.sh" "re-locked merge with config: listed test blessed"
   assert_not_contains "$OUT$ERR" "LOCK added: tests/new.test.sh" "re-locked merge with config: new test blessed"
 }
@@ -958,7 +958,7 @@ case_M3_merge_relock_with_config() {
 # other *.spec.sh); a new *.test.sh is added, a new *.spec.sh is not
 ac32_locked() {
   local kind="$1" d; d="$(base_repo)"
-  config_variant "$d/.cortex/config" "$kind" TEST_GLOBS '*.test.sh' '*.spec.sh'
+  config_variant "$d/cortex/config" "$kind" TEST_GLOBS '*.test.sh' '*.spec.sh'
   lock_it "$d"
   printf 'echo c\n' > "$d/tests/c.test.sh"
   printf 'echo d\n' > "$d/tests/d.spec.sh"
@@ -1067,7 +1067,7 @@ prelock_repo() {
   printf 'app v2\n' > "$d/src/app.txt"
   commit_all "$d" "implementation"
   if [ "${1-}" = widen ]; then
-    set_config "$d/.cortex/config" TEST_GLOBS '*.test.sh *.spec.sh'
+    set_config "$d/cortex/config" TEST_GLOBS '*.test.sh *.spec.sh'
     printf 'echo y\n' > "$d/tests/y.spec.sh"
   fi
   printf 'echo old reworked\n' > "$d/tests/old.test.sh"
@@ -1078,7 +1078,7 @@ prelock_repo() {
 
 # relocked_repo [SIGN [widen]] -> prelock_repo [widen], re-locked with
 # RELOCK_LIST and SIGN (default SIGNED): HEAD is L2, HEAD~1 is T2. Without
-# "widen", locked at T2: a, b, c (listed), old (matched) and .cortex/config:
+# "widen", locked at T2: a, b, c (listed), old (matched) and cortex/config:
 # 5 files.
 relocked_repo() {
   local d sign="${1-$SIGNED}"
@@ -1110,7 +1110,7 @@ case_K1_signed_relock_passes() {
   assert_true "fixture: L2's first parent is T2" test "$(git -C "$d" rev-parse HEAD^1)" = "$t2"
   assert_file_contains "$d/$LOCK_REL" "Tests-locked-at: $t2" "fixture: lock.md names T2"
   locked "$d"
-  # a, b, c listed; old matched at T2; .cortex/config
+  # a, b, c listed; old matched at T2; cortex/config
   expect_pass 5 "signed re-lock with new and matched tests"
   assert_contains "$OUT" "since $(short "$t2")" "success line names T2's short sha"
 }
@@ -1180,14 +1180,14 @@ case_K2_changed_in_t2_passes() {
   # used to bless are now AC57's failing cases (case_L1_*_before_t2).
   local d t1; d="$(relocked_repo)"; t1="$(first_lock_sha "$d")"
   assert_true "fixture: no locked file changed between T1 and T2's parent" \
-    test -z "$(git -C "$d" diff "$t1" HEAD~2 -- tests .cortex/config)"
+    test -z "$(git -C "$d" diff "$t1" HEAD~2 -- tests cortex/config)"
   assert_true "fixture: T2 changes a listed test" \
     test -n "$(git -C "$d" diff HEAD~2 HEAD~1 -- tests/a.test.sh)"
   assert_true "fixture: T2 changes a matched test" \
     test -n "$(git -C "$d" diff HEAD~2 HEAD~1 -- tests/old.test.sh)"
   # Amendment 11, M3: a re-lock may not change the config (AC69's case)
   assert_true "fixture: T2 leaves the config as locked" \
-    test -z "$(git -C "$d" diff HEAD~2 HEAD~1 -- .cortex/config)"
+    test -z "$(git -C "$d" diff HEAD~2 HEAD~1 -- cortex/config)"
   locked "$d"
   expect_pass 5 "files changed in T2 itself, locked again at T2"
 }
@@ -1225,10 +1225,10 @@ case_K2_added_after_t2() {
 
 case_K2_config_modified() {
   local d; d="$(relocked_repo)"
-  set_config "$d/.cortex/config" TEST_GLOBS 'tests/a.test.sh'
+  set_config "$d/cortex/config" TEST_GLOBS 'tests/a.test.sh'
   commit_all "$d" "narrow globs after the re-lock"
   locked "$d"
-  expect_lock modified .cortex/config "config edited after the re-lock"
+  expect_lock modified cortex/config "config edited after the re-lock"
 }
 
 # relock_merge_repo -> like merge_repo (base "base", branch "feature"), with a
@@ -1282,7 +1282,7 @@ case_K2_merge_after_relock_relocked_passes() {
   relock_merge "$d"
   assert_true "fixture: three lock commits" test "$(lock_commit_count "$d")" = 3
   locked "$d"
-  # a, b listed; old, new matched at the merge; .cortex/config
+  # a, b listed; old, new matched at the merge; cortex/config
   expect_pass 5 "merge of the base after a re-lock, re-locked again"
   assert_contains "$OUT" "since $(short "$m")" "second re-lock: success line names the merge commit"
 }
@@ -1337,9 +1337,9 @@ case_K1_single_lock_with_signoff() {
 # environment must not leak into the other cases.
 unset CORTEX_BASE_REF
 
-# locked_with_base DIR REF : tests-locked.sh on changes/x with CORTEX_BASE_REF=REF
+# locked_with_base DIR REF : tests-locked.sh on cortex/changes/x with CORTEX_BASE_REF=REF
 locked_with_base() {
-  run bash -c 'cd "$1" && CORTEX_BASE_REF="$2" ./scripts/cortex/tests-locked.sh changes/x' _ "$1" "$2"
+  run bash -c 'cd "$1" && CORTEX_BASE_REF="$2" ./cortex/bin/tests-locked.sh cortex/changes/x' _ "$1" "$2"
 }
 
 # before_t2_repo EDIT-FN -> T1 (base_repo plus tests/old.test.sh, matched and
@@ -1365,7 +1365,7 @@ before_t2_repo() {
 
 edit_listed() { printf 'echo a weakened\n' > "$1/tests/a.test.sh"; }
 edit_matched() { printf 'echo old weakened\n' > "$1/tests/old.test.sh"; }
-edit_config() { append "$1/.cortex/config" "# edited after L1, before T2"; }
+edit_config() { append "$1/cortex/config" "# edited after L1, before T2"; }
 add_matched() { printf 'echo e\n' > "$1/tests/e.test.sh"; }
 
 # before_t2_case EDIT-FN KIND PATH msg : after the signed re-lock, PATH (left
@@ -1389,7 +1389,7 @@ case_L1_matched_before_t2() {
   before_t2_case edit_matched modified tests/old.test.sh "matched test edited after L1, before T2"
 }
 case_L1_config_before_t2() {
-  before_t2_case edit_config modified .cortex/config "config edited after L1, before T2"
+  before_t2_case edit_config modified cortex/config "config edited after L1, before T2"
 }
 case_L1_added_before_t2() {
   before_t2_case add_matched added tests/e.test.sh "matched test added after L1, before T2"
@@ -1501,7 +1501,7 @@ case_L3_unset_side_merge() {
   # was AC61: with CORTEX_BASE_REF unset a merged side branch's version was
   # accepted; under Amendment 11 it is an edit like any other
   local d; d="$(side_merge_repo tests/a.test.sh)"
-  run bash -c 'unset CORTEX_BASE_REF; cd "$1" && ./scripts/cortex/tests-locked.sh changes/x' _ "$d"
+  run bash -c 'unset CORTEX_BASE_REF; cd "$1" && ./cortex/bin/tests-locked.sh cortex/changes/x' _ "$d"
   expect_lock modified tests/a.test.sh "CORTEX_BASE_REF unset: a merged side branch's version"
 }
 
@@ -1546,7 +1546,7 @@ case_L4_lock_deleted_then_restored() {
   saved="$(cat "$d/$LOCK_REL")"
   git -C "$d" rm -q "$LOCK_REL"
   git -C "$d" commit -q -m "drop the lock"
-  mkdir -p "$d/changes/x"
+  mkdir -p "$d/cortex/changes/x"
   printf '%s\n' "$saved" > "$d/$LOCK_REL"
   commit_all "$d" "restore the lock"
   assert_true "fixture: three commits touch lock.md" test "$(lock_commit_count "$d")" = 3

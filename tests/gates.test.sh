@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for scripts/cortex/gates.sh (spec Amendment 1, A4, and Amendment 2,
+# Tests for cortex/bin/gates.sh (spec Amendment 1, A4, and Amendment 2,
 # B2/B3; acceptance criteria 12 and 17). gates.sh runs tests-locked, BUILD_CMD,
 # TEST_CMD, LINT_CMD and check.sh, every one of them even after a failure.
 set -euo pipefail
@@ -9,34 +9,34 @@ GATE_NAMES="tests-locked build test lint check"
 
 # gated_repo [KEY=VALUE...] -> a filled install (check: ok; BUILD/TEST/LINT_CMD
 # =true, TEST_GLOBS=*.test.sh) with tests/a.test.sh locked in the Amendment 2
-# layout: the tests are committed (T), then changes/x/lock.md naming T in its
-# own commit (L). Each KEY=VALUE is set in .cortex/config BEFORE the lock,
+# layout: the tests are committed (T), then cortex/changes/x/lock.md naming T in its
+# own commit (L). Each KEY=VALUE is set in cortex/config BEFORE the lock,
 # because the config is itself locked (B2): editing it afterwards would fail
 # the tests-locked gate.
 gated_repo() {
   local d kv
-  d="$(filled_install Zqxproj)" || return 1
+  d="$(filled_install)" || return 1
   for kv in "$@"; do
     case "$kv" in
-      +*) append "$d/.cortex/config" "${kv#+}" ;;
-      *) set_config "$d/.cortex/config" "${kv%%=*}" "${kv#*=}" ;;
+      +*) append "$d/cortex/config" "${kv#+}" ;;
+      *) set_config "$d/cortex/config" "${kv%%=*}" "${kv#*=}" ;;
     esac
   done
   lock_a "$d"
   printf '%s\n' "$d"
 }
 
-# lock_a DIR : add tests/a.test.sh and src/app.txt, and lock changes/x on them
+# lock_a DIR : add tests/a.test.sh and src/app.txt, and lock cortex/changes/x on them
 lock_a() {
   mkdir -p "$1/tests" "$1/src"
   printf 'echo a\n' > "$1/tests/a.test.sh"
   printf 'app\n' > "$1/src/app.txt"
-  lock_tests "$1" changes/x tests/a.test.sh
+  lock_tests "$1" cortex/changes/x tests/a.test.sh
 }
 
 gates() { # dir [change-folder...] -> run installed gates.sh from the repo root
   local d="$1"; shift
-  run bash -c 'd="$1"; shift; cd "$d" && ./scripts/cortex/gates.sh "$@"' _ "$d" "$@"
+  run bash -c 'd="$1"; shift; cd "$d" && ./cortex/bin/gates.sh "$@"' _ "$d" "$@"
 }
 
 # line number of the first exact line, or empty
@@ -56,8 +56,8 @@ expect_order() {
 
 case_installed_executable() {
   local d; d="$(fresh_install)"
-  assert_file_exists "$ROOT/template/scripts/cortex/gates.sh" "template ships gates.sh"
-  assert_true "installed gates.sh is executable" test -x "$d/scripts/cortex/gates.sh"
+  assert_file_exists "$ROOT/template/cortex/bin/gates.sh" "template ships gates.sh"
+  assert_true "installed gates.sh is executable" test -x "$d/cortex/bin/gates.sh"
 }
 
 case_usage_error() {
@@ -70,11 +70,11 @@ case_usage_error() {
 case_all_pass() {
   local d g; d="$(gated_repo)"
   # guard: the fixture's own pieces pass on their own
-  run bash -c 'cd "$1" && ./scripts/cortex/check.sh' _ "$d"
+  run bash -c 'cd "$1" && ./cortex/bin/check.sh' _ "$d"
   assert_exit 0 "$CODE" "fixture: check.sh passes"
-  run bash -c 'cd "$1" && ./scripts/cortex/tests-locked.sh changes/x' _ "$d"
+  run bash -c 'cd "$1" && ./cortex/bin/tests-locked.sh cortex/changes/x' _ "$d"
   assert_exit 0 "$CODE" "fixture: tests-locked.sh passes"
-  gates "$d" changes/x
+  gates "$d" cortex/changes/x
   assert_exit 0 "$CODE" "all gates pass -> exit 0"
   for g in $GATE_NAMES; do
     assert_line "$OUT" "gate $g: ok" "gate $g: ok"
@@ -87,7 +87,7 @@ case_all_pass() {
 
 case_failing_test_runs_the_rest() {
   local d; d="$(gated_repo "TEST_CMD=false")"
-  gates "$d" changes/x
+  gates "$d" cortex/changes/x
   assert_exit 1 "$CODE" "a failing gate -> exit 1"
   assert_line "$OUT" "gate tests-locked: ok" "tests-locked ok"
   assert_line "$OUT" "gate build: ok" "build ok"
@@ -101,7 +101,7 @@ case_failing_test_runs_the_rest() {
 
 case_failing_build_runs_the_rest() {
   local d; d="$(gated_repo "BUILD_CMD=exit 4" "LINT_CMD=false")"
-  gates "$d" changes/x
+  gates "$d" cortex/changes/x
   assert_exit 1 "$CODE" "failing gates -> exit 1"
   assert_line "$OUT" "gate build: FAIL (exit 4)" "exit code of the failing build"
   assert_line "$OUT" "gate test: ok" "test runs after a failed build"
@@ -113,7 +113,7 @@ case_failing_build_runs_the_rest() {
 case_failing_output_shown_above() {
   local d m f
   d="$(gated_repo "TEST_CMD=echo boom-marker-out; echo boom-marker-err >&2; exit 3")"
-  gates "$d" changes/x
+  gates "$d" cortex/changes/x
   assert_exit 1 "$CODE" "failing gate -> exit 1"
   assert_line "$OUT" "gate test: FAIL (exit 3)" "failing step reported"
   assert_contains "$OUT$ERR" "boom-marker-out" "failing step's stdout is printed"
@@ -126,27 +126,27 @@ case_failing_output_shown_above() {
 
 case_unset_lint() {
   local d; d="$(gated_repo "LINT_CMD=<lint command>")"
-  gates "$d" changes/x
+  gates "$d" cortex/changes/x
   assert_exit 1 "$CODE" "unset LINT_CMD -> exit 1"
-  assert_line "$OUT" "gate lint: FAIL (not set in .cortex/config)" "unset command fails as not set"
+  assert_line "$OUT" "gate lint: FAIL (not set in cortex/config)" "unset command fails as not set"
   assert_line "$OUT" "gate test: ok" "other commands still run"
   # check.sh itself also fails C11 for the unset key (A2)
   assert_line "$OUT" "gate check: FAIL (exit 1)" "check gate fails on the unset key (C11)"
-  assert_contains "$OUT" "FAIL [C11] .cortex/config: LINT_CMD is not set" "check's output shown above its gate line"
+  assert_contains "$OUT" "FAIL [C11] cortex/config: LINT_CMD is not set" "check's output shown above its gate line"
   assert_line "$OUT" "gates: 2 failed" "lint + check counted"
 }
 
 case_empty_build() {
   local d; d="$(gated_repo "BUILD_CMD=")"
-  gates "$d" changes/x
+  gates "$d" cortex/changes/x
   assert_exit 1 "$CODE" "empty BUILD_CMD -> exit 1"
-  assert_line "$OUT" "gate build: FAIL (not set in .cortex/config)" "empty command fails as not set"
+  assert_line "$OUT" "gate build: FAIL (not set in cortex/config)" "empty command fails as not set"
 }
 
 case_broken_lock() {
   local d; d="$(gated_repo)"
   printf 'echo weakened\n' > "$d/tests/a.test.sh"
-  gates "$d" changes/x
+  gates "$d" cortex/changes/x
   assert_exit 1 "$CODE" "broken lock -> exit 1"
   assert_line "$OUT" "gate tests-locked: FAIL (exit 1)" "tests-locked gate fails"
   assert_contains "$OUT$ERR" "LOCK modified: tests/a.test.sh" "tests-locked output is shown"
@@ -156,16 +156,16 @@ case_broken_lock() {
 }
 
 case_commands_run_from_repo_root() {
-  local d; d="$(gated_repo "BUILD_CMD=test -f AGENTS.md && test -d .cortex")"
-  gates "$d" changes/x
+  local d; d="$(gated_repo "BUILD_CMD=test -f AGENTS.md && test -d cortex")"
+  gates "$d" cortex/changes/x
   assert_line "$OUT" "gate build: ok" "commands run with cwd = repo root"
 }
 
 case_config_not_sourced() {
   local d
   d="$(gated_repo '+ZZ_SOURCED=$(touch sourced-marker)' '+touch sourced-marker-2')"
-  assert_file_contains "$d/.cortex/config" 'ZZ_SOURCED=$(touch sourced-marker)' "fixture: plant is in the config"
-  gates "$d" changes/x
+  assert_file_contains "$d/cortex/config" 'ZZ_SOURCED=$(touch sourced-marker)' "fixture: plant is in the config"
+  gates "$d" cortex/changes/x
   assert_file_absent "$d/sourced-marker" "config is parsed, never sourced"
   assert_file_absent "$d/sourced-marker-2" "config lines are never executed"
 }
@@ -176,11 +176,11 @@ case_config_edited_after_lock() {
   # B2: the gate commands are frozen for the change; weakening TEST_CMD after
   # the lock fails the tests-locked gate (the edited command still runs)
   local d; d="$(gated_repo)"
-  set_config "$d/.cortex/config" TEST_CMD "true # weakened"
-  gates "$d" changes/x
+  set_config "$d/cortex/config" TEST_CMD "true # weakened"
+  gates "$d" cortex/changes/x
   assert_exit 1 "$CODE" "config edited after the lock -> exit 1"
   assert_line "$OUT" "gate tests-locked: FAIL (exit 1)" "tests-locked gate fails"
-  assert_contains "$OUT$ERR" "LOCK modified: .cortex/config" "the config edit is named"
+  assert_contains "$OUT$ERR" "LOCK modified: cortex/config" "the config edit is named"
   assert_line "$OUT" "gate test: ok" "later gates still run"
   assert_line "$OUT" "gates: 1 failed" "one failure counted"
 }
@@ -190,8 +190,8 @@ case_no_exec_bit() {
   # executable bit (e.g. a Windows commit with core.filemode=false) is harmless.
   # (On filesystems without exec bits chmod is a no-op and this still passes.)
   local d g; d="$(gated_repo)"
-  chmod -x "$d"/scripts/cortex/*.sh
-  run bash -c 'cd "$1" && bash scripts/cortex/gates.sh changes/x' _ "$d"
+  chmod -x "$d"/cortex/bin/*.sh
+  run bash -c 'cd "$1" && bash cortex/bin/gates.sh cortex/changes/x' _ "$d"
   assert_exit 0 "$CODE" "gates pass with non-executable scripts"
   for g in $GATE_NAMES; do
     assert_line "$OUT" "gate $g: ok" "gate $g: ok without exec bits"
@@ -203,8 +203,8 @@ case_no_exec_bit() {
 case_from_subdir_relative() {
   # AC17: run from a subdirectory with a relative change-folder path
   local d g
-  d="$(gated_repo "BUILD_CMD=test -f AGENTS.md && test -d .cortex")"
-  run bash -c 'cd "$1/src" && ../scripts/cortex/gates.sh ../changes/x' _ "$d"
+  d="$(gated_repo "BUILD_CMD=test -f AGENTS.md && test -d cortex")"
+  run bash -c 'cd "$1/src" && ../cortex/bin/gates.sh ../cortex/changes/x' _ "$d"
   assert_exit 0 "$CODE" "gates pass from a subdirectory"
   for g in $GATE_NAMES; do
     assert_line "$OUT" "gate $g: ok" "gate $g: ok from a subdirectory"
@@ -216,7 +216,7 @@ case_from_subdir_relative_broken_lock() {
   # the relative folder really is the one checked: a broken lock still fails
   local d; d="$(gated_repo)"
   printf 'echo weakened\n' > "$d/tests/a.test.sh"
-  run bash -c 'cd "$1/src" && bash ../scripts/cortex/gates.sh ../changes/x' _ "$d"
+  run bash -c 'cd "$1/src" && bash ../cortex/bin/gates.sh ../cortex/changes/x' _ "$d"
   assert_exit 1 "$CODE" "broken lock from a subdirectory -> exit 1"
   assert_line "$OUT" "gate tests-locked: FAIL (exit 1)" "tests-locked fails from a subdirectory"
   assert_contains "$OUT$ERR" "LOCK modified: tests/a.test.sh" "the modified test is named"
@@ -228,8 +228,8 @@ case_from_subdir_relative_broken_lock() {
 # (set before the lock, since the config is locked)
 variant_gated_repo() {
   local d
-  d="$(filled_install Zqxproj)" || return 1
-  config_variant "$d/.cortex/config" "$1" BUILD_CMD \
+  d="$(filled_install)" || return 1
+  config_variant "$d/cortex/config" "$1" BUILD_CMD \
     "touch build-real-ran" "touch build-other-ran; exit 7" || return 1
   lock_a "$d"
   printf '%s\n' "$d"
@@ -237,7 +237,7 @@ variant_gated_repo() {
 
 ac32_gates() { # KIND : BUILD_CMD parsed per the format section
   local kind="$1" d; d="$(variant_gated_repo "$kind")"
-  gates "$d" changes/x
+  gates "$d" cortex/changes/x
   assert_exit 0 "$CODE" "$kind: gates pass"
   assert_line "$OUT" "gate build: ok" "$kind: the real BUILD_CMD runs and passes"
   assert_file_exists "$d/build-real-ran" "$kind: the real BUILD_CMD ran"
@@ -253,10 +253,10 @@ case_AC32_twice() { ac32_gates twice; }
 case_AC34_stub_parser() {
   local d g; d="$(gated_repo)"
   write_stub_parser "$d"
-  gates "$d" changes/x
+  gates "$d" cortex/changes/x
   assert_exit 1 "$CODE" "a parser that prints nothing -> exit 1"
   for g in build test lint; do
-    assert_line "$OUT" "gate $g: FAIL (not set in .cortex/config)" "gates.sh reads $g's command through _config.sh"
+    assert_line "$OUT" "gate $g: FAIL (not set in cortex/config)" "gates.sh reads $g's command through _config.sh"
   done
 }
 
