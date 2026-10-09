@@ -52,7 +52,9 @@ installed path changed.
   `CODEOWNERS` file GitHub reads), instead of copying them by hand.
 - **Platforms:** the install, upgrade and remove suites run in CI on macOS's
   bash 3.2 and on Git Bash as well as Linux; blocks keep a CRLF file's line
-  endings.
+  endings. **Fixed:** on macOS, `ci-gates.sh` reported every tracked file
+  as hidden (bash 3.2 matched `[a-z]` by locale collation, catching
+  uppercase tags); 2.x had the same bug.
 - **Golden task:** the fixture is rebuilt in the 3.0.0 layout; `refresh.sh`
   and its suite take the new paths and check the root block.
 
