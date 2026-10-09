@@ -900,7 +900,7 @@ B2, where following it literally would break a later upgrade.
 
 ## Amendment 3 (2026-10-09): findings from the release-candidate pilot
 
-Status: **draft, awaiting the maintainer's approval.** The pilot
+Status: **approved by the maintainer (2026-10-09).** The pilot
 (criterion 48) installed `3.0.0-rc.1` into a real repository with its own
 formatter, agent instructions and development process. The install
 mechanics held (footprint exact, nothing of the project's changed), but
