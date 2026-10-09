@@ -413,7 +413,7 @@ run_adapt
 # so a new key is printed with its default instead of written.
 while IFS= read -r key; do
   [ -n "$key" ] || continue
-  grep -q "^[[:space:]]*$key[[:space:]]*=" cortex/config 2>/dev/null && continue
+  grep -q "^[[:space:]]*${key}[[:space:]]*=" cortex/config 2>/dev/null && continue
   echo "config $key=$(config_value "$key" < "$TEMPLATE/config")"
 done <<<"$(tr -d '\r' < "$TEMPLATE/config" | awk -F'=' '/^[[:space:]]*#/ || index($0, "=") == 0 { next } { k = $1; gsub(/[[:space:]]/, "", k); if (k != "") print k }')"
 
