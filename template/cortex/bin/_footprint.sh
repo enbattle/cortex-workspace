@@ -157,7 +157,8 @@ block_set() {
     skip && l == e { skip = 0; done = 1 }
     !skip { out[++n] = $0 }
     END { for (i = 1; i <= n; i++) printf "%s%s", out[i], (i < n || nl ? "\n" : "") }' "$f" > "$f.cortex-tmp"
-  mv "$f.cortex-tmp" "$f"
+  cat "$f.cortex-tmp" > "$f" # in place: a link stays a link, the mode stays
+  rm -f "$f.cortex-tmp"
 }
 
 # block_strip PATH ID SEP : remove the first ID block, its markers, and what
@@ -189,7 +190,8 @@ block_strip() {
       }
       for (i = 1; i <= m; i++) printf "%s%s", out[i], (i < m || final ? "\n" : "")
     }' "$f" > "$f.cortex-tmp"
-  mv "$f.cortex-tmp" "$f"
+  cat "$f.cortex-tmp" > "$f" # in place: a link stays a link, the mode stays
+  rm -f "$f.cortex-tmp"
 }
 
 # rmdir_up PATH : remove the directories above PATH that are now empty

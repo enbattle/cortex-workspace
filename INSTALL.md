@@ -143,8 +143,11 @@ can get around them. The boundary is the pull request. With `CI=github` and
   branch as pushed and runs the base branch's copy of
   `cortex/bin/ci-gates.sh`, which uses the base branch's copies of every
   other checker. Add the setup steps its comment asks for (runtime,
-  dependency install); an edit there is yours, and `remove.sh` keeps an
-  edited file instead of deleting it. It runs the test lock only for change
+  dependency install) to its source, `cortex/ci/github/cortex.yml`, then run
+  `bash cortex/bin/adapt.sh` again: the source is cortex's file, so an
+  upgrade merges your steps with cortex's changes, and removal deletes the
+  workflow cleanly. (An edit to the generated workflow itself is kept by
+  both, never updated, and left behind by removal.) It runs the test lock only for change
   folders whose `lock.md` the pull request adds or changes. To bring a
   locked branch up to date, merge the base into it, and if that changed
   locked files, re-lock with the user's sign-off (`test-first` step 7,
@@ -204,7 +207,8 @@ edits are kept; where both changed, `git merge-file` merges them, and an
 overlap leaves conflict markers and a `conflict <path>` line (exit 1).
 `cortex/config` is never changed: a key the new version added is printed as
 `config KEY=default`, to add if wanted. It also prints each release's notes
-for installed repositories. Resolve every conflict (C14 fails until they're
+for installed repositories. Merge any `entry .claude/settings.json` lines it
+prints, as in step 4. Resolve every conflict (C14 fails until they're
 gone), run `bash cortex/bin/check.sh`, show the user the diff, and commit.
 To undo before committing: `git restore . && git clean -fd`; after:
 `git revert` the commit.

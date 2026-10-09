@@ -207,7 +207,9 @@ recorded in `cortex/footprint`. Outside `cortex/`, cortex only creates files
 or inserts marked blocks, and records only what it added; it never moves,
 rewrites or deletes project content. Removal (`cortex/bin/remove.sh`)
 leaves the repository as it was before install, plus the records the user
-keeps. Only `install.sh` and `adapt.sh` write outside `cortex/`.
+keeps. Only `install.sh` and `adapt.sh` add anything outside `cortex/`;
+`remove.sh` takes out only what they recorded, and moves the records the
+user keeps.
 *Check: C13, and the round-trip test suite.*
 
 ---

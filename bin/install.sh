@@ -105,6 +105,9 @@ if [ ! -e cortex ]; then
     [ -e "$p" ] || continue
     refuse "$p" "exists and is not recorded as cortex's (D11); rename or remove it, then install"
   done
+  if [ -L AGENTS.md ]; then
+    refuse AGENTS.md "is a symbolic link, so cortex's block would land in the file it points to; make AGENTS.md the file (a tool that needs the other name can link to it), then install"
+  fi
   if [ -f AGENTS.md ] && [ "$(block_count AGENTS.md agents)" -gt 0 ]; then
     refuse AGENTS.md "holds a cortex agents block that no footprint records (D11); remove the block, then install"
   fi
@@ -113,6 +116,18 @@ fi
 filemode_note() {
   if [ "$(git config --get core.filemode || true)" = "false" ]; then
     echo "note: this repository ignores file modes; after committing, run git update-index --chmod=+x cortex/bin/*.sh"
+  fi
+}
+
+# ignored_note : cortex/.gitignore re-includes everything under cortex/ (a
+# root "bin/" pattern would otherwise drop cortex/bin/); name anything git
+# still ignores, since a file that never reaches a commit is missing in CI
+ignored_note() {
+  local ignored
+  ignored="$(git ls-files --others --ignored --exclude-standard -- cortex AGENTS.md 2>/dev/null || true)"
+  if [ -n "$ignored" ]; then
+    echo "note: git ignores these files cortex installed; commit them with git add -f, or other checkouts and CI lack them:"
+    printf '%s\n' "$ignored" | sed 's/^/  /'
   fi
 }
 
@@ -168,6 +183,7 @@ if [ ! -e cortex ]; then
   echo "block AGENTS.md agents"
   fp_save
   filemode_note
+  ignored_note
   run_adapt
   echo "install: $(summary_counts "")"
   exit 0
@@ -337,6 +353,14 @@ upgrade_one cortex/design-rules.md "$rules_base" "$RULES_SRC" "$rules_user" "$ru
 # The root agents block: merged like a file, its content as the file (D2).
 git -C "$CORTEX_ROOT" show "$installed_commit:template/blocks/AGENTS.md" > "$work/block.base" 2>/dev/null || : > "$work/block.base"
 if [ "$(block_count AGENTS.md agents)" -eq 0 ]; then
+  # The block is cortex's: one the user deleted comes back (C3 requires it;
+  # remove.sh is how cortex goes). A file deleted with it is recreated, and
+  # recorded as created, so removal deletes it again.
+  if [ ! -e AGENTS.md ]; then
+    : > AGENTS.md
+    fp_drop created AGENTS.md
+    fp_add created AGENTS.md pending
+  fi
   sep="$(block_insert AGENTS.md agents "$BLOCK_SRC")"
   fp_drop block AGENTS.md agents
   fp_add block AGENTS.md agents "$(block_sha AGENTS.md agents)" "$sep"

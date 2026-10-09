@@ -42,7 +42,8 @@ installed path changed.
   was before install.
 - **Checks:** C1 is retired (an upgrade merges edits, so a harness file may
   name the project) and `PROJECT_NAME` with it; C2 covers
-  `cortex/harness/` only; C3, C8, C10 and C12 read the root block; C11
+  `cortex/harness/` only; C3, C10 and C12 read the root block and C8 the
+  `claude` block in `CLAUDE.md`; C11
   requires `CODE_OWNERS` when `CI=github`; C13 (the footprint matches the
   repository) and C14 (no conflict markers) are new. New design rule R15,
   removability.

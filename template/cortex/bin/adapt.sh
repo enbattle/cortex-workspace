@@ -54,6 +54,8 @@ owners="$(config_value CODE_OWNERS < cortex/config)"
 globs="$(config_value TEST_GLOBS < cortex/config)"
 
 active() { case ",$tools," in *",$1,"*) return 0 ;; esac; return 1; }
+# TOOLS=none says no tools on purpose, so their files go (below). Unset (or a
+# placeholder) says nothing, so nothing is removed for it.
 
 # The CODEOWNERS file GitHub reads is the first of these that exists; a
 # second one elsewhere would be ignored, or would hide the project's.
@@ -127,6 +129,13 @@ emit_block() {
   local f="$1" id="$2" src="$3" rec sep new=0
   want "$f"
   rec="$(fp_match block "$f" "$id" | sed -n 1p)"
+  # A block written through a link would land in the file it points to,
+  # recorded under the wrong path (CLAUDE.md -> AGENTS.md is common, and the
+  # tool then reads AGENTS.md, which already holds cortex's block).
+  if [ -L "$f" ] && [ -z "$rec" ]; then
+    echo "skipped $f (a symbolic link; cortex writes no block through one)"
+    return 0
+  fi
   [ -e "$f" ] || new=1
   if [ "$(block_count "$f" "$id")" -eq 0 ]; then
     sep="$(block_insert "$f" "$id" "$src")"
@@ -157,22 +166,27 @@ emit_block() {
 # emit_entries PATH SOURCE : SOURCE's permission rules that PATH lacks,
 # printed and recorded as entries; a rule already there is the project's (D11)
 emit_entries() {
-  local f="$1" src="$2" line rule header=0
+  local f="$1" src="$2" line rule list="" said=""
   want "$f"
   while IFS= read -r line; do
     line="${line%"$CR"}"
+    case "$line" in
+      *'"allow"'*'['* | *'"deny"'*'['* | *'"ask"'*'['*)
+        list="$(printf '%s\n' "$line" | sed -n 's/^[[:space:]]*"\([a-z]*\)".*/\1/p')"
+        continue ;;
+    esac
+    printf '%s\n' "$line" | grep -qE '^[[:space:]]*"[^"]*",?[[:space:]]*$' || continue
     rule="$(printf '%s\n' "$line" | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p')"
-    [ -n "$rule" ] || continue
     if grep -qF -- "$rule" "$f"; then
       continue # merged already (a recorded entry stays recorded), or the project's own
     fi
-    if [ "$header" = 0 ]; then
-      echo "merge these lines into $f (where each goes: $src):"
-      header=1
+    if [ "$said" != "$list" ]; then
+      echo "merge these lines into $f, in permissions.$list (as in $src):"
+      said="$list"
     fi
     [ -n "$(fp_match entry "$f" "$line")" ] || fp_add entry "$f" "$line"
     echo "entry $f $line"
-  done <<<"$(grep -E '^[[:space:]]*"[^"]*",?[[:space:]]*$' "$src" || true)"
+  done < "$src"
 }
 
 # ---- tools ------------------------------------------------------------------------------
@@ -216,6 +230,7 @@ else
         printf '%s\n' "$POINTER" > "$tmp/gemini"
         emit_block GEMINI.md gemini "$tmp/gemini" ;;
       codex) echo "codex: reads AGENTS.md natively" ;;
+      none) ;;
       *) echo "warning: unknown tool $tool" ;;
     esac
   done
@@ -282,3 +297,15 @@ if [ -n "$dropped_entries" ]; then
 fi
 
 fp_save
+
+# A file git ignores (a project that ignores .claude/, say) never reaches a
+# commit, so every other checkout lacks it and C13 fails there.
+written=()
+while IFS= read -r p; do [ -n "$p" ] && [ -e "$p" ] && written+=("$p"); done <<<"$desired"
+if [ "${#written[@]}" -gt 0 ]; then
+  ignored="$(git check-ignore -- "${written[@]}" 2>/dev/null || true)"
+  if [ -n "$ignored" ]; then
+    echo "note: git ignores these files cortex wrote; commit them with git add -f, or every other checkout lacks them (C13):"
+    printf '%s\n' "$ignored" | sed 's/^/  /'
+  fi
+fi

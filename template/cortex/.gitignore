@@ -1,0 +1,6 @@
+# Everything cortex installs is committed, whatever the project's own ignore
+# rules say: a root "bin/" or "[Bb]in/" pattern would otherwise leave
+# cortex/bin/ out of every commit (and out of CI). Rules in this file win
+# over the root .gitignore for paths under cortex/.
+!*
+!*/

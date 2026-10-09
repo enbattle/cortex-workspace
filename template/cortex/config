@@ -16,7 +16,7 @@ LINT_CMD=<lint command>
 # may not change, and a new one may not appear, until the change is done.
 TEST_GLOBS=<test file globs>
 
-# Comma-separated agent tools to generate adapters for (adapt.sh):
+# Comma-separated agent tools to generate adapters for (adapt.sh), or none:
 # claude, cursor, copilot, gemini, codex
 TOOLS=<tools>
 

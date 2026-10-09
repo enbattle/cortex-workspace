@@ -3,8 +3,9 @@
 Status: **approved by the maintainer on 2026-10-08 (pull request #25).**
 Drafted 2026-10-05, rebased on 2.3.0 on 2026-10-07, from a discussion with
 the maintainer (2026-10-04 to 2026-10-08); the maintainer's answers to the
-open questions are recorded under "Resolved questions". Nothing below is
-built yet. A point-in-time record
+open questions are recorded under "Resolved questions". Built on branch
+`feat/v3-removable-layout` (2026-10-08); Amendment 2 records the decisions
+made while building it. A point-in-time record
 once approved: the scripts and `docs/01-design-rules.md` are authoritative
 after it lands.
 
@@ -869,3 +870,30 @@ B2, where following it literally would break a later upgrade.
   made an install assertion run a file listing as a command, and `grep -U`
   in the CRLF round-trip test, whose count was 0 on Git Bash for a file that
   is CRLF throughout. Neither changes what is asserted.
+- **B12. After the completeness audit (2026-10-08):**
+  - Blocks are rewritten in place, so a symbolic link stays a link and a
+    file keeps its mode. `adapt.sh` writes no block through a link
+    ("skipped <path>": `CLAUDE.md -> AGENTS.md` is common, and that tool
+    then reads the agents block anyway); `install.sh` refuses a linked
+    root `AGENTS.md`.
+  - `cortex/.gitignore` re-includes everything under `cortex/`, so a
+    project's `bin/` or `*.md` ignore rule can't leave cortex's files out
+    of commits; install and adapt name any file they wrote that git still
+    ignores (a project ignoring `.claude/`, say), since C13 fails in every
+    checkout that lacks it.
+  - `TOOLS=none` means no tools on purpose: `adapt.sh` removes their
+    files. An unset or placeholder `TOOLS` still removes nothing.
+  - Settings entries are printed under the `permissions` list each belongs
+    in.
+  - An upgrade puts back a root block the user deleted (C3 requires it;
+    `remove.sh` is how cortex goes), and records an `AGENTS.md` it has to
+    recreate as created.
+- **B13. Rollout as commits on one branch.** The tests could only pass
+  with the scripts, and this repository merges on green CI, so steps 3 to
+  7 are commits on `feat/v3-removable-layout` after the tests' commit,
+  one pull request, rather than one pull request each.
+- **B14. Known limitations, kept:** C14 also fires on a knowledge or
+  change-folder file that quotes conflict markers at a line start;
+  `remove.sh` step 2 also lists a URL segment such as `.../cortex/...`
+  (listing too much costs a confirmation; missing a real reference breaks
+  the project); `--keep-records` is relative to the repository root.
