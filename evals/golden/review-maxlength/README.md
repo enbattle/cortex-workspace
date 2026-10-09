@@ -1,10 +1,10 @@
 # Golden task: review catches a planted maxLength defect
 
-Checks that `harness/commands/review.md`, run by a fresh agent, blocks a
+Checks that `cortex/harness/commands/review.md`, run by a fresh agent, blocks a
 change whose tests and gates all pass but whose code is wrong: one plant
 breaks an acceptance criterion, the other meets every criterion but wastes
 work that grows with the input. A control checks that a correct change is
-approved. Re-run it after editing `template/harness/commands/review.md`,
+approved. Re-run it after editing `template/cortex/harness/commands/review.md`,
 the review checklist or the security review (root `AGENTS.md`). This
 procedure uses a general-purpose reviewer, so it doesn't exercise the Claude
 Code reviewer adapter; after editing that adapter, re-run the probe in
@@ -14,7 +14,7 @@ Code reviewer adapter; after editing that adapter, re-run the probe in
 
 - `fixture.bundle`: a git bundle of `slugkit`, a small Node library with
   cortex installed (on a `cortex-install` branch merged into `main`, per
-  `INSTALL.md`; step 5b, the CI setup, is skipped because the fixture isn't
+  `INSTALL.md`; step 5, the CI setup, is skipped because the fixture isn't
   hosted) and one change taken through the current flow on branch
   `change/20260924-slugify-maxlength` (`spec-new`, `spec-clarify` committing
   the approved folder, `test-first` with its three commits and `lock.md`,
@@ -51,21 +51,38 @@ folder was brought up to the 2.0.0 flow on 2026-10-02. **Rebuilt on
 - `golden-quality` is new (`rubric.md`).
 
 The change folder still has no `brief.md`: the brief informs the approval,
-not the review. Since the rebuild only the installed copies are refreshed.
-The current tags are in the bundle, and each results file records the
-commits it ran against.
+not the review.
+
+**Rebuilt on 2026-10-08** in the 3.0.0 layout
+(`docs/specs/2026-10-05-v3-removable-layout.md`, criterion 46), by a one-off
+filter over the 2.3.0 fixture's history followed by `refresh.sh`: at every
+commit with cortex installed, the 2.x paths moved under `cortex/`
+(`harness/`, `scripts/cortex/` as `cortex/bin/`, `.cortex/config`,
+`docs/constitution.md`, `docs/knowledge/`, `changes/`); the filled-in router
+became `cortex/AGENTS.md` from the 3.0.0 template with the fixture's own
+sentence and conventions; the config took the 3.0.0 template with the
+fixture's values; the filled-in files' 2.x paths were renamed; and the root
+`AGENTS.md` and `CLAUDE.md` became the blocks a 3.0.0 install creates,
+recorded in `cortex/footprint`. Source, tests, the change folder's content,
+both plants, messages, authors and dates are unchanged; the lock was
+remapped to the rewritten test commit. Since then only the installed copies
+are refreshed. The current tags are in the bundle, and each results file
+records the commits it ran against.
 
 The installed copies that must match their source byte for byte, at
 `golden-clean`, with `golden-planted` and `golden-quality` leaving them
 unchanged:
 
-- every file `install.sh` copies from `template/`, at the same path, except
-  the ones filled in when the fixture was built (`.cortex/config`,
-  `AGENTS.md`, `docs/**`, `changes/**`);
-- `.cortex/design-rules.md` (from `docs/01-design-rules.md`) and
-  `.cortex/version` (from `VERSION`);
+- every file `install.sh` copies from `template/cortex/`, at the same path
+  under `cortex/`, except the ones filled in when the fixture was built
+  (`cortex/config`, `cortex/AGENTS.md`, `cortex/constitution.md`,
+  `cortex/deferred-practices.md`, `cortex/knowledge/**`,
+  `cortex/changes/**`);
+- `cortex/design-rules.md` (from `docs/01-design-rules.md`) and the first
+  line of `cortex/version` (from `VERSION`);
 - `.claude/**`, which `adapt.sh` copies from
-  `.cortex/adapters/claude-code/.claude/`.
+  `cortex/adapters/claude-code/.claude/`;
+- the root `AGENTS.md`'s agents block (from `template/blocks/AGENTS.md`).
 
 `tests/golden-fixture.test.sh` fails, naming each file, when one differs or
 is missing, or when a tag is missing, so after an edit to any of them in
@@ -100,7 +117,7 @@ each in its own fresh clone and by its own fresh agent.
    git switch -q -C change/20260924-slugify-maxlength "$TAG"
    git tag -d golden-clean golden-planted golden-quality >/dev/null
    git remote remove origin
-   bash scripts/cortex/gates.sh changes/20260924-slugify-maxlength   # must end: gates: ok
+   bash cortex/bin/gates.sh cortex/changes/20260924-slugify-maxlength   # must end: gates: ok
    git status --porcelain -uall                                      # must be empty
    git rev-parse HEAD                                                # note it
    ```
@@ -114,8 +131,8 @@ each in its own fresh clone and by its own fresh agent.
    `general-purpose` subagent (never a fork: a fork inherits your context).
    Give it exactly this prompt and nothing else, with both paths filled in:
 
-   > Read and execute harness/commands/review.md for change folder
-   > changes/20260924-slugify-maxlength. The repository is
+   > Read and execute cortex/harness/commands/review.md for change folder
+   > cortex/changes/20260924-slugify-maxlength. The repository is
    > `<run-dir>/slugkit`; its default branch is `main`. You are read-only:
    > don't edit, create, delete, stage or commit anything in the repository,
    > and don't write review-findings.md. If you want to run probe scripts,
