@@ -116,9 +116,9 @@ block_body() {
     { printf "%s%s\n", held, $0; held = ""; seen = 1 }'
 }
 
-# nonblank_sha [FILE] -> git hash-object of the lines of FILE (or stdin) that
+# nonblank_sha < FILE -> git hash-object of the lines of stdin that
 # aren't blank, carriage returns dropped (F1)
-nonblank_sha() { tr -d '\r' < "${1:-/dev/stdin}" | { grep -v '^$' || true; } | git hash-object --no-filters --stdin; }
+nonblank_sha() { tr -d '\r' | { grep -v '^$' || true; } | git hash-object --no-filters --stdin; }
 
 # block_unedited PATH ID RECORD : the block is as RECORD says cortex left it,
 # blank lines aside (F1)

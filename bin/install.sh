@@ -385,7 +385,7 @@ else
   # Compared blank lines aside, merged without the framing (F1): a block that
   # differs from a version only in a formatter's blank lines is that version.
   block_body AGENTS.md agents | tr -d '\r' > "$work/block.user"
-  same() { [ "$(nonblank_sha "$1")" = "$(nonblank_sha "$2")" ]; }
+  same() { [ "$(nonblank_sha < "$1")" = "$(nonblank_sha < "$2")" ]; }
   if same "$work/block.user" "$BLOCK_SRC"; then
     echo "unchanged AGENTS.md"
   else

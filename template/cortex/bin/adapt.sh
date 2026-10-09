@@ -148,7 +148,7 @@ emit_block() {
     sep="$(fp_field "$rec" 5)"
     # Blank lines aside (F1): a formatter's blank lines are not an edit, and
     # rewriting them would only start the formatter's next round.
-    if [ "$(block_content "$f" "$id" | nonblank_sha)" = "$(nonblank_sha "$src")" ]; then
+    if [ "$(block_content "$f" "$id" | nonblank_sha)" = "$(nonblank_sha < "$src")" ]; then
       echo "unchanged $f"
     else
       if [ -n "$rec" ] && block_unedited "$f" "$id" "$rec"; then
