@@ -1,13 +1,15 @@
 # Changelog
 
-## 3.0.0 — unreleased (3.0.0-rc.2)
+## 3.0.0 — 2026-10-09
 
-**Before release:** the golden cycle on the 3.0.0 layout; the completeness
-audit and its findings; the full suites and CI, on Linux, macOS and Windows;
-then `v3.0.0-rc.1` tagged and the pilot in a real repository (install, one
-real change through the pipeline, an upgrade to an `rc.2`, removal), which
-gates the release (spec criterion 48); `VERSION` 3.0.0, the fixture
-refreshed, a date here, and the tag.
+**Before release** (all done): the golden cycle on the 3.0.0 layout
+(`evals/golden/review-maxlength/results/2026-10-08.md`); the completeness
+audits (`evals/audits/2026-10-08.md`, `evals/audits/2026-10-09.md`) and
+their findings; the full suites and CI on Linux, macOS and Windows (PRs #26,
+#27); `v3.0.0-rc.1`, then the pilot in a real repository (install, one real
+change through the pipeline, an upgrade to `v3.0.0-rc.2`, removal;
+`evals/pilots/2026-10-09-rc-pilot-til.md`), which gated the release (spec
+criterion 48); `VERSION` 3.0.0 and the fixture refreshed.
 
 **Changed: one directory, a clean install and a clean removal**
 (`docs/specs/2026-10-05-v3-removable-layout.md`). A major version: every
