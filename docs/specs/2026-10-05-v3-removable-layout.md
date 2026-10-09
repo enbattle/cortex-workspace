@@ -972,3 +972,24 @@ then upgrades to it (criterion 48's upgrade step).
     the commit message. Step 4 says the user merges the settings lines when
     the agent's permissions refuse the edit, and that permission rules the
     project adds for its own commands are the project's, not recorded.
+- **F5. Decided during implementation** (for the maintainer's approval with
+  the pull request):
+  - A `block` record gains a sixth field, the sha of the block's non-blank
+    lines (carriage returns dropped). `remove.sh` has only the record to
+    tell a formatter's blank lines from an edit, and the first sha alone
+    can't: the template block has blank lines of its own. A record without
+    the field (written by rc.1) falls back to its sha, which works because
+    rc.1 blocks had no blank lines. The footprint format line stays
+    `# cortex footprint 1`: readers take fields by position, so the extra
+    field is compatible.
+  - "The scripts the template marks executable" are found by name
+    (`cortex/bin/*.sh` but not `_*.sh`), not from the clone's file modes,
+    which a clone made where file modes are ignored (Windows) lacks. The
+    fresh install's `chmod +x` and the upgrade's use the same list as the
+    note, so `_config.sh` and `_footprint.sh` aren't marked executable on
+    disk either.
+  - `<n>` in the summary counts the files the install printed as created
+    under `cortex/` (the template's, `design-rules.md` and `version`), not
+    the footprint written after them.
+  - `.prettierignore` already ignoring cortex in another form (`cortex`,
+    `/cortex`, `/cortex/`) counts as having the line.

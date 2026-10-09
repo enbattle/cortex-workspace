@@ -113,9 +113,18 @@ if [ ! -e cortex ]; then
   fi
 fi
 
+# executables -> the installed paths of the template's executable files:
+# cortex/bin's scripts, not the _*.sh helpers they source. By name, not by the
+# clone's file modes, which a clone on a file system without them lacks.
+executables() {
+  (cd "$TEMPLATE" && find bin -maxdepth 1 -type f -name '*.sh' ! -name '_*' | LC_ALL=C sort | sed 's|^|cortex/|')
+}
+
+# filemode_note : a repository that ignores file modes commits every file as
+# 644; name the files to mark, and when (F4)
 filemode_note() {
   if [ "$(git config --get core.filemode || true)" = "false" ]; then
-    echo "note: this repository ignores file modes; after committing, run git update-index --chmod=+x cortex/bin/*.sh"
+    echo "note: this repository ignores file modes; after git add, run git update-index --chmod=+x $(executables | tr '\n' ' ' | sed 's/ $//')"
   fi
 }
 
@@ -167,25 +176,31 @@ if [ ! -e cortex ]; then
   (cd "$CORTEX_ROOT/template" && tar -cf - cortex) | tar -xf -
   cp "$RULES_SRC" cortex/design-rules.md
   printf '%s\n%s\n' "$version" "$commit" > cortex/version
-  chmod +x cortex/bin/*.sh
+  scripts=()
+  while IFS= read -r p; do [ -z "$p" ] || [ ! -f "$p" ] || scripts+=("$p"); done <<<"$(executables)"
+  [ "${#scripts[@]}" -eq 0 ] || chmod +x "${scripts[@]}"
+  inside=0
   while IFS= read -r rel; do
-    [ -n "$rel" ] && echo "created cortex/$rel"
+    [ -n "$rel" ] || continue
+    echo "created cortex/$rel"
+    inside=$((inside + 1))
   done <<<"$(template_files)"
   echo "created cortex/design-rules.md"
   echo "created cortex/version"
+  inside=$((inside + 2))
 
   FP_RECORDS=""
   agents_created=0
   [ -e AGENTS.md ] || agents_created=1
   sep="$(block_insert AGENTS.md agents "$BLOCK_SRC")"
   [ "$agents_created" = 0 ] || { fp_add created AGENTS.md "$(file_sha AGENTS.md)"; echo "created AGENTS.md"; }
-  fp_add block AGENTS.md agents "$(block_sha AGENTS.md agents)" "$sep"
+  fp_add_block AGENTS.md agents "$sep"
   echo "block AGENTS.md agents"
   fp_save
   filemode_note
   ignored_note
   run_adapt
-  echo "install: $(summary_counts "")"
+  echo "install: $inside files in cortex/, $(summary_counts "")"
   exit 0
 fi
 
@@ -236,6 +251,7 @@ replaced=0
 merged=0
 conflicts=0
 scripts=()
+exec_list="$(executables)"
 
 # The three versions of each template file: B from the installed commit's
 # tree (blob shas), N from this clone's template/, U the user's. Hashes are
@@ -332,7 +348,7 @@ upgrade_one() {
       echo "kept $dest (removed upstream, edited)"
     fi
   fi
-  case "$dest" in cortex/bin/*.sh) [ ! -f "$dest" ] || scripts+=("$dest") ;; esac
+  [ ! -f "$dest" ] || ! grep -qxF -- "$dest" <<<"$exec_list" || scripts+=("$dest")
 }
 
 while IFS="$TAB" read -r p bsha nsha usha; do
@@ -363,17 +379,20 @@ if [ "$(block_count AGENTS.md agents)" -eq 0 ]; then
   fi
   sep="$(block_insert AGENTS.md agents "$BLOCK_SRC")"
   fp_drop block AGENTS.md agents
-  fp_add block AGENTS.md agents "$(block_sha AGENTS.md agents)" "$sep"
+  fp_add_block AGENTS.md agents "$sep"
   echo "block AGENTS.md agents"
 else
-  block_content AGENTS.md agents | tr -d '\r' > "$work/block.user"
-  if cmp -s "$work/block.user" "$BLOCK_SRC"; then
+  # Compared blank lines aside, merged without the framing (F1): a block that
+  # differs from a version only in a formatter's blank lines is that version.
+  block_body AGENTS.md agents | tr -d '\r' > "$work/block.user"
+  same() { [ "$(nonblank_sha "$1")" = "$(nonblank_sha "$2")" ]; }
+  if same "$work/block.user" "$BLOCK_SRC"; then
     echo "unchanged AGENTS.md"
   else
-    if cmp -s "$work/block.user" "$work/block.base"; then
+    if same "$work/block.user" "$work/block.base"; then
       cp "$BLOCK_SRC" "$work/block.result"
       block_ok=0
-    elif cmp -s "$work/block.base" "$BLOCK_SRC"; then
+    elif same "$work/block.base" "$BLOCK_SRC"; then
       cp "$work/block.user" "$work/block.result"
       block_ok=0
     else
@@ -394,7 +413,7 @@ else
   rec="$(fp_match block AGENTS.md agents | sed -n 1p)"
   sep="$(fp_field "$rec" 5)"
   fp_drop block AGENTS.md agents
-  fp_add block AGENTS.md agents "$(block_sha AGENTS.md agents)" "${sep:-1}"
+  fp_add_block AGENTS.md agents "${sep:-1}"
 fi
 if [ -n "$(fp_match created AGENTS.md)" ]; then
   fp_drop created AGENTS.md

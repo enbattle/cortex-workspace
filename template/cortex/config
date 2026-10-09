@@ -11,7 +11,10 @@ LINT_CMD=<lint command>
 # Space-separated git pathspecs matching every file the test runner loads:
 # test files AND their helpers, fixtures and setup, AND the runner's own
 # config (package.json if its scripts choose the tests, jest.config.*, ...), e.g.
-#   *.test.ts *.spec.ts tests/**
+#   *.test.ts *.spec.ts tests/** **/test_*.py
+# A pattern that doesn't start with * is anchored at the repository root:
+# test_*.py matches only root files; **/test_*.py matches them anywhere.
+# adapt.sh notes a pattern that matches no tracked file.
 # All of them are locked once test-first commits the tests: an existing one
 # may not change, and a new one may not appear, until the change is done.
 TEST_GLOBS=<test file globs>

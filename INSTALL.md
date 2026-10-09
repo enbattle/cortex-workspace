@@ -43,6 +43,13 @@ guide) first: much of what follows may already be written there, and
 cortex reads those files too, so it doesn't need a copy. Then ask, in one
 batch where you can:
 
+0. If the repository already has a development process of its own (agent
+   instruction files beyond cortex's blocks, a contributing guide, an
+   existing spec, test-lock or review workflow), which one governs
+   nontrivial changes: cortex's commands, or the project's with cortex's
+   checks alongside. Write the answer as the first line of
+   `cortex/AGENTS.md`'s Conventions section. Either way, where the
+   project's rules and cortex's differ, the stricter one applies.
 1. One sentence on what the repository is.
 2. The build, test and lint commands. Detect candidates first (`package.json`
    scripts, a `Makefile`, `pyproject.toml`, `Cargo.toml`, CI workflows) and
@@ -60,7 +67,9 @@ batch where you can:
    directory (`test/**`). Include the runner's own configuration too
    (`package.json` if its scripts pick the tests, `jest.config.*`,
    `pytest.ini`, and similar), or the test command can be narrowed without
-   touching a test.
+   touching a test. Patterns are git pathspecs: one that doesn't start with
+   `*` is anchored at the root, so write `**/test_*.py` for test files in
+   any directory. `adapt.sh` notes each pattern that matches no tracked file.
 4. Which agent tools the team uses (`claude`, `cursor`, `copilot`, `gemini`,
    `codex`).
 5. Whether the repository is hosted on GitHub and should get the pull
@@ -89,7 +98,7 @@ step 5 applies), the placeholders and the Conventions section of
 `cortex/knowledge/architecture.md` and, where known, the start, check and
 stop section of `cortex/knowledge/verification.md`. Delete any entry in
 `cortex/deferred-practices.md` that can never apply here, with a one-line
-reason.
+reason in the commit message.
 
 Nothing under `cortex/harness/` may name an agent tool (`check.sh` C2).
 Project principles go in the constitution's Project section; an upgrade keeps
@@ -109,7 +118,17 @@ the repository already has a `.claude/settings.json`, it never edits it: it
 prints the permission rules the file lacks as `entry .claude/settings.json
 <line>` lines. Merge those lines into the file's `permissions` block, each in
 the list its source shows (the path is printed above them), with the user's
-approval; `check.sh` (C13) fails until they're in.
+approval; `check.sh` (C13) fails until they're in. An agent's own
+permissions may refuse an edit to its settings file; then the user merges
+the lines. A root `.prettierignore` gets the same treatment: `adapt.sh`
+prints `entry .prettierignore cortex/` for the user to merge, since cortex's
+files follow cortex's style, not the project's.
+
+Then run `LINT_CMD` once. If another formatter or linter flags files under
+`cortex/`, add `cortex/` to its ignore file with the user's approval (that
+line is the project's; removal doesn't list it). cortex's blocks in
+`AGENTS.md` and `CLAUDE.md` are written in the form markdown formatters
+produce, and a formatter's blank lines in them are not an edit.
 
 Fix every `FAIL` line (each names the rule it enforces) and re-run until it
 prints `check: ok`. On a fresh install it fails on purpose: C11 for each
@@ -121,7 +140,8 @@ commands the pipeline runs (read-only `git`, `git add`, `git commit`,
 `git switch`, `git checkout -b`, and `bash cortex/bin/*`, for Bash and
 PowerShell) and asks before push, merge, rebase and hard reset. Add this
 repository's build, test and lint commands from `cortex/config` to its
-`allow` list with the user (for example `"Bash(npm test*)"`), or running them
+`allow` list with the user (for example `"Bash(npm test*)"`; these rules are
+the project's, so cortex doesn't record them and removal leaves them), or running them
 directly prompts (the gates themselves run through the allowed
 `cortex/bin/gates.sh`). Add the command that runs the project too (for a Node
 library, `"Bash(node *)"`), so `implement` and `review` can check a change on
@@ -164,7 +184,11 @@ not in the code): require a pull request before merging, require the
 `cortex` check to pass, and require review from Code Owners. The last one is
 load-bearing: on a pull request the branch supplies the workflow file and
 `cortex/config` (whose commands the gates run), so a person reviewing them
-is what keeps both honest.
+is what keeps both honest. Two consequences to tell the user: GitHub doesn't
+count an author's approval of their own pull request, so a sole maintainer
+needs a second code owner or leaves Code Owners review off and relies on the
+required check; and a Code Owners rule on a file a bot updates (Dependabot
+and `package.json`, say) holds the bot's auto-merge until an owner approves.
 
 On another host, set up the equivalent by hand: the same script in CI, and
 required human review for the same paths.

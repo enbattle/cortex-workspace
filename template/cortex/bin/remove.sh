@@ -124,7 +124,9 @@ while IFS= read -r m; do
   skip=0
   while IFS= read -r rec; do
     [ -n "$rec" ] || continue
+    # a quoted rule (B6), or the whole line (the .prettierignore entry, F2)
     rule="$(printf '%s\n' "$rec" | cut -f3 | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p')"
+    [ -n "$rule" ] || rule="$(printf '%s\n' "$rec" | cut -f3)"
     if [ -n "$rule" ] && grep -qF -- "$rule" <<<"$text"; then skip=1; break; fi
   done <<<"$(fp_match entry "$path")"
   [ "$skip" = 1 ] && continue

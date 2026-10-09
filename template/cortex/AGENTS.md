@@ -3,8 +3,11 @@
 
 <!-- TODO: one sentence on what this repository is. Nothing more; details live in cortex/knowledge/. -->
 
-Route yourself with the table below before doing any work. The repository's
-own `AGENTS.md` (at the root) is the project's; read it too.
+Route yourself with the table below before doing any work. The project's own
+agent instructions (the root `AGENTS.md` outside cortex's block, a
+`CLAUDE.md` or other tool file outside cortex's block) apply too: where they
+and cortex differ, the stricter rule applies; where they conflict and
+neither is stricter, ask.
 
 | When you are... | Read / run |
 | --- | --- |
@@ -32,7 +35,7 @@ with the test lock and the harness check.
 
 ## Conventions
 
-<!-- The style guide the lint command enforces, the patterns new code follows, and patterns not to copy with what replaces each. One line each; conventions the root AGENTS.md already states stay there. When they outgrow this file, move them to cortex/knowledge/conventions.md and route to it here. -->
+<!-- If the project has its own development process, first the line saying which governs nontrivial changes (cortex's commands, or the project's with cortex's checks alongside), as the user decided at install. Then the style guide the lint command enforces, the patterns new code follows, and patterns not to copy with what replaces each. One line each; conventions the root AGENTS.md already states stay there. When they outgrow this file, move them to cortex/knowledge/conventions.md and route to it here. -->
 
 ## Rules
 
