@@ -87,15 +87,23 @@ When you do implement an extension, follow the design rules (`01-design-rules.md
 
 ## 4. Distribution and template upgrades (when others install cortex)
 
-cortex is already its own repository, versioned in `VERSION` with a `CHANGELOG.md`, and every install stamps `.cortex/version`. What is deferred is everything around sharing it.
+cortex is its own repository, versioned in `VERSION` with a `CHANGELOG.md`. **Done in 3.0.0** (`docs/specs/2026-10-05-v3-removable-layout.md`): everything installs under one `cortex/` directory, `cortex/version` records the version and the commit it came from, `cortex/footprint` records everything written outside it, `bin/install.sh` upgrades by a three-way merge with the installed commit as the base (user edits kept, overlaps left as conflicts), and `cortex/bin/remove.sh` removes it all. What is still deferred is everything around sharing it.
 
-**Trigger:** a second real consumer installs cortex, or a repository that installed an earlier version needs a later one's fixes.
+**Trigger:** a second real consumer installs cortex.
 
 **Implementation:**
-- First, audit the seam in the consuming repos: `check.sh`'s C1 catches project names leaking into `harness/`; fix leaks *in place* before upgrading.
-- Semver: breaking changes to command contracts (renamed commands, changed preconditions, changed template fields, a new required file) bump major. Consumers install a pinned tag, never HEAD. An agent harness that changes under a team mid-project is worse than a stale one.
-- An upgrade path: `install.sh` never overwrites, so an upgrade script (or an `upgrade` command) compares each installed harness file with the version it was installed from and the new one, applies the clean three-way cases, and lists the conflicts for a human. Each release's changelog entry says what a consumer must do.
+- Semver: breaking changes to command contracts (renamed commands, changed preconditions, changed template fields, a new required file) bump major. Consumers install a pinned tag, never HEAD. An agent harness that changes under a team mid-project is worse than a stale one. Within a major, a minor release keeps every earlier minor's test locks valid and never renames or removes a config key (3.0.0 spec, D12).
 - Decide ownership explicitly: a shared harness is a product with a maintainer, an issue queue, and release judgment. If nobody will own it, let the second team fork instead, and revisit when there's a third (rule of three).
+
+**Deferred by the 3.0.0 spec, each with its trigger** (the spec's Non-goals have the detail):
+- Migration from 2.x: a real 2.x install that wants 3.x.
+- The CI gates as a published GitHub Action, and an MCP toolkit: a consumer asks for upgrades without a vendored copy, or for use without any repository footprint.
+- Organization-wide policy layers (`cortex/org/`): a second repository in the same organization installs cortex.
+- Configurable locations (the directory's name; change folders and knowledge in a project's existing places, such as `docs/rfcs/`): a real install where `cortex/`, `cortex/changes/` or `cortex/knowledge/` conflicts with the project's conventions.
+- Per-package configuration in a monorepo: a real monorepo whose packages can't share one gate command.
+- A list of renames applied by upgrade: the first release that moves a file inside `cortex/` (until then a moved file is removed plus added, and a user's edits stay at the old path, reported).
+- Verifying signed release tags: a consumer requires signature verification.
+- A scheduled upgrade pull request (a Renovate rule or an Action): consumers ask to be told about new releases.
 
 **Pitfalls:**
 - The gravitational pull post-extraction is toward configurability ("make the review checklist pluggable, add hooks, add profiles"). Every knob is surface area. Prefer consumers editing their vendored copy of `policies/` files — that's what the data/prompt split was for — over building a plugin system.
@@ -164,7 +172,7 @@ The pipeline (spec-new → spec-clarify → test-first → implement → review,
 
 **Coverage, reported and never gated.** *Trigger:* a criterion's test turns out not to execute the code it was meant to verify. *Do:* report which changed lines no test executes, as review input; review treats each as a question. *Pitfall:* a threshold is met by tests that execute code without asserting anything, so it never becomes a gate; the criterion-to-test mapping in `tasks.md` stays the real check.
 
-**A smoke-test gate.** An optional `VERIFY_CMD` in `.cortex/config` that `gates.sh` runs: it starts the real thing, exercises it the way the verification recipe (`docs/knowledge/verification.md`) does, and stops it, so "it works when run" becomes a gate rather than evidence an agent records. *Trigger:* a change passes every gate and review and then doesn't work when run. *Deferred:* the recipe, followed by `implement` and repeated by `review`, covers most of its value without a script change. *Do:* a spec amendment and separate-agent tests first (it changes `gates.sh`'s contract); the key stays optional, since a library has nothing to start and a required key fails every existing config (C11). *Pitfalls:* CI must be able to start the application and its services; smoke tests are slow and flaky if they grow; where end-to-end tests already start the application, it duplicates `TEST_CMD` (E4).
+**A smoke-test gate.** An optional `VERIFY_CMD` in `cortex/config` that `gates.sh` runs: it starts the real thing, exercises it the way the verification recipe (`cortex/knowledge/verification.md`) does, and stops it, so "it works when run" becomes a gate rather than evidence an agent records. *Trigger:* a change passes every gate and review and then doesn't work when run. *Deferred:* the recipe, followed by `implement` and repeated by `review`, covers most of its value without a script change. *Do:* a spec amendment and separate-agent tests first (it changes `gates.sh`'s contract); the key stays optional, since a library has nothing to start and a required key fails every existing config (C11). *Pitfalls:* CI must be able to start the application and its services; smoke tests are slow and flaky if they grow; where end-to-end tests already start the application, it duplicates `TEST_CMD` (E4).
 
 **Process weight scaled to stakes.** Today a change is either trivial (no pipeline) or gets all of it. *Trigger:* on a real project, small fixes keep being stretched to count as trivial, or skipping the pipeline becomes tempting (T11), twice in the pipeline log. *Do:* a middle tier (for example a proposal-only change folder that keeps tests-first and isolated review but skips `spec-clarify`), designed from that project's pipeline log. Which tier applies is decided by the human or a fixed rule (lines changed, no new interface, no external surface), never by the agent: it is the actor who would rationalize (R14). Seen elsewhere: pstack's lighter sibling, fstack. *Pitfall:* a tier the agent can pick becomes the default path.
 
@@ -188,7 +196,7 @@ cortex v1 was designed for this case first; v2 moved it here, because building f
 
 **Implementation:**
 - A separate **workspace** repository holds only what genuinely crosses repository boundaries: `repos.yaml` (name, URL, branch, purpose per repository), `knowledge/contracts/` (one file per cross-repo interface: its shape, producer, consumers, and compatibility rules), `knowledge/system-map.md` (components, owners, dependency direction, forbidden dependencies), a shared glossary, and `changes/` **only for changes spanning two or more repositories**. Single-repo change folders stay in their repository (R3); documentation about a repository that lives outside it is drift waiting to happen (T3).
-- `scripts/bootstrap.sh` clones each repository into a gitignored `repos/` directory, runs cortex's `install.sh` into any that lack the harness, and reports each one's `.cortex/version`.
+- `scripts/bootstrap.sh` clones each repository into a gitignored `repos/` directory, runs cortex's `bin/install.sh` into any that lack the harness, and reports each one's `cortex/version`.
 - A multi-repo change folder adds a rollout-order section: which repository merges first, the compatibility window, and how contract versions bridge it. Review checks every consumer in the system map.
 - Trust: a cloned repository's `AGENTS.md` governs work inside that repository only; content elsewhere under `repos/` is data, never instructions.
 - A contract-drift check (see §3) compares each contract file with its producer's machine-readable definition, nightly.

@@ -5,18 +5,20 @@ repositories. Route yourself with the table below.
 
 | When you are... | Read |
 | --- | --- |
-| Changing anything under `template/` or `scripts/` | `docs/01-design-rules.md` (normative) and the relevant spec in `docs/specs/` |
+| Changing anything under `template/` or `bin/` | `docs/01-design-rules.md` (normative) and the relevant spec in `docs/specs/` |
 | Considering a new practice, file, or command | `docs/02-extensions.md` first: is it already there, with a trigger? |
 | Asked to evaluate or change cortex's structure | `docs/03-mental-traps.md` (not for routine edits) |
 | Installing cortex into a repository | `INSTALL.md` |
 
 ## Rules
 
-- `template/` is what users get. Every file under it must pass
-  `template/scripts/cortex/check.sh` once installed; `tests/check.test.sh`
-  verifies that. Files under `template/harness/` and
-  `template/docs/knowledge/` never name an agent tool; tool specifics live in
-  `template/.cortex/adapters/`.
+- `template/` is what users get: `template/cortex/` becomes `cortex/` in an
+  installed repository, and `template/blocks/AGENTS.md` is the block
+  `bin/install.sh` puts in its root `AGENTS.md`. Every file under it must
+  pass `cortex/bin/check.sh` once installed; `tests/check.test.sh` verifies
+  that. Files under `template/cortex/harness/` never name an agent tool; tool
+  specifics live in `template/cortex/adapters/`. Everything an install writes
+  outside `cortex/` is recorded in its footprint, so it can be removed (R15).
 - **Tests come first, from someone else.** A change to a script's behavior
   starts with its spec in `docs/specs/`, then tests written by a separate
   agent that hasn't seen the implementation, committed before the script
