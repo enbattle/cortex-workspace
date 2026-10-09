@@ -818,3 +818,54 @@ test-writing round, where the spec left a behavior the tests must pin down.
   path upstream adds is a conflict and counts in the upgrade summary's
   conflicts. Lines outside A1's table (a note such as codex reading
   `AGENTS.md` natively) are allowed as free text before the summary.
+
+## Amendment 2 (2026-10-08): decided during implementation
+
+Status: **decided by the implementer, under the maintainer's delegation of
+the details (2026-10-08); for review in the implementation's pull
+request.** Each keeps the spec's intent where the spec was silent or, in
+B2, where following it literally would break a later upgrade.
+
+- **B1. Refusals on stdout.** A1 makes a refusal an output line like the
+  others, so it goes where they go; usage errors stay on stderr.
+- **B2. `cortex/version` is written after the merges and before
+  `adapt.sh`** (install step 3 said after). The version is the next
+  upgrade's merge base: if `adapt.sh` stopped (a refusal), files of the new
+  version recorded under the old one would make that upgrade see every
+  change as the user's.
+- **B3. The `CODEOWNERS` block goes in the file GitHub reads**
+  (`.github/CODEOWNERS`, else `CODEOWNERS`, else `docs/CODEOWNERS`):
+  creating `.github/CODEOWNERS` beside a root one would make GitHub ignore
+  the project's. Its content is generated: the fixed paths of
+  `cortex/ci/github/CODEOWNERS` plus one line per `TEST_GLOBS` entry, each
+  owned by `CODE_OWNERS`.
+- **B4. C14 also covers recorded blocks**, since an upgrade merges the
+  root block and can leave markers there, outside `cortex/`.
+- **B5. A whole file cortex created and the user then edited is kept** by
+  `adapt.sh` ("kept <path> (edited)"), like remove.sh keeps it; only
+  blocks are output that a re-run overwrites. Cortex's own
+  `.claude/settings.json`, once edited, gets entries for the rules it
+  lacks.
+- **B6. An entry is matched by its quoted rule**, not the whole line, for
+  D11's "already there" and for C13 and removal: an agent that merges it
+  with other indentation or a trailing comma has merged it.
+- **B7. The cortex repository marks `template/**` and
+  `docs/01-design-rules.md` `-text`**, so a checkout with
+  `core.autocrlf=true` (Git for Windows' default) has the blob's bytes: the
+  installed copies and the base an upgrade reads then compare equal. The
+  installed repository's own line endings are handled by hashing with its
+  filters.
+- **B8. Binary-safe reads on Git Bash.** Its awk and grep drop carriage
+  returns, which would turn a CRLF file LF when a block is rewritten:
+  awk runs with `BINMODE=3` and grep with `-U` wherever project content is
+  read or rewritten (D15).
+- **B9. More refusals in step 0:** a clone without a commit (D3 needs
+  history), and a root `AGENTS.md` that already holds an unrecorded agents
+  block (D11).
+- **B10. `VERSION` is `3.0.0-rc.1`** until the pilot passes (Q4), so the
+  release candidate is a tag like any release; versions compare as semver,
+  a pre-release below its release.
+- **B11. Two test corrections, each its own commit:** a missing space that
+  made an install assertion run a file listing as a command, and `grep -U`
+  in the CRLF round-trip test, whose count was 0 on Git Bash for a file that
+  is CRLF throughout. Neither changes what is asserted.
