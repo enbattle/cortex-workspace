@@ -972,8 +972,8 @@ then upgrades to it (criterion 48's upgrade step).
     the commit message. Step 4 says the user merges the settings lines when
     the agent's permissions refuse the edit, and that permission rules the
     project adds for its own commands are the project's, not recorded.
-- **F5. Decided during implementation** (for the maintainer's approval with
-  the pull request):
+- **F5. Decided during implementation** (approved by the maintainer with
+  pull request #27, 2026-10-09):
   - A `block` record gains a sixth field, the sha of the block's non-blank
     lines (carriage returns dropped). `remove.sh` has only the record to
     tell a formatter's blank lines from an edit, and the first sha alone
