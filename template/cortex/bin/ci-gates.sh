@@ -57,7 +57,9 @@ while IFS= read -r line; do
   tag="${line%% *}"
   path="${line#* }"
   case "$tag" in
-    S | [a-z]) fail "hidden $path" ;;
+    # [[:lower:]], not [a-z]: in bash 3.2 a range follows the locale's
+    # collation, where [a-z] also matches the uppercase H of a normal file
+    S | [[:lower:]]) fail "hidden $path" ;;
   esac
 done <<<"$(g ls-files -v)"
 

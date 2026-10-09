@@ -38,13 +38,6 @@ jobs:
           mkdir -p "$RUNNER_TEMP/bash32"
           ln -s /bin/bash "$RUNNER_TEMP/bash32/bash"
           echo "$RUNNER_TEMP/bash32" >> "$GITHUB_PATH"
-      - name: git on this runner (diagnostic)
-        run: |
-          git version
-          git config --list --show-origin
-          d="$(mktemp -d)"; git -C "$d" init -q; echo a > "$d/a"; git -C "$d" add a
-          git -C "$d" -c user.name=t -c user.email=t@t commit -qm a; git -C "$d" ls-files -v
-          git -C "$d" status --porcelain; git -C "$d" ls-files -v
       - name: install, upgrade and remove suites
         run: |
           bash --version | head -n 1 | grep -q 'version 3\.2' || { bash --version; exit 1; }
