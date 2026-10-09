@@ -1,2 +1,8 @@
 # Shell scripts must keep LF endings: bash on Linux/WSL rejects CRLF.
 *.sh text eol=lf
+# What install.sh copies is checked out byte for byte on every platform, so an
+# installed file and the blob an upgrade reads as its base (D3) compare equal
+# (with core.autocrlf=true they would differ by line endings and every file
+# would look edited). template/cortex/.gitattributes keeps *.sh at LF.
+template/** -text
+docs/01-design-rules.md -text

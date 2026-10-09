@@ -1,0 +1,42 @@
+# Constitution
+
+Every command loads this file. These are constraints, not suggestions. When
+a spec conflicts with a line here, this file wins unless the user explicitly
+amends it here; a command that finds the conflict stops and asks rather than
+choosing. Keep it short: one line per principle.
+
+It holds cortex's rules (E, S, W) and the project's own (P, under
+`## Project`). Edit freely: an upgrade merges cortex's new version with your
+edits, and removing cortex keeps the `## Project` section as a record. Cite a
+principle as E2, S3, W1, P1, and so on (R-numbers are the design rules in
+`cortex/design-rules.md`).
+
+## Engineering
+
+- E1. Every behavior change ships with tests that encode its acceptance criteria.
+- E2. Public interfaces (APIs, events, file formats, CLI flags) change compatibly, or with a documented migration.
+- E3. Errors are handled or propagated explicitly; nothing is silently swallowed.
+- E4. Build only what the acceptance criteria need: no option, layer or abstraction for an anticipated requirement. Each fact or rule has one source: when copies must change together, merge them (look hard by the third). Replacing an internal API means migrating its callers and deleting the old path in the same change; public interfaces follow E2.
+
+## Security
+
+- S1. No secrets in the repository: not in code, config, fixtures, or logs.
+- S2. Every input from outside the process is validated at the boundary where it enters.
+- S3. Every new externally reachable surface has authentication and authorization decided explicitly, and gets the separate security pass in `review`.
+- S4. Least privilege for every credential, token and service account the change touches.
+- S5. New dependencies are justified in `design.md` (what it does, why not write it, maintenance health).
+
+## Process
+
+- W1. Spec briefer, test writer, implementer and reviewer are separate fresh contexts; nobody approves their own change.
+- W2. Locked tests change only through `test-first`, never during `implement`.
+- W3. Gates are checks the next stage runs itself (`cortex/bin/gates.sh`), never a report it trusts.
+- W4. Only a human approves a proposal, merges, pushes, or waives a finding.
+- W5. Every loop has a budget; hitting it means stopping and asking.
+
+## Project
+
+<!-- TODO: this project's own principles, as many as it needs, one line
+each: P1, P2, ... For example "P1. No database access across module
+boundaries" or "P2. The public API stays backward compatible within a major
+version". -->

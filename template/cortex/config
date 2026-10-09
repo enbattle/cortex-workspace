@@ -1,0 +1,28 @@
+# cortex configuration. KEY=VALUE, one per line; parsed by cortex/bin/*.sh,
+# never executed. A value of the form <...> counts as unset. This file is the
+# project's once installed: upgrades never change it, and a key a later
+# version adds has a default when absent (the upgrade prints it).
+
+# The commands a change must pass before review (implement.md runs them).
+BUILD_CMD=<build command>
+TEST_CMD=<test command>
+LINT_CMD=<lint command>
+
+# Space-separated git pathspecs matching every file the test runner loads:
+# test files AND their helpers, fixtures and setup, AND the runner's own
+# config (package.json if its scripts choose the tests, jest.config.*, ...), e.g.
+#   *.test.ts *.spec.ts tests/**
+# All of them are locked once test-first commits the tests: an existing one
+# may not change, and a new one may not appear, until the change is done.
+TEST_GLOBS=<test file globs>
+
+# Comma-separated agent tools to generate adapters for (adapt.sh), or none:
+# claude, cursor, copilot, gemini, codex
+TOOLS=<tools>
+
+# Where the pull request boundary runs: github (adapt.sh writes
+# .github/workflows/cortex.yml and a block in .github/CODEOWNERS) or none.
+CI=none
+# Required when CI=github: who must review the paths no script can judge
+# (the tests, this file, the workflow), e.g. @org/team or @user.
+CODE_OWNERS=<code owners>

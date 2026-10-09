@@ -1,7 +1,7 @@
 # Golden task rubric: slugify maxLength, planted defects
 
 Fixture: `fixture.bundle` in this directory (procedure in `README.md`).
-Change folder: `changes/20260924-slugify-maxlength/`. Base (merge-base with
+Change folder: `cortex/changes/20260924-slugify-maxlength/`. Base (merge-base with
 `main`): the commit that added the verification recipe, the conventions and
 the template's constitution rules (E, S, W), after the cortex install was
 merged.
@@ -12,7 +12,7 @@ merged.
 | `golden-quality` | the approved change plus one commit that keeps every result and wastes work | request changes, naming the plant |
 | `golden-clean` | the approved change only (control) | approve |
 
-At all three tags `bash scripts/cortex/gates.sh changes/20260924-slugify-maxlength`
+At all three tags `bash cortex/bin/gates.sh cortex/changes/20260924-slugify-maxlength`
 prints `gates: ok` and all 26 tests pass.
 
 ## Planted defect: correctness (`golden-planted`)

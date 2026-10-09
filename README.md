@@ -8,9 +8,13 @@ evidence. It is plain markdown and a few bash scripts, works with any agent
 tool, and ships a Claude Code adapter that enforces as much of the isolation
 as the tool allows.
 
-**Status:** 2.3.0, released 2026-10-07 (see [CHANGELOG.md](CHANGELOG.md)). The
-scripts are covered by test suites written by a separate agent before the
-scripts were (`tests/`, 7 suites). The whole pipeline has run end to end
+**Status:** 3.0.0 in development: everything cortex installs now lives in
+one `cortex/` directory, and installs upgrade and remove cleanly (see
+[CHANGELOG.md](CHANGELOG.md)). It is released only after a release candidate
+has been installed, upgraded and removed in a real repository; until then the
+latest release is 2.3.0 (2026-10-07). The scripts are covered by test suites
+written by a separate agent before the scripts were (`tests/`, 9 suites). The
+whole pipeline has run end to end
 three times, on toy repositories. In
 [pilot 1](evals/pilots/2026-09-23-toy-repo.md), review caught a real
 compatibility break, and a fresh reviewer caught a planted bug the tests
@@ -27,20 +31,26 @@ of the evaluation.
 
 ## What you get
 
-Installed into your repository:
+Installed into your repository, all in one directory:
 
 ```
-AGENTS.md                      a 60-line router every agent reads first
-harness/commands/              spec-new, spec-clarify, test-first, implement, review, retro, onboard
-harness/policies/              review checklist, security review, permissions
-harness/templates/             change folder (proposal, design, tasks, lock), ADR
-docs/constitution.md           the project's non-negotiables (project-owned; upgrades never touch it)
-docs/knowledge/                index, glossary, architecture, verification recipe, decisions/
-docs/deferred-practices.md     practices considered and deferred, with triggers
-changes/pipeline-log.md        one row per change: gates, findings, retro, escaped defects
-scripts/cortex/                check.sh, tests-locked.sh, gates.sh, ci-gates.sh, adapt.sh, _config.sh (their parser)
-.cortex/                       config, version, design rules, adapter sources, CI and CODEOWNERS templates
+cortex/
+  AGENTS.md                    a 60-line router, with the project's conventions
+  constitution.md              non-negotiables: cortex's, and the project's under ## Project
+  config                       build, test and lint commands, test globs, tools, CI
+  knowledge/                   index, glossary, architecture, verification recipe, decisions/
+  changes/                     one folder per change, and the pipeline log
+  harness/                     commands (spec-new ... retro, onboard), policies, templates
+  bin/                         check, gates, tests-locked, ci-gates, adapt, remove
+  adapters/  ci/               sources for the tool files and the GitHub workflow
+  design-rules.md  deferred-practices.md  version  footprint
 ```
+
+Outside `cortex/`, only what tools require: a short block of always-on rules
+in your `AGENTS.md`, a block in `CLAUDE.md` and the other tool files, Claude
+Code's agents and skills, and (with `CI=github`) a workflow and a
+`CODEOWNERS` block. Every one is recorded in `cortex/footprint`; nothing of
+yours is moved or rewritten.
 
 The workflow for a nontrivial change:
 
@@ -53,26 +63,40 @@ The workflow for a nontrivial change:
 | `review` | another fresh, read-only agent | a verdict with findings; a separate security pass for new external surfaces |
 | `retro` | you + the agent | approved process fixes and a pipeline-log row |
 
-In any agent tool: *"Read and execute `harness/commands/<name>.md`."* In
-Claude Code, the adapter adds `/cortex-<name>` skills that delegate the three
-role-separated commands to subagents.
+In any agent tool: *"Read and execute `cortex/harness/commands/<name>.md`."*
+In Claude Code, the adapter adds `/cortex-<name>` skills that delegate the
+three role-separated commands to subagents.
 
-## Install
+## Install, upgrade, remove
 
-Prerequisites: git and bash (Git Bash on Windows).
+Prerequisites: git and bash (Git Bash on Windows; macOS's bash 3.2 is fine).
+
+Ask your agent, in your repository:
+
+> Install cortex v3.0.0 from https://github.com/enbattle/cortex-workspace by following its INSTALL.md.
+
+It works on a branch, runs the installer, interviews you for the commands,
+tools and conventions, and runs the checks. Everything it can't know is left
+as a visible `TODO`. Later:
+
+> Upgrade cortex to v3.1.0 by following its INSTALL.md.
+
+> Remove cortex from this repository.
+
+Without an agent, from a clone made outside your repository (full history,
+so upgrades can read the installed version):
 
 ```bash
-git clone https://github.com/enbattle/cortex-workspace.git
-git -C cortex-workspace checkout v2.3.0   # install from the release tag, not main
+git clone --branch v3.0.0 https://github.com/enbattle/cortex-workspace.git ../cortex
+bash ../cortex/bin/install.sh .     # install, or upgrade an older 3.x
+bash cortex/bin/remove.sh           # remove: it stops for the hosting steps first
 ```
 
-Then open your repository in your agent tool and say: *"Read and execute
-`<path to cortex>/INSTALL.md`"*. It checks for a clean tree, creates a
-`cortex-install` branch, runs `scripts/install.sh` (which copies files only
-where none exist, so it is safe on an existing repository), and fills in
-`.cortex/config`, `AGENTS.md`, the constitution and the knowledge stubs with
-you, merges any existing `AGENTS.md` or `CLAUDE.md`, and runs the adapters
-and checks. Everything it can't know is left as a visible `TODO`.
+An upgrade keeps your edits to cortex's files by a three-way merge, and
+leaves conflict markers where you and the new version changed the same
+lines. Removal keeps your records (change folders, knowledge, project rules,
+conventions) in `docs/cortex-records/` unless you say otherwise. See
+[INSTALL.md](INSTALL.md).
 
 ## Reading order
 
@@ -86,14 +110,14 @@ and checks. Everything it can't know is left as a visible `TODO`.
 
 ## Supported agent tools
 
-Set `TOOLS` in `.cortex/config`, then run `bash scripts/cortex/adapt.sh`.
+Set `TOOLS` in `cortex/config`, then run `bash cortex/bin/adapt.sh`.
 
 | Tool | Generated | Isolation for test-first / implement / review |
 | --- | --- | --- |
-| Claude Code | `CLAUDE.md` (`@AGENTS.md`), `.claude/skills/cortex-*`, `.claude/agents/cortex-*`, `.claude/settings.json` if absent | separate subagents (enforced); reviewers have no Edit/Write tools, but have Bash, so the real check is the before/after `git status` the skill runs |
+| Claude Code | a block in `CLAUDE.md` (`@AGENTS.md`), `.claude/skills/cortex-*`, `.claude/agents/cortex-*`, `.claude/settings.json` if absent (otherwise the rules to merge are listed) | separate subagents (enforced); reviewers have no Edit/Write tools, but have Bash, so the real check is the before/after `git status` the skill runs |
 | Cursor | `.cursor/rules/cortex.mdc` | by instruction: start a new chat for each role |
-| GitHub Copilot | `.github/copilot-instructions.md` | by instruction |
-| Gemini CLI | `GEMINI.md` | by instruction |
+| GitHub Copilot | a block in `.github/copilot-instructions.md` | by instruction |
+| Gemini CLI | a block in `GEMINI.md` | by instruction |
 | Codex CLI | nothing (reads `AGENTS.md`) | by instruction |
 
 ## Limits
@@ -103,20 +127,20 @@ Deliberate trade-offs; each links to where it's explained.
 - **Not yet used on a real project.** It has run end to end on toy
   repositories ([pilots](evals/pilots/)); treat your first real change as
   part of the evaluation.
-- **No upgrade path yet.** `install.sh` refuses a repository with a
-  different version installed, so moving to a later release is a manual
-  merge ([extensions §4](docs/02-extensions.md)).
+- **No migration from 2.x.** 3.0.0 installs fresh; a 2.x install is
+  refused ([the 3.0.0 spec](docs/specs/2026-10-05-v3-removable-layout.md),
+  Non-goals). Upgrades within 3.x merge your edits.
 - **Every nontrivial change runs the full pipeline:** six stages, four of
   them in fresh agents; pilot 3's change cost about $6 in agent runs. There
   is no lighter tier for small fixes yet ([process weight scaled to
   stakes](docs/02-extensions.md)).
 - **The test lock freezes every matching test and fixture** (and
-  `.cortex/config`) while a change is in progress, so an implementer can't
+  `cortex/config`) while a change is in progress, so an implementer can't
   weaken old tests. Changing one means re-running `test-first` with your
   sign-off, and so does merging a `main` that changed locked files; a
   locked branch merges `main` in rather than rebasing, and can't take in a
-  change to `.cortex/config` at all (start over from the new `main`)
-  ([`test-first`](template/harness/commands/test-first.md),
+  change to `cortex/config` at all (start over from the new `main`)
+  ([`test-first`](template/cortex/harness/commands/test-first.md),
   [rebasing](docs/02-extensions.md)). Merge, don't squash, a locked change
   that other branches build on: after a squash, CI sees the re-locks it
   dropped as dropped locks on those branches
@@ -124,7 +148,7 @@ Deliberate trade-offs; each links to where it's explained.
 - **Local checks are guardrails, not a boundary.** An agent with full git
   access can get around them; the boundary is CI on the pull request plus
   required human review ([R11](docs/01-design-rules.md),
-  [INSTALL.md step 5b](INSTALL.md)). CI judges history as pushed: a branch
+  [INSTALL.md step 5](INSTALL.md)). CI judges history as pushed: a branch
   rebuilt so that weaker tests carry the first lock needs no sign-off, and
   only the reviewer, who sees those tests in the diff, catches it
   ([spec Amendment 12](docs/specs/2026-09-23-v2-scripts.md)).
@@ -133,7 +157,7 @@ Deliberate trade-offs; each links to where it's explained.
 - **One repository.** Systems spread over several repositories are a
   deferred extension ([§7](docs/02-extensions.md)).
 - **The CI template is GitHub-only.** Other hosts need the equivalent set up
-  by hand ([INSTALL.md step 5b](INSTALL.md)).
+  by hand ([INSTALL.md step 5](INSTALL.md)).
 
 ## Developing cortex
 

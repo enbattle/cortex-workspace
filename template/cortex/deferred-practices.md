@@ -1,0 +1,71 @@
+# Deferred practices
+
+Practices this repository has considered and deliberately **not** adopted
+yet, each with the condition that would make it worth adopting. `retro`
+checks these triggers after every change. When a trigger fires, the practice
+is proposed to the user (a large one is its own change folder) and its entry
+is updated or removed; an adopted practice is documented where it lives, not
+here.
+
+Each entry: **what it is**, **why deferred** (the actual reasoning, not "not
+needed"), **revisit when** (a condition that can be checked true or false).
+"It's a best practice" is not a trigger. An entry can also be adopted
+before its trigger fires when it passes the four checks of R14
+(`cortex/design-rules.md`); the retro records the answers.
+
+The entries below are seeded from cortex's extensions catalog; the catalog
+(cortex `docs/02-extensions.md`) has how to build each one and its pitfalls.
+Delete an entry that can never apply to this repository, with a one-line
+reason, rather than keeping it for completeness.
+
+---
+
+**Runbooks.** Fixed-format procedures (steps with a verify line each,
+rollback, escalation) for operational tasks. *Deferred:* until a procedure
+exists that people repeat. *Revisit when:* the same operational procedure is
+explained ad hoc a third time, or one is performed wrong because it lived in
+someone's head.
+
+**Golden-task evals for the commands.** Frozen tasks with planted problems
+(a diff with a known bug for `review`, an ambiguous proposal for
+`spec-clarify`) graded against a rubric. *Deferred:* the pipeline log is the
+cheap first measurement. *Revisit when:* a command is about to be edited and
+nobody can say whether the edit helps, or an escaped defect appears.
+
+**A change-folder presence check in CI.** A pull request touching source
+must include a change-folder update or carry a `no-spec` label. (The harness
+check and the test lock already run in CI: `cortex/bin/ci-gates.sh`.)
+*Deferred:* until the process is stable enough to enforce. *Revisit when:* a
+nontrivial change merges without a change folder.
+
+**A deeper security program.** Dependency and secret scanning in CI, threat
+models per surface. *Deferred:* `review`'s separate security pass covers each
+new surface. *Revisit when:* the system holds sensitive data, has external
+users, or a security finding escapes review.
+
+**Multi-repo coordination.** Shared interface contracts, a system map, and
+change folders that span repositories. *Deferred:* this is one repository.
+*Revisit when:* a change must land in another repository at the same time as
+this one.
+
+**Parallel or orchestrated agents.** A script that runs independent tasks in
+parallel and joins them. *Deferred:* orchestration amplifies whatever quality
+exists. *Revisit when:* latency, not quality, is the recurring complaint in
+the pipeline log.
+
+**Mutation testing.** A tool that makes small changes to the code and reports
+the ones no test catches, run on the changed files as review input.
+*Deferred:* the locked tests and the review checklist's Tests bar are the
+first checks of test strength. *Revisit when:* a defect escapes in code that
+a passing test exercised, or review finds tests that couldn't fail in two
+changes.
+
+**Flaky-test quarantine.** A dated list of tests the test command skips until
+fixed or deleted. *Deferred:* no flaky test yet. *Revisit when:* a test fails
+and then passes on a rerun with nothing changed, twice.
+
+**Coverage reporting.** Which changed lines no test executes, as review
+input; never a threshold, which gets met by tests that assert nothing.
+*Deferred:* the criterion-to-test mapping in `tasks.md` is the check.
+*Revisit when:* a criterion's test turns out not to execute the code it was
+meant to verify.

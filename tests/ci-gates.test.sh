@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests for scripts/cortex/ci-gates.sh (spec Amendment 3, C1; acceptance
+# Tests for cortex/bin/ci-gates.sh (spec Amendment 3, C1; acceptance
 # criteria 21-25). ci-gates.sh <base-ref> runs, with the checker scripts taken
 # from <base-ref>: a hidden-edit scan (skip-worktree / assume-unchanged), the
 # base copy of check.sh, and the base copy of gates.sh for every change folder
@@ -7,8 +7,8 @@
 #
 # Fixture: a filled install (plus tests/a.test.sh, src/app.txt) committed as
 # the base, pointed to by refs/remotes/origin/main, the way CI sees it. A
-# feature branch then locks changes/x in the Amendment 2 layout: the tests are
-# committed (T, adds tests/b.test.sh), then changes/x/lock.md naming T in its
+# feature branch then locks cortex/changes/x in the Amendment 2 layout: the tests are
+# committed (T, adds tests/b.test.sh), then cortex/changes/x/lock.md naming T in its
 # own commit (L). Each case plants its violation on the feature branch.
 set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
@@ -23,7 +23,7 @@ lock_folder() { lock_tests "$1" "$2" tests/b.test.sh; }
 # on branch "feature" at the same commit; nothing locked yet
 base_only() {
   local d
-  d="$(filled_install Zqxproj)" || return 1
+  d="$(filled_install)" || return 1
   mkdir -p "$d/tests" "$d/src"
   printf 'echo a\n' > "$d/tests/a.test.sh"
   printf 'app\n' > "$d/src/app.txt"
@@ -33,18 +33,18 @@ base_only() {
   printf '%s\n' "$d"
 }
 
-# ci_repo -> base_only plus, on the feature branch, changes/x locked
+# ci_repo -> base_only plus, on the feature branch, cortex/changes/x locked
 ci_repo() {
   local d
   d="$(base_only)" || return 1
   printf 'echo b\n' > "$d/tests/b.test.sh"
-  lock_folder "$d" changes/x
+  lock_folder "$d" cortex/changes/x
   printf '%s\n' "$d"
 }
 
 ci_gates() { # dir [args...] -> run the working tree's ci-gates.sh from the repo root
   local d="$1"; shift
-  run bash -c 'd="$1"; shift; cd "$d" && bash scripts/cortex/ci-gates.sh "$@"' _ "$d" "$@"
+  run bash -c 'd="$1"; shift; cd "$d" && bash cortex/bin/ci-gates.sh "$@"' _ "$d" "$@"
 }
 
 ci_lines() { grep '^ci-gates: ' <<<"$1" || true; }
@@ -62,8 +62,8 @@ expect_ci_lines() {
 
 case_installed() {
   local d; d="$(fresh_install)"
-  assert_file_exists "$ROOT/template/scripts/cortex/ci-gates.sh" "template ships ci-gates.sh"
-  assert_true "installed ci-gates.sh is executable" test -x "$d/scripts/cortex/ci-gates.sh"
+  assert_file_exists "$ROOT/template/cortex/bin/ci-gates.sh" "template ships ci-gates.sh"
+  assert_true "installed ci-gates.sh is executable" test -x "$d/cortex/bin/ci-gates.sh"
 }
 
 # ---- AC25 usage -----------------------------------------------------------------
@@ -92,7 +92,7 @@ case_clean_with_lock() {
   assert_exit 0 "$CODE" "clean branch with a new lock -> exit 0"
   expect_ci_lines "ci-gates: using scripts from $BASE
 ci-gates: check ok
-ci-gates: changes/x ok
+ci-gates: cortex/changes/x ok
 ci-gates: ok" "clean branch: exact ci-gates lines"
   assert_line "$OUT" "gates: ok" "the base gates.sh output is printed"
   assert_line "$OUT" "gate tests-locked: ok" "gates.sh ran the lock gate"
@@ -123,17 +123,17 @@ ci-gates: check ok
 ci-gates: ok" "HEAD = base: only the check runs"
 }
 
-# base with changes/old/lock.md whose sha is garbage (gating it would fail
+# base with cortex/changes/old/lock.md whose sha is garbage (gating it would fail
 # LOCK bad-sha); returns the repo on the feature branch
 base_with_old_lock() {
   local d
-  d="$(filled_install Zqxproj)" || return 1
-  mkdir -p "$d/tests" "$d/src" "$d/changes/old"
+  d="$(filled_install)" || return 1
+  mkdir -p "$d/tests" "$d/src" "$d/cortex/changes/old"
   printf 'echo a\n' > "$d/tests/a.test.sh"
   printf 'app\n' > "$d/src/app.txt"
   printf 'Tests-locked-at: 0000000000000000000000000000000000000000\n\n## Locked tests\n\n- tests/a.test.sh\n' \
-    > "$d/changes/old/lock.md"
-  printf '# tasks\n' > "$d/changes/old/tasks.md"
+    > "$d/cortex/changes/old/lock.md"
+  printf '# tasks\n' > "$d/cortex/changes/old/tasks.md"
   commit_all "$d" "base with an old change folder"
   git -C "$d" update-ref "refs/remotes/$BASE" HEAD
   git -C "$d" checkout -q -b feature
@@ -142,22 +142,22 @@ base_with_old_lock() {
 
 case_unchanged_lock_not_gated() {
   local d; d="$(base_with_old_lock)"
-  printf '# tasks\n- more\n' > "$d/changes/old/tasks.md"   # folder touched, lock.md not
+  printf '# tasks\n- more\n' > "$d/cortex/changes/old/tasks.md"   # folder touched, lock.md not
   printf 'echo b\n' > "$d/tests/b.test.sh"
-  lock_folder "$d" changes/x
+  lock_folder "$d" cortex/changes/x
   ci_gates "$d" "$BASE"
   assert_exit 0 "$CODE" "only the changed lock is gated -> exit 0"
   expect_ci_lines "ci-gates: using scripts from $BASE
 ci-gates: check ok
-ci-gates: changes/x ok
-ci-gates: ok" "changes/x gated, changes/old not"
-  assert_not_contains "$OUT" "changes/old" "the unchanged folder is not gated"
+ci-gates: cortex/changes/x ok
+ci-gates: ok" "cortex/changes/x gated, cortex/changes/old not"
+  assert_not_contains "$OUT" "cortex/changes/old" "the unchanged folder is not gated"
   assert_not_contains "$OUT" "LOCK bad-sha" "the old lock was not checked"
 }
 
 case_deleted_lock_not_gated() {
   local d; d="$(base_with_old_lock)"
-  git -C "$d" rm -q changes/old/lock.md
+  git -C "$d" rm -q cortex/changes/old/lock.md
   git -C "$d" commit -q -m "drop old lock"
   ci_gates "$d" "$BASE"
   assert_exit 0 "$CODE" "a lock.md removed on the branch is not gated"
@@ -172,13 +172,13 @@ case_base_moved_on() {
   local d; d="$(base_with_old_lock)"
   git -C "$d" checkout -q -B main "$BASE"
   printf 'Tests-locked-at: 1111111111111111111111111111111111111111\n\n## Locked tests\n\n- tests/a.test.sh\n' \
-    > "$d/changes/old/lock.md"
+    > "$d/cortex/changes/old/lock.md"
   commit_all "$d" "base moves on"
   git -C "$d" update-ref "refs/remotes/$BASE" HEAD
   git -C "$d" checkout -q feature
   ci_gates "$d" "$BASE"
   assert_exit 0 "$CODE" "a lock changed only on the base is not gated"
-  assert_not_contains "$OUT" "changes/old" "changes/old not gated"
+  assert_not_contains "$OUT" "cortex/changes/old" "cortex/changes/old not gated"
   assert_line "$OUT" "ci-gates: ok" "ends ok"
 }
 
@@ -186,11 +186,11 @@ case_base_moved_on() {
 
 case_tampered_tests_locked() {
   local d; d="$(ci_repo)"
-  printf '#!/usr/bin/env bash\nexit 0\n' > "$d/scripts/cortex/tests-locked.sh"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$d/cortex/bin/tests-locked.sh"
   printf 'echo weakened\n' > "$d/tests/b.test.sh"
   commit_all "$d" "weaken the test and the checker"
   # the branch's own gates.sh is fooled
-  run bash -c 'cd "$1" && bash scripts/cortex/gates.sh changes/x' _ "$d"
+  run bash -c 'cd "$1" && bash cortex/bin/gates.sh cortex/changes/x' _ "$d"
   assert_exit 0 "$CODE" "fixture: the branch's own gates.sh passes"
   assert_line "$OUT" "gates: ok" "fixture: the branch's gates.sh says ok"
   ci_gates "$d" "$BASE"
@@ -199,7 +199,7 @@ case_tampered_tests_locked() {
   assert_contains "$OUT" "LOCK modified: tests/b.test.sh" "base tests-locked.sh names the weakened test"
   assert_line "$OUT" "gate tests-locked: FAIL (exit 1)" "base gates.sh output printed"
   assert_line "$OUT" "ci-gates: check ok" "check still passes"
-  assert_line "$OUT" "ci-gates: FAIL changes/x" "the folder fails"
+  assert_line "$OUT" "ci-gates: FAIL cortex/changes/x" "the folder fails"
   assert_line "$OUT" "ci-gates: 1 failed" "one failure counted"
   assert_true "the count is the last line" test "$(last_line "$OUT")" = "ci-gates: 1 failed"
 }
@@ -208,17 +208,18 @@ case_tampered_gates_and_check() {
   # every checker on the branch lies; the base copies still catch both
   # plants, and every step runs after the first failure (two counted)
   local d; d="$(ci_repo)"
-  printf '#!/usr/bin/env bash\necho "gates: ok"\nexit 0\n' > "$d/scripts/cortex/gates.sh"
-  printf '#!/usr/bin/env bash\necho "check: ok"\nexit 0\n' > "$d/scripts/cortex/check.sh"
-  printf '#!/usr/bin/env bash\nexit 0\n' > "$d/scripts/cortex/tests-locked.sh"
+  printf '#!/usr/bin/env bash\necho "gates: ok"\nexit 0\n' > "$d/cortex/bin/gates.sh"
+  printf '#!/usr/bin/env bash\necho "check: ok"\nexit 0\n' > "$d/cortex/bin/check.sh"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$d/cortex/bin/tests-locked.sh"
   printf 'echo weakened\n' > "$d/tests/a.test.sh"
-  append "$d/AGENTS.md" "TODO: planted"
+  # C12 reads cortex/AGENTS.md (the router) in 3.0.0 (check table); path only
+  append "$d/cortex/AGENTS.md" "TODO: planted"
   commit_all "$d" "tamper"
   ci_gates "$d" "$BASE"
   assert_exit 1 "$CODE" "two failures -> exit 1"
   expect_ci_lines "ci-gates: using scripts from $BASE
 ci-gates: FAIL check
-ci-gates: FAIL changes/x
+ci-gates: FAIL cortex/changes/x
 ci-gates: 2 failed" "both failures reported, in order"
   assert_contains "$OUT" "LOCK modified: tests/a.test.sh" "pre-existing locked test caught by the base checker"
 }
@@ -227,20 +228,20 @@ case_from_subdir() {
   local d; d="$(ci_repo)"
   printf 'echo weakened\n' > "$d/tests/b.test.sh"
   commit_all "$d" "weaken"
-  run bash -c 'cd "$1/src" && bash ../scripts/cortex/ci-gates.sh "$2"' _ "$d" "$BASE"
+  run bash -c 'cd "$1/src" && bash ../cortex/bin/ci-gates.sh "$2"' _ "$d" "$BASE"
   assert_exit 1 "$CODE" "from a subdirectory: still fails"
   assert_line "$OUT" "ci-gates: using scripts from $BASE" "uses base scripts from a subdirectory"
   assert_line "$OUT" "ci-gates: check ok" "check runs on the repo root"
-  assert_line "$OUT" "ci-gates: FAIL changes/x" "folder named relative to the root"
+  assert_line "$OUT" "ci-gates: FAIL cortex/changes/x" "folder named relative to the root"
   assert_contains "$OUT" "LOCK modified: tests/b.test.sh" "the weakened test is named"
   assert_line "$OUT" "ci-gates: 1 failed" "one failure counted"
 }
 
 case_from_subdir_clean() {
   local d; d="$(ci_repo)"
-  run bash -c 'cd "$1/src" && bash ../scripts/cortex/ci-gates.sh "$2"' _ "$d" "$BASE"
+  run bash -c 'cd "$1/src" && bash ../cortex/bin/ci-gates.sh "$2"' _ "$d" "$BASE"
   assert_exit 0 "$CODE" "clean from a subdirectory -> exit 0"
-  assert_line "$OUT" "ci-gates: changes/x ok" "folder gated from a subdirectory"
+  assert_line "$OUT" "ci-gates: cortex/changes/x ok" "folder gated from a subdirectory"
   assert_line "$OUT" "ci-gates: ok" "ends ok"
 }
 
@@ -248,6 +249,11 @@ case_from_subdir_clean() {
 
 # pre_cortex_repo -> base commit without cortex (origin/main), then on branch
 # "feature" cortex installed, filled and committed
+#
+# 3.0.0 (spec criterion 45): the fallback is keyed on the base having no
+# cortex/bin/ (2.x keyed it on scripts/cortex/). This base has neither, so
+# these cases exercise the 3.0.0 fallback unchanged; the install comes from
+# bin/install.sh (spec "Layouts").
 pre_cortex_repo() {
   local d
   d="$(new_git_repo)"
@@ -256,8 +262,8 @@ pre_cortex_repo() {
   commit_all "$d" "base without cortex"
   git -C "$d" update-ref "refs/remotes/$BASE" HEAD
   git -C "$d" checkout -q -b feature
-  "$ROOT/scripts/install.sh" "$d" >/dev/null || return 1
-  fill_install "$d" Zqxproj || return 1
+  "$ROOT/bin/install.sh" "$d" >/dev/null || return 1
+  fill_install "$d" || return 1
   mkdir -p "$d/tests"; printf 'echo a\n' > "$d/tests/a.test.sh"
   commit_all "$d" "install cortex"
   printf '%s\n' "$d"
@@ -278,19 +284,19 @@ ci-gates: ok" "note, check, ok"
 case_no_cortex_at_base_with_lock() {
   local d; d="$(pre_cortex_repo)"
   printf 'echo b\n' > "$d/tests/b.test.sh"
-  lock_folder "$d" changes/x
+  lock_folder "$d" cortex/changes/x
   ci_gates "$d" "$BASE"
   assert_exit 0 "$CODE" "branch copy gates the new lock"
   expect_ci_lines "$NOTE_LINE
 ci-gates: check ok
-ci-gates: changes/x ok
+ci-gates: cortex/changes/x ok
 ci-gates: ok" "note, check, folder, ok"
 }
 
 case_no_cortex_at_base_uses_branch_copy() {
   # evidence the branch copy really runs: a branch check.sh that fails
   local d; d="$(pre_cortex_repo)"
-  printf '#!/usr/bin/env bash\necho "branch-check-marker"\nexit 1\n' > "$d/scripts/cortex/check.sh"
+  printf '#!/usr/bin/env bash\necho "branch-check-marker"\nexit 1\n' > "$d/cortex/bin/check.sh"
   commit_all "$d" "branch check fails"
   ci_gates "$d" "$BASE"
   assert_exit 1 "$CODE" "branch check.sh failing -> exit 1"
@@ -308,7 +314,7 @@ case_skip_worktree() {
   assert_exit 1 "$CODE" "skip-worktree -> exit 1"
   assert_line "$OUT" "ci-gates: FAIL hidden src/app.txt" "names the skip-worktree file"
   assert_line "$OUT" "ci-gates: check ok" "check still runs"
-  assert_line "$OUT" "ci-gates: changes/x ok" "folder still gated"
+  assert_line "$OUT" "ci-gates: cortex/changes/x ok" "folder still gated"
   assert_line "$OUT" "ci-gates: 1 failed" "one failure per hidden file"
 }
 
@@ -343,20 +349,20 @@ case_hidden_plus_lock_failure() {
   expect_ci_lines "ci-gates: using scripts from $BASE
 ci-gates: FAIL hidden tests/b.test.sh
 ci-gates: check ok
-ci-gates: FAIL changes/x
+ci-gates: FAIL cortex/changes/x
 ci-gates: 2 failed" "all steps run and both failures count"
 }
 
 # ---- AC29/AC70 (Amendments 4 and 11): archived folders; a dropped lock ----------
 #
 # Amendment 11, M4: a branch that adds a lock.md and no longer has it at HEAD
-# (deleted, or its folder moved under changes/archive/) fails for that folder.
+# (deleted, or its folder moved under cortex/changes/archive/) fails for that folder.
 # Archiving a folder whose lock.md is already on the base stays ungated (D2).
 
-# expect_dropped_lock msg : ci-gates fails for changes/x, and nothing else
+# expect_dropped_lock msg : ci-gates fails for cortex/changes/x, and nothing else
 expect_dropped_lock() {
   assert_exit 1 "$CODE" "$1: exit 1"
-  if grep -qE '^ci-gates: FAIL changes/(archive/)?x( |:|$)' <<<"$OUT"; then pass
+  if grep -qE '^ci-gates: FAIL cortex/changes/(archive/)?x( |:|$)' <<<"$OUT"; then pass
   else fail "$1: a ci-gates: FAIL line for the folder"; show_output; fi
   assert_line "$OUT" "ci-gates: check ok" "$1: check still passes"
   assert_true "$1: one failure counted, as the last line" test "$(last_line "$OUT")" = "ci-gates: 1 failed"
@@ -366,20 +372,20 @@ case_archived_on_branch() {
   # was AC29's "folder archived on the branch is not gated": the lock was
   # added on this branch, so moving it away drops it (AC70)
   local d; d="$(ci_repo)"
-  git -C "$d" mv changes/x changes/archive/x
-  git -C "$d" commit -q -m "archive changes/x"
-  assert_file_exists "$d/changes/archive/x/lock.md" "fixture: lock.md now under changes/archive/"
+  git -C "$d" mv cortex/changes/x cortex/changes/archive/x
+  git -C "$d" commit -q -m "archive cortex/changes/x"
+  assert_file_exists "$d/cortex/changes/archive/x/lock.md" "fixture: lock.md now under cortex/changes/archive/"
   ci_gates "$d" "$BASE"
   expect_dropped_lock "lock added on the branch, then its folder archived"
 }
 
 case_added_lock_deleted() {
   local d; d="$(ci_repo)"
-  git -C "$d" rm -q changes/x/lock.md
+  git -C "$d" rm -q cortex/changes/x/lock.md
   git -C "$d" commit -q -m "drop the lock"
-  assert_file_absent "$d/changes/x/lock.md" "fixture: lock.md deleted"
-  assert_true "fixture: the base has no changes/x/lock.md" \
-    bash -c '! git -C "$1" cat-file -e "$2:changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
+  assert_file_absent "$d/cortex/changes/x/lock.md" "fixture: lock.md deleted"
+  assert_true "fixture: the base has no cortex/changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:cortex/changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
   ci_gates "$d" "$BASE"
   expect_dropped_lock "lock added on the branch, then deleted"
 }
@@ -387,14 +393,14 @@ case_added_lock_deleted() {
 # ---- AC72 (Amendment 12, N1): a merge can't hide the lock commit ------------------
 #
 # The tip is a merge whose first parent is T (the tests commit, before the
-# lock: no changes/x/lock.md) and whose second parent is the lock commit L,
-# keeping T's tree for changes/x. A pathspec git log simplifies history and
+# lock: no cortex/changes/x/lock.md) and whose second parent is the lock commit L,
+# keeping T's tree for cortex/changes/x. A pathspec git log simplifies history and
 # prunes the L side, so the dropped lock is only seen by reading every commit.
 
 # pruned_lock_merge DIR [archive|archive-first] : make HEAD such a merge,
 # built with plumbing so the shape is exact. The tree is the first parent's
 # plus src/impl.txt. With "archive", the merge also places L's lock.md at
-# changes/archive/x/lock.md. With "archive-first", the first parent is P, a
+# cortex/changes/archive/x/lock.md. With "archive-first", the first parent is P, a
 # child of T (a sibling of L) that already holds that archived copy, so the
 # merge equals P for every lock.md path and any pathspec log prunes L.
 pruned_lock_merge() {
@@ -402,10 +408,10 @@ pruned_lock_merge() {
   [ -n "$d" ] && [ -d "$d" ] || return 1
   l="$(git -C "$d" rev-parse HEAD)"
   first="$(git -C "$d" rev-parse HEAD^1)"
-  blob="$(git -C "$d" rev-parse "$l:changes/x/lock.md")"
+  blob="$(git -C "$d" rev-parse "$l:cortex/changes/x/lock.md")"
   git -C "$d" checkout -q "$first"
   if [ "${2-}" = archive-first ]; then
-    git -C "$d" update-index --add --cacheinfo "100644,$blob,changes/archive/x/lock.md"
+    git -C "$d" update-index --add --cacheinfo "100644,$blob,cortex/changes/archive/x/lock.md"
     tree="$(git -C "$d" write-tree)"
     first="$(printf 'archive copy of the lock, before the merge\n' | git -C "$d" commit-tree "$tree" -p "$first")"
     git -C "$d" checkout -q "$first"
@@ -413,7 +419,7 @@ pruned_lock_merge() {
   printf 'impl\n' > "$d/src/impl.txt"
   git -C "$d" add src/impl.txt
   if [ "${2-}" = archive ]; then
-    git -C "$d" update-index --add --cacheinfo "100644,$blob,changes/archive/x/lock.md"
+    git -C "$d" update-index --add --cacheinfo "100644,$blob,cortex/changes/archive/x/lock.md"
   fi
   tree="$(git -C "$d" write-tree)"
   m="$(printf 'merge the lock, keeping the pre-lock tree\n' | git -C "$d" commit-tree "$tree" -p "$first" -p "$l")"
@@ -425,15 +431,15 @@ pruned_lock_merge() {
 expect_pruned_shape() {
   local d="$1"
   [ -n "$d" ] && [ -d "$d" ] || return 1
-  assert_true "fixture: HEAD^1 has no changes/x/lock.md" \
-    bash -c '! git -C "$1" cat-file -e HEAD^1:changes/x/lock.md 2>/dev/null' _ "$d"
-  assert_true "fixture: HEAD^2 is the lock commit (adds changes/x/lock.md)" \
-    test -n "$(git -C "$d" diff --name-only --diff-filter=A HEAD^2^ HEAD^2 -- changes/x/lock.md)"
-  assert_file_absent "$d/changes/x/lock.md" "fixture: no changes/x/lock.md at HEAD"
-  assert_true "fixture: the base has no changes/x/lock.md" \
-    bash -c '! git -C "$1" cat-file -e "$2:changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
+  assert_true "fixture: HEAD^1 has no cortex/changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e HEAD^1:cortex/changes/x/lock.md 2>/dev/null' _ "$d"
+  assert_true "fixture: HEAD^2 is the lock commit (adds cortex/changes/x/lock.md)" \
+    test -n "$(git -C "$d" diff --name-only --diff-filter=A HEAD^2^ HEAD^2 -- cortex/changes/x/lock.md)"
+  assert_file_absent "$d/cortex/changes/x/lock.md" "fixture: no cortex/changes/x/lock.md at HEAD"
+  assert_true "fixture: the base has no cortex/changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:cortex/changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
   assert_true "fixture: a plain pathspec git log prunes the lock commit" \
-    test -z "$(git -C "$d" log --format=%H "$BASE..HEAD" -- changes/x/lock.md)"
+    test -z "$(git -C "$d" log --format=%H "$BASE..HEAD" -- cortex/changes/x/lock.md)"
 }
 
 case_AC72_merge_prunes_lock() {
@@ -443,19 +449,19 @@ case_AC72_merge_prunes_lock() {
   assert_file_exists "$d/src/impl.txt" "fixture: the merge added an implementation file"
   ci_gates "$d" "$BASE"
   expect_dropped_lock "merge whose first parent predates the lock"
-  assert_line "$OUT" "ci-gates: FAIL changes/x (lock.md added on this branch is gone)" \
-    "the dropped-lock line names changes/x"
+  assert_line "$OUT" "ci-gates: FAIL cortex/changes/x (lock.md added on this branch is gone)" \
+    "the dropped-lock line names cortex/changes/x"
 }
 
 case_AC72_merge_prunes_lock_archived() {
   local d; d="$(ci_repo)"
   pruned_lock_merge "$d" archive
   expect_pruned_shape "$d"
-  assert_file_exists "$d/changes/archive/x/lock.md" "fixture: lock.md now under changes/archive/x"
+  assert_file_exists "$d/cortex/changes/archive/x/lock.md" "fixture: lock.md now under cortex/changes/archive/x"
   ci_gates "$d" "$BASE"
   expect_dropped_lock "merge whose first parent predates the lock, folder archived"
   assert_true "the dropped-lock line names the folder" \
-    grep -qxE 'ci-gates: FAIL changes/(archive/)?x \(lock\.md added on this branch is gone\)' <<<"$OUT"
+    grep -qxE 'ci-gates: FAIL cortex/changes/(archive/)?x \(lock\.md added on this branch is gone\)' <<<"$OUT"
 }
 
 case_AC72_merge_prunes_lock_archived_first_parent() {
@@ -463,15 +469,15 @@ case_AC72_merge_prunes_lock_archived_first_parent() {
   l="$(git -C "$d" rev-parse HEAD)"
   pruned_lock_merge "$d" archive-first
   expect_pruned_shape "$d"
-  assert_file_exists "$d/changes/archive/x/lock.md" "fixture: lock.md under changes/archive/x"
+  assert_file_exists "$d/cortex/changes/archive/x/lock.md" "fixture: lock.md under cortex/changes/archive/x"
   assert_true "fixture: the merge equals its first parent for every lock.md path" \
-    git -C "$d" diff --quiet HEAD^1 HEAD -- 'changes/*lock.md'
+    git -C "$d" diff --quiet HEAD^1 HEAD -- 'cortex/changes/*lock.md'
   assert_true "fixture: a pathspec log over every lock.md prunes the lock commit" \
-    bash -c '! git -C "$1" log --format=%H "$2..HEAD" -- "changes/*lock.md" | grep -qxF "$3"' _ "$d" "$BASE" "$l"
+    bash -c '! git -C "$1" log --format=%H "$2..HEAD" -- "cortex/changes/*lock.md" | grep -qxF "$3"' _ "$d" "$BASE" "$l"
   ci_gates "$d" "$BASE"
   expect_dropped_lock "merge pruning the lock, archived copy on the first parent"
   assert_true "the dropped-lock line names the folder" \
-    grep -qxE 'ci-gates: FAIL changes/(archive/)?x \(lock\.md added on this branch is gone\)' <<<"$OUT"
+    grep -qxE 'ci-gates: FAIL cortex/changes/(archive/)?x \(lock\.md added on this branch is gone\)' <<<"$OUT"
 }
 
 # ---- AC74 (Amendment 12, N1): a lock.md that only merges touch --------------------
@@ -488,13 +494,13 @@ side_commit() {
 }
 
 case_AC74_lock_only_in_merges() {
-  # T adds the tests; merge M1 (T + side1) adds changes/x/lock.md naming T,
+  # T adds the tests; merge M1 (T + side1) adds cortex/changes/x/lock.md naming T,
   # which neither parent has; merge M2 (M1 + side2) removes it. No ordinary
   # commit touches the path. Built with plumbing so the shape is exact.
   local d t s1 s2 blob tree m1 m2
   d="$(base_only)"
   printf 'echo b\n' > "$d/tests/b.test.sh"
-  commit_all "$d" "add tests for changes/x"
+  commit_all "$d" "add tests for cortex/changes/x"
   t="$(git -C "$d" rev-parse HEAD)"
   s1="$(side_commit "$d" side1)"
   s2="$(side_commit "$d" side2)"
@@ -502,10 +508,10 @@ case_AC74_lock_only_in_merges() {
     | git -C "$d" hash-object -w --stdin)"
   git -C "$d" read-tree "$t"
   git -C "$d" update-index --add --cacheinfo "100644,$(git -C "$d" rev-parse "$s1:src/side1.txt"),src/side1.txt"
-  git -C "$d" update-index --add --cacheinfo "100644,$blob,changes/x/lock.md"
+  git -C "$d" update-index --add --cacheinfo "100644,$blob,cortex/changes/x/lock.md"
   tree="$(git -C "$d" write-tree)"
   m1="$(printf 'merge side1 (adds the lock)\n' | git -C "$d" commit-tree "$tree" -p "$t" -p "$s1")"
-  git -C "$d" update-index --force-remove changes/x/lock.md
+  git -C "$d" update-index --force-remove cortex/changes/x/lock.md
   git -C "$d" update-index --add --cacheinfo "100644,$(git -C "$d" rev-parse "$s2:src/side2.txt"),src/side2.txt"
   tree="$(git -C "$d" write-tree)"
   m2="$(printf 'merge side2 (drops the lock)\n' | git -C "$d" commit-tree "$tree" -p "$m1" -p "$s2")"
@@ -514,23 +520,23 @@ case_AC74_lock_only_in_merges() {
   assert_true "fixture: HEAD is a merge" git -C "$d" cat-file -e HEAD^2
   assert_true "fixture: HEAD^1 is a merge whose first parent is T" \
     test "$(git -C "$d" rev-parse HEAD^1^1)" = "$t" -a -n "$(git -C "$d" rev-parse -q --verify HEAD^1^2)"
-  assert_true "fixture: the first merge's first parent has no changes/x/lock.md" \
-    bash -c '! git -C "$1" cat-file -e HEAD^1^1:changes/x/lock.md 2>/dev/null' _ "$d"
-  assert_true "fixture: the first merge's second parent has no changes/x/lock.md" \
-    bash -c '! git -C "$1" cat-file -e HEAD^1^2:changes/x/lock.md 2>/dev/null' _ "$d"
-  assert_true "fixture: the first merge's tree has changes/x/lock.md" \
-    git -C "$d" cat-file -e HEAD^1:changes/x/lock.md
-  assert_file_absent "$d/changes/x/lock.md" "fixture: no changes/x/lock.md at HEAD"
-  assert_true "fixture: the base has no changes/x/lock.md" \
-    bash -c '! git -C "$1" cat-file -e "$2:changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
-  assert_true "fixture: no ordinary commit on the branch touches changes/x/lock.md" \
-    test -z "$(git -C "$d" log --no-merges --full-history --format=%H "$BASE..HEAD" -- changes/x/lock.md)"
-  assert_true "fixture: the side commits don't touch changes/" \
-    test -z "$(git -C "$d" diff --name-only "$BASE" "$s1" -- changes)$(git -C "$d" diff --name-only "$BASE" "$s2" -- changes)"
+  assert_true "fixture: the first merge's first parent has no cortex/changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e HEAD^1^1:cortex/changes/x/lock.md 2>/dev/null' _ "$d"
+  assert_true "fixture: the first merge's second parent has no cortex/changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e HEAD^1^2:cortex/changes/x/lock.md 2>/dev/null' _ "$d"
+  assert_true "fixture: the first merge's tree has cortex/changes/x/lock.md" \
+    git -C "$d" cat-file -e HEAD^1:cortex/changes/x/lock.md
+  assert_file_absent "$d/cortex/changes/x/lock.md" "fixture: no cortex/changes/x/lock.md at HEAD"
+  assert_true "fixture: the base has no cortex/changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:cortex/changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
+  assert_true "fixture: no ordinary commit on the branch touches cortex/changes/x/lock.md" \
+    test -z "$(git -C "$d" log --no-merges --full-history --format=%H "$BASE..HEAD" -- cortex/changes/x/lock.md)"
+  assert_true "fixture: the side commits don't touch cortex/changes/" \
+    test -z "$(git -C "$d" diff --name-only "$BASE" "$s1" -- cortex/changes)$(git -C "$d" diff --name-only "$BASE" "$s2" -- cortex/changes)"
   ci_gates "$d" "$BASE"
   expect_dropped_lock "lock.md added and removed only by merges"
-  assert_line "$OUT" "ci-gates: FAIL changes/x (lock.md added on this branch is gone)" \
-    "the dropped-lock line names changes/x"
+  assert_line "$OUT" "ci-gates: FAIL cortex/changes/x (lock.md added on this branch is gone)" \
+    "the dropped-lock line names cortex/changes/x"
 }
 
 # ---- AC75 (Amendment 12, N1): a lock path the base ever had is the base's --------
@@ -538,18 +544,18 @@ case_AC74_lock_only_in_merges() {
 # Guards existing behavior: merging a base that deleted or archived a finished
 # change's lock.md lists that path in the merge, but the branch never added it.
 
-# base_with_y_lock -> filled install with a finished change changes/y (lock.md
+# base_with_y_lock -> filled install with a finished change cortex/changes/y (lock.md
 # and tasks.md) committed as the base; feature branched off it with one
 # ordinary commit
 base_with_y_lock() {
   local d
-  d="$(filled_install Zqxproj)" || return 1
-  mkdir -p "$d/tests" "$d/src" "$d/changes/y"
+  d="$(filled_install)" || return 1
+  mkdir -p "$d/tests" "$d/src" "$d/cortex/changes/y"
   printf 'echo a\n' > "$d/tests/a.test.sh"
   printf 'app\n' > "$d/src/app.txt"
   printf 'Tests-locked-at: 0000000000000000000000000000000000000000\n\n## Locked tests\n\n- tests/a.test.sh\n' \
-    > "$d/changes/y/lock.md"
-  printf '# tasks\n' > "$d/changes/y/tasks.md"
+    > "$d/cortex/changes/y/lock.md"
+  printf '# tasks\n' > "$d/cortex/changes/y/tasks.md"
   commit_all "$d" "base with a finished change folder"
   git -C "$d" update-ref "refs/remotes/$BASE" HEAD
   git -C "$d" checkout -q -b feature
@@ -570,45 +576,45 @@ base_then_merge() {
 # expect_y_merge_shape DIR : fixture checks shared by the AC75 cases
 expect_y_merge_shape() {
   [ -n "$1" ] && [ -d "$1" ] || return 1
-  assert_true "fixture: the base tip has no changes/y/lock.md" \
-    bash -c '! git -C "$1" cat-file -e "$2:changes/y/lock.md" 2>/dev/null' _ "$1" "$BASE"
-  assert_file_absent "$1/changes/y/lock.md" "fixture: no changes/y/lock.md at HEAD"
+  assert_true "fixture: the base tip has no cortex/changes/y/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:cortex/changes/y/lock.md" 2>/dev/null' _ "$1" "$BASE"
+  assert_file_absent "$1/cortex/changes/y/lock.md" "fixture: no cortex/changes/y/lock.md at HEAD"
   assert_true "fixture: HEAD is a merge" git -C "$1" cat-file -e HEAD^2
 }
 
 case_AC75_base_deleted_lock_merged() {
   local d; d="$(base_with_y_lock)"
   git -C "$d" checkout -q -B main "$BASE"
-  git -C "$d" rm -q changes/y/lock.md
+  git -C "$d" rm -q cortex/changes/y/lock.md
   git -C "$d" commit -q -m "base: drop the finished change's lock"
   base_then_merge "$d"
   expect_y_merge_shape "$d"
   ci_gates "$d" "$BASE"
-  assert_exit 0 "$CODE" "merging a base that deleted changes/y/lock.md -> exit 0"
-  assert_not_contains "$OUT" "FAIL changes/y" "no failure for changes/y"
+  assert_exit 0 "$CODE" "merging a base that deleted cortex/changes/y/lock.md -> exit 0"
+  assert_not_contains "$OUT" "FAIL cortex/changes/y" "no failure for cortex/changes/y"
   assert_true "ci-gates: ok is the last line" test "$(last_line "$OUT")" = "ci-gates: ok"
 }
 
 case_AC75_base_archived_lock_merged() {
   local d; d="$(base_with_y_lock)"
   git -C "$d" checkout -q -B main "$BASE"
-  git -C "$d" mv changes/y changes/archive/y
+  git -C "$d" mv cortex/changes/y cortex/changes/archive/y
   printf '%s\n' 'Tests-locked-at: 2222222222222222222222222222222222222222' \
     'Re-lock signed off by: Pat Maintainer' '' '## Locked tests' '' \
     '- tests/archived-one.test.sh' '- tests/archived-two.test.sh' '- tests/archived-three.test.sh' \
     '' '## Notes' '' 'Archived after release; the locked set was rewritten here' \
     'so that git sees no rename between the two paths.' \
-    > "$d/changes/archive/y/lock.md"
-  commit_all "$d" "base: archive changes/y, rewriting its lock"
+    > "$d/cortex/changes/archive/y/lock.md"
+  commit_all "$d" "base: archive cortex/changes/y, rewriting its lock"
   base_then_merge "$d"
   expect_y_merge_shape "$d"
-  assert_file_exists "$d/changes/archive/y/lock.md" "fixture: the archived lock.md is at HEAD"
-  assert_true "fixture: git log -m lists changes/y/lock.md for the merge (no rename seen)" \
-    bash -c 'git -C "$1" log -m -1 --name-only --format= HEAD | grep -qxF changes/y/lock.md' _ "$d"
+  assert_file_exists "$d/cortex/changes/archive/y/lock.md" "fixture: the archived lock.md is at HEAD"
+  assert_true "fixture: git log -m lists cortex/changes/y/lock.md for the merge (no rename seen)" \
+    bash -c 'git -C "$1" log -m -1 --name-only --format= HEAD | grep -qxF cortex/changes/y/lock.md' _ "$d"
   ci_gates "$d" "$BASE"
-  assert_exit 0 "$CODE" "merging a base that archived and rewrote changes/y/lock.md -> exit 0"
-  assert_not_contains "$OUT" "FAIL changes/y" "no failure for changes/y"
-  assert_not_contains "$OUT" "FAIL changes/archive/y" "no failure for changes/archive/y"
+  assert_exit 0 "$CODE" "merging a base that archived and rewrote cortex/changes/y/lock.md -> exit 0"
+  assert_not_contains "$OUT" "FAIL cortex/changes/y" "no failure for cortex/changes/y"
+  assert_not_contains "$OUT" "FAIL cortex/changes/archive/y" "no failure for cortex/changes/archive/y"
 }
 
 # ---- AC76/AC77 (Amendment 12, N1 revised): added means against every parent ------
@@ -617,80 +623,80 @@ case_AC75_base_archived_lock_merged() {
 # parents does; paths compare literally; only the base's tip is exempt.
 
 case_AC76_pattern_folder_name() {
-  # the base has changes/old/lock.md; the branch locks changes/[o]ld (a
-  # pattern that would match changes/old) and then deletes that lock.md
-  local d f='changes/[o]ld'; d="$(base_with_old_lock)"
+  # the base has cortex/changes/old/lock.md; the branch locks cortex/changes/[o]ld (a
+  # pattern that would match cortex/changes/old) and then deletes that lock.md
+  local d f='cortex/changes/[o]ld'; d="$(base_with_old_lock)"
   printf 'echo b\n' > "$d/tests/b.test.sh"
   lock_tests "$d" "$f" tests/b.test.sh
   rm "$d/$f/lock.md"
   commit_all "$d" "drop the [o]ld lock"
   assert_true "fixture: the folder name is literal on disk" test -d "$d/$f"
-  assert_true "fixture: HEAD^ has the literal path changes/[o]ld/lock.md" \
-    bash -c 'git -C "$1" ls-tree -r --name-only HEAD^ | grep -qxF "changes/[o]ld/lock.md"' _ "$d"
-  assert_true "fixture: HEAD has no changes/[o]ld/lock.md" \
-    bash -c '! git -C "$1" cat-file -e "HEAD:changes/[o]ld/lock.md" 2>/dev/null' _ "$d"
-  assert_file_absent "$d/$f/lock.md" "fixture: no changes/[o]ld/lock.md on disk"
-  assert_true "fixture: the base has changes/old/lock.md" \
-    git -C "$d" cat-file -e "$BASE:changes/old/lock.md"
-  assert_true "fixture: HEAD still has changes/old/lock.md" \
-    git -C "$d" cat-file -e "HEAD:changes/old/lock.md"
-  assert_true "fixture: the base has no changes/[o]ld/lock.md" \
-    bash -c '! git -C "$1" cat-file -e "$2:changes/[o]ld/lock.md" 2>/dev/null' _ "$d" "$BASE"
+  assert_true "fixture: HEAD^ has the literal path cortex/changes/[o]ld/lock.md" \
+    bash -c 'git -C "$1" ls-tree -r --name-only HEAD^ | grep -qxF "cortex/changes/[o]ld/lock.md"' _ "$d"
+  assert_true "fixture: HEAD has no cortex/changes/[o]ld/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "HEAD:cortex/changes/[o]ld/lock.md" 2>/dev/null' _ "$d"
+  assert_file_absent "$d/$f/lock.md" "fixture: no cortex/changes/[o]ld/lock.md on disk"
+  assert_true "fixture: the base has cortex/changes/old/lock.md" \
+    git -C "$d" cat-file -e "$BASE:cortex/changes/old/lock.md"
+  assert_true "fixture: HEAD still has cortex/changes/old/lock.md" \
+    git -C "$d" cat-file -e "HEAD:cortex/changes/old/lock.md"
+  assert_true "fixture: the base has no cortex/changes/[o]ld/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:cortex/changes/[o]ld/lock.md" 2>/dev/null' _ "$d" "$BASE"
   ci_gates "$d" "$BASE"
-  assert_exit 1 "$CODE" "lock added at changes/[o]ld, then deleted -> exit 1"
-  assert_line "$OUT" "ci-gates: FAIL changes/[o]ld (lock.md added on this branch is gone)" \
-    "the dropped-lock line names changes/[o]ld literally"
+  assert_exit 1 "$CODE" "lock added at cortex/changes/[o]ld, then deleted -> exit 1"
+  assert_line "$OUT" "ci-gates: FAIL cortex/changes/[o]ld (lock.md added on this branch is gone)" \
+    "the dropped-lock line names cortex/changes/[o]ld literally"
   assert_line "$OUT" "ci-gates: check ok" "check still passes"
   assert_true "one failure counted, as the last line" test "$(last_line "$OUT")" = "ci-gates: 1 failed"
 }
 
 case_AC77_reused_folder_name() {
-  # the base finished changes/x and archived it; the branch reuses the name,
+  # the base finished cortex/changes/x and archived it; the branch reuses the name,
   # locks it, and drops the new lock
   local d; d="$(base_only)"
   git -C "$d" checkout -q -B main "$BASE"
-  mkdir -p "$d/changes/x"
+  mkdir -p "$d/cortex/changes/x"
   printf 'Tests-locked-at: 0000000000000000000000000000000000000000\n\n## Locked tests\n\n- tests/a.test.sh\n' \
-    > "$d/changes/x/lock.md"
-  printf '# tasks\n' > "$d/changes/x/tasks.md"
+    > "$d/cortex/changes/x/lock.md"
+  printf '# tasks\n' > "$d/cortex/changes/x/tasks.md"
   commit_all "$d" "base: finished change x"
-  git -C "$d" mv changes/x changes/archive/x
-  git -C "$d" commit -q -m "base: archive changes/x"
+  git -C "$d" mv cortex/changes/x cortex/changes/archive/x
+  git -C "$d" commit -q -m "base: archive cortex/changes/x"
   git -C "$d" update-ref "refs/remotes/$BASE" HEAD
   git -C "$d" checkout -q feature
   git -C "$d" reset -q --hard "$BASE"
   printf 'echo b\n' > "$d/tests/b.test.sh"
-  lock_folder "$d" changes/x
-  git -C "$d" rm -q changes/x/lock.md
+  lock_folder "$d" cortex/changes/x
+  git -C "$d" rm -q cortex/changes/x/lock.md
   git -C "$d" commit -q -m "drop the new lock"
-  assert_true "fixture: the base tip has no changes/x/lock.md" \
-    bash -c '! git -C "$1" cat-file -e "$2:changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
-  assert_true "fixture: the base's history has changes/x/lock.md" \
-    test -n "$(git -C "$d" log --format=%H "$BASE" -- changes/x/lock.md)"
-  assert_true "fixture: the branch added changes/x/lock.md (HEAD^ has it)" \
-    git -C "$d" cat-file -e HEAD^:changes/x/lock.md
-  assert_file_absent "$d/changes/x/lock.md" "fixture: no changes/x/lock.md at HEAD"
+  assert_true "fixture: the base tip has no cortex/changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:cortex/changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
+  assert_true "fixture: the base's history has cortex/changes/x/lock.md" \
+    test -n "$(git -C "$d" log --format=%H "$BASE" -- cortex/changes/x/lock.md)"
+  assert_true "fixture: the branch added cortex/changes/x/lock.md (HEAD^ has it)" \
+    git -C "$d" cat-file -e HEAD^:cortex/changes/x/lock.md
+  assert_file_absent "$d/cortex/changes/x/lock.md" "fixture: no cortex/changes/x/lock.md at HEAD"
   ci_gates "$d" "$BASE"
   expect_dropped_lock "lock added at a folder name the base used before, then deleted"
-  assert_line "$OUT" "ci-gates: FAIL changes/x (lock.md added on this branch is gone)" \
-    "the dropped-lock line names changes/x"
+  assert_line "$OUT" "ci-gates: FAIL cortex/changes/x (lock.md added on this branch is gone)" \
+    "the dropped-lock line names cortex/changes/x"
 }
 
 # ---- AC78-AC81 (Amendment 12, N1 tree-based): every lock a branch commit holds ----
 
-DROPPED_X="ci-gates: FAIL changes/x (lock.md added on this branch is gone)"
+DROPPED_X="ci-gates: FAIL cortex/changes/x (lock.md added on this branch is gone)"
 
 case_AC78_lock_replaced_by_directory() {
   local d; d="$(ci_repo)"
-  git -C "$d" rm -q changes/x/lock.md
-  mkdir -p "$d/changes/x/lock.md"
-  printf 'not a lock\n' > "$d/changes/x/lock.md/note.txt"
+  git -C "$d" rm -q cortex/changes/x/lock.md
+  mkdir -p "$d/cortex/changes/x/lock.md"
+  printf 'not a lock\n' > "$d/cortex/changes/x/lock.md/note.txt"
   commit_all "$d" "replace the lock with a directory"
-  assert_true "fixture: HEAD's changes/x/lock.md is a tree" \
-    bash -c 'git -C "$1" ls-tree HEAD changes/x/lock.md | grep -q "^040000 tree "' _ "$d"
+  assert_true "fixture: HEAD's cortex/changes/x/lock.md is a tree" \
+    bash -c 'git -C "$1" ls-tree HEAD cortex/changes/x/lock.md | grep -q "^040000 tree "' _ "$d"
   ci_gates "$d" "$BASE"
   assert_exit 1 "$CODE" "lock.md replaced by a directory -> exit 1"
-  assert_line "$OUT" "$DROPPED_X" "the dropped-lock line names changes/x"
+  assert_line "$OUT" "$DROPPED_X" "the dropped-lock line names cortex/changes/x"
   assert_line "$OUT" "ci-gates: check ok" "check still passes"
 }
 
@@ -700,63 +706,63 @@ case_AC78_lock_replaced_by_symlink() {
   # file holding the target
   local d target='../../tests/b.test.sh' blob; d="$(ci_repo)"
   blob="$(printf '%s' "$target" | git -C "$d" hash-object -w --stdin)"
-  git -C "$d" rm -q --cached changes/x/lock.md
-  git -C "$d" update-index --add --cacheinfo "120000,$blob,changes/x/lock.md"
+  git -C "$d" rm -q --cached cortex/changes/x/lock.md
+  git -C "$d" update-index --add --cacheinfo "120000,$blob,cortex/changes/x/lock.md"
   git -C "$d" commit -q -m "replace the lock with a symlink"
-  rm -f "$d/changes/x/lock.md"
-  git -C "$d" checkout -q -- changes/x/lock.md
-  assert_true "fixture: HEAD's changes/x/lock.md has mode 120000" \
-    bash -c 'git -C "$1" ls-tree HEAD changes/x/lock.md | grep -q "^120000 blob "' _ "$d"
+  rm -f "$d/cortex/changes/x/lock.md"
+  git -C "$d" checkout -q -- cortex/changes/x/lock.md
+  assert_true "fixture: HEAD's cortex/changes/x/lock.md has mode 120000" \
+    bash -c 'git -C "$1" ls-tree HEAD cortex/changes/x/lock.md | grep -q "^120000 blob "' _ "$d"
   assert_true "fixture: the working tree matches HEAD" test -z "$(git -C "$d" status --porcelain)"
   ci_gates "$d" "$BASE"
   assert_exit 1 "$CODE" "lock.md replaced by a symlink -> exit 1"
-  assert_line "$OUT" "$DROPPED_X" "the dropped-lock line names changes/x"
+  assert_line "$OUT" "$DROPPED_X" "the dropped-lock line names cortex/changes/x"
   assert_line "$OUT" "ci-gates: check ok" "check still passes"
 }
 
 case_AC79_merge_with_old_base_commit() {
-  # the base had changes/x/lock.md at B1, then archived it; the branch
-  # merges B1 with a NEW changes/x/lock.md, then drops it with a test edit
+  # the base had cortex/changes/x/lock.md at B1, then archived it; the branch
+  # merges B1 with a NEW cortex/changes/x/lock.md, then drops it with a test edit
   local d b1 p blob tree m; d="$(base_only)"
   git -C "$d" checkout -q -B main "$BASE"
-  mkdir -p "$d/changes/x"
+  mkdir -p "$d/cortex/changes/x"
   printf 'Tests-locked-at: 0000000000000000000000000000000000000000\n\n## Locked tests\n\n- tests/a.test.sh\n' \
-    > "$d/changes/x/lock.md"
-  printf '# tasks\n' > "$d/changes/x/tasks.md"
+    > "$d/cortex/changes/x/lock.md"
+  printf '# tasks\n' > "$d/cortex/changes/x/tasks.md"
   commit_all "$d" "base: change x (B1)"
   b1="$(git -C "$d" rev-parse HEAD)"
-  git -C "$d" mv changes/x changes/archive/x
-  git -C "$d" commit -q -m "base: archive changes/x"
+  git -C "$d" mv cortex/changes/x cortex/changes/archive/x
+  git -C "$d" commit -q -m "base: archive cortex/changes/x"
   git -C "$d" update-ref "refs/remotes/$BASE" HEAD
   git -C "$d" checkout -q feature
   git -C "$d" reset -q --hard "$BASE"
   printf 'echo b\n' > "$d/tests/b.test.sh"
-  commit_all "$d" "add tests for changes/x (P)"
+  commit_all "$d" "add tests for cortex/changes/x (P)"
   p="$(git -C "$d" rev-parse HEAD)"
   blob="$(printf 'Tests-locked-at: %s\n\n## Locked tests\n\n- tests/b.test.sh\n' "$p" \
     | git -C "$d" hash-object -w --stdin)"
-  git -C "$d" update-index --add --cacheinfo "100644,$blob,changes/x/lock.md"
+  git -C "$d" update-index --add --cacheinfo "100644,$blob,cortex/changes/x/lock.md"
   tree="$(git -C "$d" write-tree)"
   m="$(printf 'merge B1, with a new lock\n' | git -C "$d" commit-tree "$tree" -p "$p" -p "$b1")"
   git -C "$d" reset -q --hard "$m"
   printf 'echo weakened\n' > "$d/tests/b.test.sh"
-  git -C "$d" rm -q changes/x/lock.md
+  git -C "$d" rm -q cortex/changes/x/lock.md
   commit_all "$d" "weaken the test, drop the lock"
   assert_true "fixture: HEAD~1 is a merge with B1 as its second parent" \
     test "$(git -C "$d" rev-parse HEAD~1^2)" = "$b1"
   assert_true "fixture: the merge's lock.md differs from B1's" \
-    test "$(git -C "$d" rev-parse HEAD~1:changes/x/lock.md)" != "$(git -C "$d" rev-parse "$b1:changes/x/lock.md")"
-  assert_true "fixture: the base tip has no changes/x/lock.md" \
-    bash -c '! git -C "$1" cat-file -e "$2:changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
-  assert_file_absent "$d/changes/x/lock.md" "fixture: no changes/x/lock.md at HEAD"
+    test "$(git -C "$d" rev-parse HEAD~1:cortex/changes/x/lock.md)" != "$(git -C "$d" rev-parse "$b1:cortex/changes/x/lock.md")"
+  assert_true "fixture: the base tip has no cortex/changes/x/lock.md" \
+    bash -c '! git -C "$1" cat-file -e "$2:cortex/changes/x/lock.md" 2>/dev/null' _ "$d" "$BASE"
+  assert_file_absent "$d/cortex/changes/x/lock.md" "fixture: no cortex/changes/x/lock.md at HEAD"
   ci_gates "$d" "$BASE"
   expect_dropped_lock "new lock in a merge with an old base commit, then dropped"
-  assert_line "$OUT" "$DROPPED_X" "the dropped-lock line names changes/x"
+  assert_line "$OUT" "$DROPPED_X" "the dropped-lock line names cortex/changes/x"
 }
 
 # a folder name holding a tab; git prints the lock.md path quoted
-TAB_FOLDER="changes/a$(printf '\t')b"
-QUOTED_LINE='ci-gates: FAIL "changes/a\tb/lock.md" (a lock.md path git has to quote, so CI can'"'"'t check it)'
+TAB_FOLDER="cortex/changes/a$(printf '\t')b"
+QUOTED_LINE='ci-gates: FAIL "cortex/changes/a\tb/lock.md" (a lock.md path git has to quote, so CI can'"'"'t check it)'
 
 # tab_lock DIR : commit everything as T, then TAB_FOLDER/lock.md naming T,
 # with plumbing (a Windows filesystem can't hold a tab; there the working
@@ -778,7 +784,7 @@ case_AC80_tab_folder_kept() {
   printf 'echo b\n' > "$d/tests/b.test.sh"
   tab_lock "$d"
   assert_true "fixture: git prints HEAD's lock path quoted" \
-    bash -c 'git -C "$1" ls-tree -r --name-only HEAD | grep -qxF "\"changes/a\\tb/lock.md\""' _ "$d"
+    bash -c 'git -C "$1" ls-tree -r --name-only HEAD | grep -qxF "\"cortex/changes/a\\tb/lock.md\""' _ "$d"
   ci_gates "$d" "$BASE"
   assert_exit 1 "$CODE" "lock at a folder name with a tab, kept -> exit 1"
   assert_line "$OUT" "$QUOTED_LINE" "the quoted-path line"
@@ -792,9 +798,9 @@ case_AC80_tab_folder_deleted() {
   git -C "$d" commit -q -m "drop the tab folder's lock"
   rm -rf "${d:?}/$TAB_FOLDER"
   assert_true "fixture: git prints HEAD^'s lock path quoted" \
-    bash -c 'git -C "$1" ls-tree -r --name-only HEAD^ | grep -qxF "\"changes/a\\tb/lock.md\""' _ "$d"
+    bash -c 'git -C "$1" ls-tree -r --name-only HEAD^ | grep -qxF "\"cortex/changes/a\\tb/lock.md\""' _ "$d"
   assert_true "fixture: HEAD has no lock under the tab folder" \
-    test -z "$(git -C "$d" ls-tree -r --name-only HEAD -- changes | grep -F 'changes/a\tb' || true)"
+    test -z "$(git -C "$d" ls-tree -r --name-only HEAD -- changes | grep -F 'cortex/changes/a\tb' || true)"
   assert_true "fixture: the working tree matches HEAD" test -z "$(git -C "$d" status --porcelain)"
   ci_gates "$d" "$BASE"
   assert_exit 1 "$CODE" "lock at a folder name with a tab, deleted -> exit 1"
@@ -802,12 +808,12 @@ case_AC80_tab_folder_deleted() {
 }
 
 case_AC81_stacked_after_squash() {
-  # branch A locks changes/a; B builds on A; A is squash-merged into the
-  # base, which then archives changes/a; B merges the base and removes its
-  # leftover changes/a
+  # branch A locks cortex/changes/a; B builds on A; A is squash-merged into the
+  # base, which then archives cortex/changes/a; B merges the base and removes its
+  # leftover cortex/changes/a
   local d la sq; d="$(base_only)"
   printf 'echo b\n' > "$d/tests/b.test.sh"
-  lock_folder "$d" changes/a
+  lock_folder "$d" cortex/changes/a
   la="$(git -C "$d" rev-parse HEAD)"
   git -C "$d" checkout -q -b stacked
   printf 'more\n' > "$d/src/more.txt"
@@ -816,72 +822,72 @@ case_AC81_stacked_after_squash() {
   git -C "$d" merge -q --squash "$la" >/dev/null
   git -C "$d" commit -q -m "squash-merge A"
   sq="$(git -C "$d" rev-parse HEAD)"
-  git -C "$d" mv changes/a changes/archive/a
-  git -C "$d" commit -q -m "base: archive changes/a"
+  git -C "$d" mv cortex/changes/a cortex/changes/archive/a
+  git -C "$d" commit -q -m "base: archive cortex/changes/a"
   git -C "$d" update-ref "refs/remotes/$BASE" HEAD
   git -C "$d" checkout -q stacked
   git -C "$d" merge -q --no-ff --no-edit "$BASE"
-  git -C "$d" rm -q -r changes/a
-  git -C "$d" commit -q -m "B: remove the leftover changes/a"
+  git -C "$d" rm -q -r cortex/changes/a
+  git -C "$d" commit -q -m "B: remove the leftover cortex/changes/a"
   assert_true "fixture: the squash commit is an ordinary commit" \
     bash -c '! git -C "$1" cat-file -e "$2^2" 2>/dev/null' _ "$d" "$sq"
   assert_true "fixture: the squash commit holds A's lock.md blob" \
-    test "$(git -C "$d" rev-parse "$sq:changes/a/lock.md")" = "$(git -C "$d" rev-parse "$la:changes/a/lock.md")"
+    test "$(git -C "$d" rev-parse "$sq:cortex/changes/a/lock.md")" = "$(git -C "$d" rev-parse "$la:cortex/changes/a/lock.md")"
   assert_true "fixture: HEAD^ is a merge of the base" \
     test "$(git -C "$d" rev-parse HEAD^^2)" = "$(git -C "$d" rev-parse "$BASE")"
-  assert_true "fixture: HEAD has no changes/a/lock.md" \
-    bash -c '! git -C "$1" cat-file -e HEAD:changes/a/lock.md 2>/dev/null' _ "$d"
+  assert_true "fixture: HEAD has no cortex/changes/a/lock.md" \
+    bash -c '! git -C "$1" cat-file -e HEAD:cortex/changes/a/lock.md 2>/dev/null' _ "$d"
   ci_gates "$d" "$BASE"
-  assert_not_contains "$OUT" "ci-gates: FAIL changes/a (lock.md added on this branch is gone)" \
-    "no dropped-lock failure for changes/a"
-  assert_not_contains "$OUT" "ci-gates: FAIL changes/a" "no failure for changes/a at all"
+  assert_not_contains "$OUT" "ci-gates: FAIL cortex/changes/a (lock.md added on this branch is gone)" \
+    "no dropped-lock failure for cortex/changes/a"
+  assert_not_contains "$OUT" "ci-gates: FAIL cortex/changes/a" "no failure for cortex/changes/a at all"
 }
 
 # ---- AC82/AC83 (Amendment 12, N1): fixtures and inherited quoted paths -------------
 
 case_AC82_nested_fixture_lock_deleted() {
-  # the base has changes/y/lock.md; the branch adds a fixture
-  # changes/y/fixtures/lock.md (two folders deep: not a lock), locks
-  # changes/x as usual, then deletes the fixture
+  # the base has cortex/changes/y/lock.md; the branch adds a fixture
+  # cortex/changes/y/fixtures/lock.md (two folders deep: not a lock), locks
+  # cortex/changes/x as usual, then deletes the fixture
   local d
-  d="$(filled_install Zqxproj)" || return 1
+  d="$(filled_install)" || return 1
   [ -n "$d" ] && [ -d "$d" ] || return 1
-  mkdir -p "$d/tests" "$d/src" "$d/changes/y"
+  mkdir -p "$d/tests" "$d/src" "$d/cortex/changes/y"
   printf 'echo a\n' > "$d/tests/a.test.sh"
   printf 'app\n' > "$d/src/app.txt"
   printf 'Tests-locked-at: 0000000000000000000000000000000000000000\n\n## Locked tests\n\n- tests/a.test.sh\n' \
-    > "$d/changes/y/lock.md"
-  printf '# tasks\n' > "$d/changes/y/tasks.md"
+    > "$d/cortex/changes/y/lock.md"
+  printf '# tasks\n' > "$d/cortex/changes/y/tasks.md"
   commit_all "$d" "base with change folder y"
   git -C "$d" update-ref "refs/remotes/$BASE" HEAD
   git -C "$d" checkout -q -b feature
-  mkdir -p "$d/changes/y/fixtures"
+  mkdir -p "$d/cortex/changes/y/fixtures"
   printf 'Tests-locked-at: 1111111111111111111111111111111111111111\n\n## Locked tests\n\n- tests/fixture.test.sh\n' \
-    > "$d/changes/y/fixtures/lock.md"
-  commit_all "$d" "add a lock.md fixture under changes/y"
+    > "$d/cortex/changes/y/fixtures/lock.md"
+  commit_all "$d" "add a lock.md fixture under cortex/changes/y"
   printf 'echo b\n' > "$d/tests/b.test.sh"
-  lock_folder "$d" changes/x
-  git -C "$d" rm -q changes/y/fixtures/lock.md
+  lock_folder "$d" cortex/changes/x
+  git -C "$d" rm -q cortex/changes/y/fixtures/lock.md
   git -C "$d" commit -q -m "drop the fixture"
-  assert_true "fixture: a branch commit held changes/y/fixtures/lock.md" \
-    test -n "$(git -C "$d" log --format=%H "$BASE..HEAD" -- changes/y/fixtures/lock.md)"
-  assert_true "fixture: HEAD has no changes/y/fixtures/lock.md" \
-    bash -c '! git -C "$1" cat-file -e HEAD:changes/y/fixtures/lock.md 2>/dev/null' _ "$d"
-  assert_true "fixture: changes/y/lock.md kept at HEAD" git -C "$d" cat-file -e HEAD:changes/y/lock.md
+  assert_true "fixture: a branch commit held cortex/changes/y/fixtures/lock.md" \
+    test -n "$(git -C "$d" log --format=%H "$BASE..HEAD" -- cortex/changes/y/fixtures/lock.md)"
+  assert_true "fixture: HEAD has no cortex/changes/y/fixtures/lock.md" \
+    bash -c '! git -C "$1" cat-file -e HEAD:cortex/changes/y/fixtures/lock.md 2>/dev/null' _ "$d"
+  assert_true "fixture: cortex/changes/y/lock.md kept at HEAD" git -C "$d" cat-file -e HEAD:cortex/changes/y/lock.md
   ci_gates "$d" "$BASE"
-  assert_not_contains "$OUT" "ci-gates: FAIL changes/y" "no failure for changes/y or changes/y/fixtures"
+  assert_not_contains "$OUT" "ci-gates: FAIL cortex/changes/y" "no failure for cortex/changes/y or cortex/changes/y/fixtures"
   assert_exit 0 "$CODE" "a deleted nested fixture -> exit 0"
   expect_ci_lines "ci-gates: using scripts from $BASE
 ci-gates: check ok
-ci-gates: changes/x ok
-ci-gates: ok" "changes/x gated, nothing else"
+ci-gates: cortex/changes/x ok
+ci-gates: ok" "cortex/changes/x gated, nothing else"
 }
 
 case_AC83_inherited_tab_lock() {
   # the base's tip holds a lock at a folder whose name has a tab (plumbing,
-  # as in tab_lock); the branch makes an unrelated commit outside changes/
+  # as in tab_lock); the branch makes an unrelated commit outside cortex/changes/
   local d
-  d="$(filled_install Zqxproj)" || return 1
+  d="$(filled_install)" || return 1
   [ -n "$d" ] && [ -d "$d" ] || return 1
   mkdir -p "$d/tests" "$d/src"
   printf 'echo a\n' > "$d/tests/a.test.sh"
@@ -894,25 +900,25 @@ case_AC83_inherited_tab_lock() {
   git -C "$d" add src/app.txt   # not add -A: Windows can't hold the tab path
   git -C "$d" commit -q -m "unrelated work"
   assert_true "fixture: the base tip holds the quoted lock path" \
-    bash -c 'git -C "$1" ls-tree -r --name-only "$2" | grep -qxF "\"changes/a\\tb/lock.md\""' _ "$d" "$BASE"
+    bash -c 'git -C "$1" ls-tree -r --name-only "$2" | grep -qxF "\"cortex/changes/a\\tb/lock.md\""' _ "$d" "$BASE"
   assert_true "fixture: HEAD holds it with the same blob" \
     test "$(git -C "$d" rev-parse "HEAD:$TAB_FOLDER/lock.md")" = "$(git -C "$d" rev-parse "$BASE:$TAB_FOLDER/lock.md")"
-  assert_true "fixture: the branch touches nothing under changes/" \
-    test -z "$(git -C "$d" diff --name-only "$BASE" HEAD -- changes)"
+  assert_true "fixture: the branch touches nothing under cortex/changes/" \
+    test -z "$(git -C "$d" diff --name-only "$BASE" HEAD -- cortex/changes)"
   ci_gates "$d" "$BASE"
-  assert_not_contains "$OUT" 'ci-gates: FAIL "changes/a\tb/lock.md"' "no failure for the inherited quoted path"
+  assert_not_contains "$OUT" 'ci-gates: FAIL "cortex/changes/a\tb/lock.md"' "no failure for the inherited quoted path"
   assert_exit 0 "$CODE" "inherited tab-named lock -> exit 0"
   assert_true "ci-gates: ok is the last line" test "$(last_line "$OUT")" = "ci-gates: ok"
 }
 
 case_archived_after_merge() {
-  # the usual order: changes/x merged into the base, then a later branch
+  # the usual order: cortex/changes/x merged into the base, then a later branch
   # archives it
   local d; d="$(ci_repo)"
   git -C "$d" update-ref "refs/remotes/$BASE" HEAD
   git -C "$d" checkout -q -b archive-x
-  git -C "$d" mv changes/x changes/archive/x
-  git -C "$d" commit -q -m "archive changes/x"
+  git -C "$d" mv cortex/changes/x cortex/changes/archive/x
+  git -C "$d" commit -q -m "archive cortex/changes/x"
   ci_gates "$d" "$BASE"
   assert_exit 0 "$CODE" "archiving a merged change -> exit 0"
   expect_ci_lines "ci-gates: using scripts from $BASE
@@ -924,12 +930,12 @@ ci-gates: ok" "archived folder is not gated after the merge"
 # ---- AC65/AC66 (Amendment 11, M1/M2): a base merge is a re-lock -----------------
 
 # move_base DIR [no-config] : the base moves on (edits tests/a.test.sh, matched
-# by TEST_GLOBS, and, unless "no-config", .cortex/config; adds tests/c.test.sh);
+# by TEST_GLOBS, and, unless "no-config", cortex/config; adds tests/c.test.sh);
 # feature checked out again, not merged
 move_base() {
   git -C "$1" checkout -q -B main "$BASE"
   printf 'echo a from base\n' > "$1/tests/a.test.sh"
-  [ "${2-}" = no-config ] || append "$1/.cortex/config" "# base: a later config line"
+  [ "${2-}" = no-config ] || append "$1/cortex/config" "# base: a later config line"
   printf 'echo c from base\n' > "$1/tests/c.test.sh"
   commit_all "$1" "base moves on"
   git -C "$1" update-ref "refs/remotes/$BASE" HEAD
@@ -957,7 +963,7 @@ case_base_merged_into_locked_branch() {
   assert_contains "$OUT" "LOCK modified: tests/a.test.sh" "the base tests-locked.sh names the merged test"
   expect_ci_lines "ci-gates: using scripts from $BASE
 ci-gates: check ok
-ci-gates: FAIL changes/x
+ci-gates: FAIL cortex/changes/x
 ci-gates: 1 failed" "the folder fails after an un-relocked base merge"
 }
 
@@ -966,13 +972,13 @@ case_base_merged_and_relocked() {
   move_base "$d" no-config
   git -C "$d" merge -q --no-edit "$BASE"
   m="$(git -C "$d" rev-parse HEAD)"
-  relock_folder "$d" changes/x
+  relock_folder "$d" cortex/changes/x
   assert_true "fixture: the re-lock follows the merge" test "$(git -C "$d" rev-parse HEAD^1)" = "$m"
   ci_gates "$d" "$BASE"
   assert_exit 0 "$CODE" "base merged, then a signed re-lock naming the merge -> exit 0"
   expect_ci_lines "ci-gates: using scripts from $BASE
 ci-gates: check ok
-ci-gates: changes/x ok
+ci-gates: cortex/changes/x ok
 ci-gates: ok" "the folder is gated and passes after a re-locked base merge"
   assert_not_contains "$OUT" "LOCK " "no LOCK lines after a re-locked base merge"
 }
@@ -984,15 +990,15 @@ case_AC35_branch_stub_parser() {
   # of check.sh and gates.sh still read the base's filled config correctly
   local d; d="$(ci_repo)"
   printf '%s\n' '# stub: config_value reads its input and prints nothing' \
-    'config_value() { cat > /dev/null; }' > "$d/scripts/cortex/_config.sh"
+    'config_value() { cat > /dev/null; }' > "$d/cortex/bin/_config.sh"
   commit_all "$d" "replace the config parser"
   assert_true "fixture: the branch's _config.sh differs from the base's" \
-    test -n "$(git -C "$d" diff --name-only "$BASE" HEAD -- scripts/cortex/_config.sh)"
+    test -n "$(git -C "$d" diff --name-only "$BASE" HEAD -- cortex/bin/_config.sh)"
   ci_gates "$d" "$BASE"
   assert_exit 0 "$CODE" "ci-gates passes with the base's parser"
   expect_ci_lines "ci-gates: using scripts from $BASE
 ci-gates: check ok
-ci-gates: changes/x ok
+ci-gates: cortex/changes/x ok
 ci-gates: ok" "base parser: check and folder pass"
   assert_not_contains "$OUT" "[C11]" "the base check.sh reads the config"
   assert_line "$OUT" "gate build: ok" "the base gates.sh reads BUILD_CMD"
@@ -1017,13 +1023,13 @@ case_AC62_side_branch_weakens_locked_test() {
   assert_true "fixture: side is not reachable from the base" \
     bash -c '! git -C "$1" merge-base --is-ancestor side "$2"' _ "$d" "$BASE"
   assert_true "fixture: lock.md untouched by the merge" \
-    git -C "$d" diff --quiet HEAD^1 HEAD -- changes/x/lock.md
+    git -C "$d" diff --quiet HEAD^1 HEAD -- cortex/changes/x/lock.md
   ci_gates "$d" "$BASE"
   assert_exit 1 "$CODE" "side-branch weakening merged in -> exit 1"
   assert_contains "$OUT" "LOCK modified: tests/b.test.sh" "the base tests-locked.sh names the weakened test"
   expect_ci_lines "ci-gates: using scripts from $BASE
 ci-gates: check ok
-ci-gates: FAIL changes/x
+ci-gates: FAIL cortex/changes/x
 ci-gates: 1 failed" "the folder fails, nothing else"
 }
 
@@ -1050,12 +1056,12 @@ run_case "AC24 hidden + broken lock: both counted" case_hidden_plus_lock_failure
 run_case "AC70 lock added on the branch, then archived -> FAIL" case_archived_on_branch
 run_case "AC70 lock added on the branch, then deleted -> FAIL" case_added_lock_deleted
 run_case "AC72 merge keeping the pre-lock tree drops the lock -> FAIL" case_AC72_merge_prunes_lock
-run_case "AC72 the same merge, folder moved under changes/archive/ -> FAIL" case_AC72_merge_prunes_lock_archived
+run_case "AC72 the same merge, folder moved under cortex/changes/archive/ -> FAIL" case_AC72_merge_prunes_lock_archived
 run_case "AC72 the same merge, archived copy already on the first parent -> FAIL" case_AC72_merge_prunes_lock_archived_first_parent
 run_case "AC74 lock.md added and removed only by merges -> FAIL" case_AC74_lock_only_in_merges
 run_case "AC75 base deleted a finished lock.md, merged in -> ok" case_AC75_base_deleted_lock_merged
 run_case "AC75 base archived and rewrote a finished lock.md, merged in -> ok" case_AC75_base_archived_lock_merged
-run_case "AC76 lock at changes/[o]ld (pattern name) dropped -> FAIL" case_AC76_pattern_folder_name
+run_case "AC76 lock at cortex/changes/[o]ld (pattern name) dropped -> FAIL" case_AC76_pattern_folder_name
 run_case "AC77 lock at a reused folder name dropped -> FAIL" case_AC77_reused_folder_name
 run_case "AC78 lock.md replaced by a directory -> FAIL" case_AC78_lock_replaced_by_directory
 run_case "AC78 lock.md replaced by a symlink -> FAIL" case_AC78_lock_replaced_by_symlink

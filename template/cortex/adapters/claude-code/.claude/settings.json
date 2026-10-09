@@ -1,0 +1,54 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git status*)",
+      "Bash(git diff*)",
+      "Bash(git log*)",
+      "Bash(git show*)",
+      "Bash(git ls-files*)",
+      "Bash(git merge-base*)",
+      "Bash(git rev-parse*)",
+      "Bash(git switch *)",
+      "Bash(git checkout -b *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(bash cortex/bin/*)",
+      "PowerShell(git status*)",
+      "PowerShell(git diff*)",
+      "PowerShell(git log*)",
+      "PowerShell(git show*)",
+      "PowerShell(git ls-files*)",
+      "PowerShell(git merge-base*)",
+      "PowerShell(git rev-parse*)",
+      "PowerShell(git switch *)",
+      "PowerShell(git checkout -b *)",
+      "PowerShell(git add *)",
+      "PowerShell(git commit *)",
+      "PowerShell(bash cortex/bin/*)"
+    ],
+    "deny": [
+      "Bash(git*push*--force*)",
+      "Bash(git*push* -f*)",
+      "Bash(git*push* +*)",
+      "PowerShell(git*push*--force*)",
+      "PowerShell(git*push* -f*)",
+      "PowerShell(git*push* +*)",
+      "Read(./**/.env)",
+      "Read(./**/.env.*)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)"
+    ],
+    "ask": [
+      "Bash(git*push*)",
+      "Bash(git merge *)",
+      "Bash(git *merge *)",
+      "Bash(git*rebase*)",
+      "Bash(git*reset --hard*)",
+      "PowerShell(git*push*)",
+      "PowerShell(git merge *)",
+      "PowerShell(git *merge *)",
+      "PowerShell(git*rebase*)",
+      "PowerShell(git*reset --hard*)"
+    ]
+  }
+}

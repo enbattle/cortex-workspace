@@ -3,8 +3,9 @@
 Status: **approved by the maintainer on 2026-10-08 (pull request #25).**
 Drafted 2026-10-05, rebased on 2.3.0 on 2026-10-07, from a discussion with
 the maintainer (2026-10-04 to 2026-10-08); the maintainer's answers to the
-open questions are recorded under "Resolved questions". Nothing below is
-built yet. A point-in-time record
+open questions are recorded under "Resolved questions". Built on branch
+`feat/v3-removable-layout` (2026-10-08); Amendment 2 records the decisions
+made while building it. A point-in-time record
 once approved: the scripts and `docs/01-design-rules.md` are authoritative
 after it lands.
 
@@ -304,7 +305,7 @@ in a stable sorted order:
 
 ```
 created	<path>	<blob sha at write time>
-block	<path>	<block id>	<blob sha of the block's content at write time>
+block	<path>	<block id>	<blob sha of the block's content at write time>	<sep (A6)>
 entry	<path>	<the exact line>
 ```
 
@@ -741,3 +742,158 @@ don't close them off.
   placed in a release: approvals bound to an identity, review run in CI by
   an isolated reviewer, structured pipeline metrics, sandboxed execution,
   CI providers beyond GitHub, and autonomy tiers earned from the record.
+
+## Amendment 1 (2026-10-08): details the test writer needed
+
+Status: **approved by the maintainer on 2026-10-08.** Raised by the first
+test-writing round, where the spec left a behavior the tests must pin down.
+
+- **A1. Output lines.** `install.sh`, `adapt.sh` and `remove.sh` print one
+  line per action, from one vocabulary. Paths are relative to the
+  repository root.
+
+  | Line | Meaning |
+  | --- | --- |
+  | `created <path>` | a file written where none was |
+  | `block <path> <id>` | a block inserted or rewritten |
+  | `unchanged <path>` | nothing to do |
+  | `replaced <path>` | upgrade: unedited, replaced by the new version |
+  | `merged <path>` | upgrade: both sides' edits merged cleanly |
+  | `kept <path> (<reason>)` | left in place: `edited`, `removed upstream, edited`, `edited after install` |
+  | `deleted <path> (changed upstream)` | upgrade: the user deleted it; upstream changed it |
+  | `conflict <path>` | upgrade: markers left for a person |
+  | `entry <path> <line>` | a line to merge (adapt) or remove (remove) by hand |
+  | `removed <path>` / `removed block <path> <id>` | removal of a recorded file or block |
+  | `overwrote edited block <path> <id>` | adapt rewrote a block a user had edited |
+  | `config <KEY>=<default>` | upgrade: a key the new version added |
+  | `reference <path>:<line>: <text>` | remove step 2: a project line naming `cortex/` |
+  | `records <dir>` | remove step 3: where the records went (or `records deleted`) |
+  | `refused <cause>: <reason>` | any refusal; a version refusal names both versions |
+  | `unreleased: <commit>` | D3 |
+
+  Summaries, one line each, last: `install: <c> created, <b> blocks`
+  (the footprint records this run wrote; on an empty repository
+  `install: 1 created, 1 blocks`);
+  `upgrade <old> -> <new>: <r> replaced, <m> merged, <k> conflicts`;
+  `remove: <r> removed, <k> kept, <e> entries to remove by hand`. The
+  hosting steps and CHANGELOG notes are free text before the summary.
+- **A2. Exit codes.** Every refusal, by any of the three scripts, exits 2
+  (D11's refusal of an unrecorded cortex-named file by `adapt.sh`
+  included). An upgrade that leaves conflicts exits 1, after finishing every
+  other file. A stop for confirmation (remove steps 1 and 2) exits 0, as the
+  spec says. Success exits 0.
+- **A3. Which files hold blocks.** Files with a cortex-named path
+  (`.claude/agents/cortex-*.md`, `.claude/skills/cortex-*/SKILL.md`,
+  `.cursor/rules/cortex.mdc`, `.github/workflows/cortex.yml`) are whole
+  files, recorded `created`. Files whose name a tool fixes and a project may
+  share (`AGENTS.md`, `CLAUDE.md`, `GEMINI.md`,
+  `.github/copilot-instructions.md`, `.github/CODEOWNERS`) always carry
+  cortex's content in a block, whether cortex created the file or not.
+- **A4. The `cortex:generated` marker is dropped.** The footprint records
+  which files are cortex's; a marker would be a second record of the same
+  fact (E4). C9 finds generated skills by path.
+- **A5. Block sources.** `template/blocks/AGENTS.md` holds the block's
+  content without the markers; install adds them. C8 ignores blank lines
+  inside the `claude` block. `tests/golden-fixture.test.sh` compares the
+  fixture's root block with `template/blocks/AGENTS.md`, as it compares
+  installed files with `template/cortex/`.
+- **A6. What a block's insertion added, recorded.** A `block` record gains a
+  fifth field, `sep`: `0` when nothing was added before the block (an
+  empty or created file), `1` when one blank line was added, `2` when a
+  final newline and a blank line were added (the file didn't end in one).
+  Removal takes away exactly that, so a round trip restores the file byte
+  for byte. Line endings follow the file's (D15).
+- **A7. Footprint determinism.** Records after the format line are sorted
+  with `LC_ALL=C sort`. A `created` sha is `git hash-object` of the file; a
+  `block` sha is `git hash-object` of the lines between its markers.
+- **A8. Interactive** means standard input is a terminal (`[ -t 0 ]`).
+  Otherwise `remove.sh` asks nothing: steps 1 and 2 stop without their
+  flags, and records follow step 3's non-interactive default.
+- **A9. Smaller details from the second round.** A release's
+  consumer-action notes are its CHANGELOG entry's
+  `**For installed repositories:**` paragraph (as 2.2.0 and 2.3.0 wrote
+  them); "every version passed" is each version above the installed one up
+  to the new one. Block ids are `agents`, `claude`, `gemini`, `copilot`
+  and `codeowners`. The root block's 15-line limit counts its marker lines.
+  C13 names the affected path, not `cortex/footprint`. A user's file at a
+  path upstream adds is a conflict and counts in the upgrade summary's
+  conflicts. Lines outside A1's table (a note such as codex reading
+  `AGENTS.md` natively) are allowed as free text before the summary.
+
+## Amendment 2 (2026-10-08): decided during implementation
+
+Status: **decided by the implementer, under the maintainer's delegation of
+the details (2026-10-08); approved by the maintainer with the merge of pull
+request #26 (2026-10-09).** Each keeps the spec's intent where the spec was silent or, in
+B2, where following it literally would break a later upgrade.
+
+- **B1. Refusals on stdout.** A1 makes a refusal an output line like the
+  others, so it goes where they go; usage errors stay on stderr.
+- **B2. `cortex/version` is written after the merges and before
+  `adapt.sh`** (install step 3 said after). The version is the next
+  upgrade's merge base: if `adapt.sh` stopped (a refusal), files of the new
+  version recorded under the old one would make that upgrade see every
+  change as the user's.
+- **B3. The `CODEOWNERS` block goes in the file GitHub reads**
+  (`.github/CODEOWNERS`, else `CODEOWNERS`, else `docs/CODEOWNERS`):
+  creating `.github/CODEOWNERS` beside a root one would make GitHub ignore
+  the project's. Its content is generated: the fixed paths of
+  `cortex/ci/github/CODEOWNERS` plus one line per `TEST_GLOBS` entry, each
+  owned by `CODE_OWNERS`.
+- **B4. C14 also covers recorded blocks**, since an upgrade merges the
+  root block and can leave markers there, outside `cortex/`.
+- **B5. A whole file cortex created and the user then edited is kept** by
+  `adapt.sh` ("kept <path> (edited)"), like remove.sh keeps it; only
+  blocks are output that a re-run overwrites. Cortex's own
+  `.claude/settings.json`, once edited, gets entries for the rules it
+  lacks.
+- **B6. An entry is matched by its quoted rule**, not the whole line, for
+  D11's "already there" and for C13 and removal: an agent that merges it
+  with other indentation or a trailing comma has merged it.
+- **B7. The cortex repository marks `template/**` and
+  `docs/01-design-rules.md` `-text`**, so a checkout with
+  `core.autocrlf=true` (Git for Windows' default) has the blob's bytes: the
+  installed copies and the base an upgrade reads then compare equal. The
+  installed repository's own line endings are handled by hashing with its
+  filters.
+- **B8. Binary-safe reads on Git Bash.** Its awk and grep drop carriage
+  returns, which would turn a CRLF file LF when a block is rewritten:
+  awk runs with `BINMODE=3` and grep with `-U` wherever project content is
+  read or rewritten (D15).
+- **B9. More refusals in step 0:** a clone without a commit (D3 needs
+  history), and a root `AGENTS.md` that already holds an unrecorded agents
+  block (D11).
+- **B10. `VERSION` is `3.0.0-rc.1`** until the pilot passes (Q4), so the
+  release candidate is a tag like any release; versions compare as semver,
+  a pre-release below its release.
+- **B11. Two test corrections, each its own commit:** a missing space that
+  made an install assertion run a file listing as a command, and `grep -U`
+  in the CRLF round-trip test, whose count was 0 on Git Bash for a file that
+  is CRLF throughout. Neither changes what is asserted.
+- **B12. After the completeness audit (2026-10-08):**
+  - Blocks are rewritten in place, so a symbolic link stays a link and a
+    file keeps its mode. `adapt.sh` writes no block through a link
+    ("skipped <path>": `CLAUDE.md -> AGENTS.md` is common, and that tool
+    then reads the agents block anyway); `install.sh` refuses a linked
+    root `AGENTS.md`.
+  - `cortex/.gitignore` re-includes everything under `cortex/`, so a
+    project's `bin/` or `*.md` ignore rule can't leave cortex's files out
+    of commits; install and adapt name any file they wrote that git still
+    ignores (a project ignoring `.claude/`, say), since C13 fails in every
+    checkout that lacks it.
+  - `TOOLS=none` means no tools on purpose: `adapt.sh` removes their
+    files. An unset or placeholder `TOOLS` still removes nothing.
+  - Settings entries are printed under the `permissions` list each belongs
+    in.
+  - An upgrade puts back a root block the user deleted (C3 requires it;
+    `remove.sh` is how cortex goes), and records an `AGENTS.md` it has to
+    recreate as created.
+- **B13. Rollout as commits on one branch.** The tests could only pass
+  with the scripts, and this repository merges on green CI, so steps 3 to
+  7 are commits on `feat/v3-removable-layout` after the tests' commit,
+  one pull request, rather than one pull request each.
+- **B14. Known limitations, kept:** C14 also fires on a knowledge or
+  change-folder file that quotes conflict markers at a line start;
+  `remove.sh` step 2 also lists a URL segment such as `.../cortex/...`
+  (listing too much costs a confirmation; missing a real reference breaks
+  the project); `--keep-records` is relative to the repository root.

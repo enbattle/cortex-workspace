@@ -124,6 +124,9 @@ new_git_repo() {
   printf '%s\n' "$d"
 }
 
+# The installer, run from this cortex checkout (3.0.0 spec, "Layouts").
+CORTEX_INSTALL="$ROOT/bin/install.sh"
+
 # fresh_install -> prints path of a fresh git repo with the template installed
 #
 # install.sh runs once per suite, into a cached repository; every call then
@@ -136,7 +139,7 @@ fresh_install() {
   local cache="$TEST_TMP/.installed-cache" d
   if [ ! -d "$cache/.git" ]; then
     d="$(new_git_repo)"
-    if ! "$ROOT/scripts/install.sh" "$d" >/dev/null 2>"$TEST_TMP/.install.err"; then
+    if ! "$CORTEX_INSTALL" "$d" >/dev/null 2>"$TEST_TMP/.install.err"; then
       echo "install.sh failed for $d:" >&2
       sed 's/^/    /' "$TEST_TMP/.install.err" >&2
       return 1
@@ -257,47 +260,261 @@ config_variant() {
 
 # write_stub_parser DIR : an installed _config.sh whose config_value prints nothing
 write_stub_parser() {
-  mkdir -p "$1/scripts/cortex"
+  mkdir -p "$1/cortex/bin"
   printf '%s\n' '# stub: config_value reads its input and prints nothing' \
-    'config_value() { cat > /dev/null; }' > "$1/scripts/cortex/_config.sh"
+    'config_value() { cat > /dev/null; }' > "$1/cortex/bin/_config.sh"
 }
 
-# ---- filled baseline (spec Amendment 1, A2) ---------------------------------------
+# ---- filled baseline (spec Amendment 1, A2; 3.0.0 D16) ----------------------------
 
-# fill_install DIR [PROJECT_NAME] : make an install a "filled" baseline that
-# check.sh accepts under A2: all six required .cortex/config keys set to
-# harmless non-placeholder values, and no TODO left in AGENTS.md. Verifies
-# the fill took effect; returns 1 (and records a failure) if it did not.
-FILL_KEYS="PROJECT_NAME BUILD_CMD TEST_CMD LINT_CMD TEST_GLOBS TOOLS"
+# fill_install DIR : make an install a "filled" baseline that check.sh accepts
+# under A2: the five required cortex/config keys set to harmless
+# non-placeholder values (D16: PROJECT_NAME is gone), CI=none (D16's default,
+# written out so the baseline does not depend on the template's line), and no
+# TODO left in cortex/AGENTS.md (C12). Verifies the fill took effect; returns
+# 1 (and records a failure) if it did not.
+FILL_KEYS="BUILD_CMD TEST_CMD LINT_CMD TEST_GLOBS TOOLS"
 fill_install() {
-  local d="$1" name="${2:-Zqxproj}" k
-  local cfg="$d/.cortex/config"
-  set_config "$cfg" PROJECT_NAME "$name"
+  local d="$1" k
+  local cfg="$d/cortex/config" router="$d/cortex/AGENTS.md"
   set_config "$cfg" BUILD_CMD "true"
   set_config "$cfg" TEST_CMD "true"
   set_config "$cfg" LINT_CMD "true"
   set_config "$cfg" TEST_GLOBS "*.test.sh"
   set_config "$cfg" TOOLS "claude"
-  for k in $FILL_KEYS; do
+  set_config "$cfg" CI "none"
+  for k in $FILL_KEYS CI; do
     if ! grep -q "^${k}=[^<[:space:]]" "$cfg"; then
       fail "fill_install: $k not filled in $cfg"; return 1
     fi
   done
-  if [ -f "$d/AGENTS.md" ]; then
-    filter_file "$d/AGENTS.md" awk '!/TODO/'
-    if grep -q 'TODO' "$d/AGENTS.md"; then
-      fail "fill_install: TODO still in AGENTS.md"; return 1
+  if [ -f "$router" ]; then
+    filter_file "$router" awk '!/TODO/'
+    if grep -q 'TODO' "$router"; then
+      fail "fill_install: TODO still in cortex/AGENTS.md"; return 1
     fi
-    if [ ! -s "$d/AGENTS.md" ]; then
-      fail "fill_install: AGENTS.md empty after removing TODO lines"; return 1
+    if [ ! -s "$router" ]; then
+      fail "fill_install: cortex/AGENTS.md empty after removing TODO lines"; return 1
     fi
   fi
 }
 
-# filled_install [PROJECT_NAME] -> path of a fresh install, filled as above
+# filled_install -> path of a fresh install, filled as above
 filled_install() {
   local d
   d="$(fresh_install)" || return 1
-  fill_install "$d" "${1:-Zqxproj}" || return 1
+  fill_install "$d" || return 1
   printf '%s\n' "$d"
+}
+
+# ---- 3.0.0 layout helpers (spec 2026-10-05-v3-removable-layout) --------------------
+
+# in_repo DIR CMD... : run CMD (via `run`) with cwd = DIR
+in_repo() {
+  local d="$1"; shift
+  run bash -c 'd="$1"; shift; cd "$d" && "$@"' _ "$d" "$@"
+}
+
+# cortex_script DIR NAME [ARGS...] : run `bash cortex/bin/NAME.sh ARGS` in DIR
+cortex_script() {
+  local d="$1" n="$2"; shift 2
+  in_repo "$d" bash "cortex/bin/$n.sh" "$@"
+}
+
+# adapt_quiet DIR : run DIR's adapt.sh, output discarded; returns its status
+adapt_quiet() {
+  (cd "$1" && bash cortex/bin/adapt.sh) >/dev/null 2>&1
+}
+
+# adapted_install -> a filled install (TOOLS=claude, CI=none) after adapt.sh ran
+adapted_install() {
+  local d
+  d="$(filled_install)" || return 1
+  adapt_quiet "$d" || { fail "adapted_install: adapt.sh failed in $d"; return 1; }
+  printf '%s\n' "$d"
+}
+
+# cortex_clone [VERSION] -> path of a throwaway cortex source repository: a
+# copy of this checkout's bin/, template/, docs/01-design-rules.md, VERSION
+# (replaced by VERSION if given) and CHANGELOG.md, committed, so install.sh
+# can record a commit (D3) and read earlier template versions from history.
+# Edit it, then commit_all, to build a later version.
+cortex_clone() {
+  local c
+  c="$(new_git_repo)"
+  cp -Rp "$ROOT/bin" "$c/bin"
+  cp -Rp "$ROOT/template" "$c/template"
+  mkdir -p "$c/docs"
+  cp -p "$ROOT/docs/01-design-rules.md" "$c/docs/01-design-rules.md"
+  if [ -n "${1:-}" ]; then printf '%s\n' "$1" > "$c/VERSION"; else cp -p "$ROOT/VERSION" "$c/VERSION"; fi
+  [ ! -f "$ROOT/CHANGELOG.md" ] || cp -p "$ROOT/CHANGELOG.md" "$c/CHANGELOG.md"
+  commit_all "$c" "cortex $(tr -d '\r\n' < "$c/VERSION")"
+  printf '%s\n' "$c"
+}
+
+# The footprint's first line (spec "The footprint record").
+FOOTPRINT_HEADER="# cortex footprint 1"
+
+# footprint_records DIR -> DIR's cortex/footprint without comment lines
+footprint_records() {
+  [ -f "$1/cortex/footprint" ] || return 0
+  grep -v '^#' "$1/cortex/footprint" || true
+}
+
+# has_record DIR KIND PATH [FIELD3] : a KIND record for PATH exists (and, if
+# given, its third field equals FIELD3: a block id or an entry's line)
+has_record() {
+  local d="$1"
+  # ENVIRON, not -v: awk -v would expand backslashes in an entry's line
+  footprint_records "$d" | HR_K="$2" HR_P="$3" HR_F="${4-}" HR_HF="${4+x}" awk -F'\t' '
+    $1 == ENVIRON["HR_K"] && $2 == ENVIRON["HR_P"] &&
+      (ENVIRON["HR_HF"] == "" || $3 == ENVIRON["HR_F"]) { found = 1 }
+    END { exit found ? 0 : 1 }'
+}
+
+# block_begin FILE ID / block_end FILE ID -> the marker lines for FILE (#-style
+# for CODEOWNERS, HTML comments otherwise; spec "Marked blocks")
+block_begin() {
+  case "${1##*/}" in CODEOWNERS) printf '# cortex:begin %s\n' "$2" ;; *) printf '<!-- cortex:begin %s -->\n' "$2" ;; esac
+}
+block_end() {
+  case "${1##*/}" in CODEOWNERS) printf '# cortex:end %s\n' "$2" ;; *) printf '<!-- cortex:end %s -->\n' "$2" ;; esac
+}
+
+# block_count FILE ID -> how many begin markers for ID are in FILE
+block_count() {
+  if [ -f "$1" ]; then grep -cxF -- "$(block_begin "$1" "$2")" "$1" || true; else echo 0; fi
+}
+
+# block_content FILE ID -> the lines between ID's markers (CRs kept)
+block_content() {
+  [ -f "$1" ] || return 0
+  awk -v b="$(block_begin "$1" "$2")" -v e="$(block_end "$1" "$2")" '
+    { l = $0; sub(/\r$/, "", l) }
+    l == e { inb = 0 }
+    inb { print }
+    l == b { inb = 1 }' "$1"
+}
+
+# outside_blocks FILE -> FILE's lines outside every cortex block (markers dropped)
+outside_blocks() {
+  [ -f "$1" ] || return 0
+  awk '
+    { l = $0; sub(/\r$/, "", l) }
+    l ~ /^(<!-- |# )cortex:begin / { inb = 1; next }
+    l ~ /^(<!-- |# )cortex:end / { inb = 0; next }
+    !inb { print }' "$1"
+}
+
+# set_block FILE ID TEXT : replace the content between ID's markers with TEXT
+# (one or more lines); the markers and everything outside them are kept
+set_block() {
+  local f="$1" id="$2" t="$TEST_TMP/.block.$$"
+  printf '%s\n' "$3" > "$t"
+  filter_file "$f" awk -v b="$(block_begin "$f" "$id")" -v e="$(block_end "$f" "$id")" -v t="$t" '
+    { l = $0; sub(/\r$/, "", l) }
+    l == b { print; while ((getline x < t) > 0) print x; skip = 1; next }
+    l == e { skip = 0 }
+    !skip { print }'
+  rm -f "$t"
+}
+
+# file_starts_with FILE PREFIX-FILE : FILE's first bytes are PREFIX-FILE's bytes
+file_starts_with() {
+  local n
+  [ -f "$1" ] && [ -f "$2" ] || return 1
+  n="$(wc -c < "$2" | tr -d ' ')"
+  [ "$n" -eq 0 ] || head -c "$n" "$1" | cmp -s - "$2"
+}
+
+# tree_snapshot DIR -> one line per directory ("d <path>/") and file
+# ("f <path> <blob sha>") outside .git/, sorted: equal snapshots mean equal
+# trees, byte for byte, including empty directories
+tree_snapshot() {
+  (
+    cd "$1" || exit 1
+    find . -mindepth 1 -path ./.git -prune -o -type d -print | sed 's|^\./||; s|^|d |; s|$|/|'
+    find . -path ./.git -prune -o -type f -print | sed 's|^\./||' | LC_ALL=C sort > "$TEST_TMP/.snap.$$"
+    if [ -s "$TEST_TMP/.snap.$$" ]; then
+      tr '\n' '\0' < "$TEST_TMP/.snap.$$" | xargs -0 git hash-object --no-filters -- |
+        paste "$TEST_TMP/.snap.$$" - | sed 's|^|f |; s|\t| |'
+    fi
+    rm -f "$TEST_TMP/.snap.$$"
+  ) | LC_ALL=C sort
+}
+
+# ---- seeded projects and settings entries (3.0.0 criteria 2, 3, 8, 12, 13, 40) ----
+
+# seed_rule -> one of cortex's settings rules, byte for byte as the Claude
+# Code adapter source holds it (D11: an entry is matched as an exact line)
+seed_rule() {
+  local src="$ROOT/template/cortex/adapters/claude-code/.claude/settings.json" l=""
+  [ ! -f "$src" ] || l="$(grep -m1 -F 'Bash(git status' "$src" || true)"
+  if [ -n "$l" ]; then printf '%s\n' "$l"; else printf '%s\n' '      "Bash(git status*)",'; fi
+}
+
+# seed_project DIR : write the project's own AGENTS.md, CLAUDE.md,
+# .gitattributes, .github/CODEOWNERS, .claude/settings.json (holding
+# seed_rule) and README.md into DIR (criterion 2's files); none names cortex/
+seed_project() {
+  local d="$1"
+  mkdir -p "$d/.github" "$d/.claude"
+  printf '# Project agents\n\nRun `make test` before pushing.\n' > "$d/AGENTS.md"
+  printf '# Claude notes\n\nPrefer small diffs.\n' > "$d/CLAUDE.md"
+  printf '*.png binary\ndocs/** linguist-documentation\n' > "$d/.gitattributes"
+  printf '* @owner\n/docs/ @writers\n' > "$d/.github/CODEOWNERS"
+  {
+    printf '{\n  "permissions": {\n    "allow": [\n'
+    seed_rule
+    printf '      "Bash(make test)"\n    ]\n  }\n}\n'
+  } > "$d/.claude/settings.json"
+  printf '# Demo\n' > "$d/README.md"
+}
+
+# seeded_repo -> a git repo holding seed_project's files, committed
+seeded_repo() {
+  local d
+  d="$(new_git_repo)" || return 1
+  seed_project "$d"
+  commit_all "$d" "the project"
+  printf '%s\n' "$d"
+}
+
+# install_adapt_github DIR : install.sh into DIR, fill it (fill_install:
+# TOOLS=claude), set CI=github and CODE_OWNERS=@t (criterion 2), run adapt.sh;
+# output discarded. Returns 1 (recording a failure) if a step fails.
+install_adapt_github() {
+  local d="$1"
+  "$CORTEX_INSTALL" "$d" >/dev/null 2>&1 || { fail "install_adapt_github: install.sh failed in $d"; return 1; }
+  fill_install "$d" || return 1
+  set_config "$d/cortex/config" CI github
+  set_config "$d/cortex/config" CODE_OWNERS "@t"
+  adapt_quiet "$d" || { fail "install_adapt_github: adapt.sh failed in $d"; return 1; }
+}
+
+# merge_entries DIR [PATH] : do the merge adapt.sh asks for (Q1): insert
+# every entry line recorded for PATH (default .claude/settings.json) into it,
+# after its first line holding "[" (at the end if none)
+merge_entries() {
+  local d="$1" p="${2:-.claude/settings.json}" t="$TEST_TMP/.entries.$$"
+  footprint_records "$d" | ME_P="$p" awk -F'\t' '
+    $1 == "entry" && $2 == ENVIRON["ME_P"] { sub(/^[^\t]*\t[^\t]*\t/, ""); print }' > "$t"
+  if [ -s "$t" ]; then
+    filter_file "$d/$p" awk -v t="$t" '
+      { print }
+      !done && /\[/ { while ((getline x < t) > 0) print x; done = 1 }
+      END { if (!done) while ((getline x < t) > 0) print x }'
+  fi
+  rm -f "$t"
+}
+
+# entry_count DIR [PATH] -> number of entry records for PATH
+entry_count() {
+  footprint_records "$1" | EC_P="${2:-.claude/settings.json}" awk -F'\t' '
+    $1 == "entry" && $2 == ENVIRON["EC_P"] { n++ } END { print n + 0 }'
+}
+
+# has_line_starting TEXT PREFIX : some line of TEXT starts with PREFIX
+has_line_starting() {
+  printf '%s\n' "$1" | HL_P="$2" awk 'index($0, ENVIRON["HL_P"]) == 1 { f = 1 } END { exit f ? 0 : 1 }'
 }

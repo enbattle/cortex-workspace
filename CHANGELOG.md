@@ -1,5 +1,68 @@
 # Changelog
 
+## 3.0.0 — unreleased (3.0.0-rc.1)
+
+**Before release:** the golden cycle on the 3.0.0 layout; the completeness
+audit and its findings; the full suites and CI, on Linux, macOS and Windows;
+then `v3.0.0-rc.1` tagged and the pilot in a real repository (install, one
+real change through the pipeline, an upgrade to an `rc.2`, removal), which
+gates the release (spec criterion 48); `VERSION` 3.0.0, the fixture
+refreshed, a date here, and the tag.
+
+**Changed: one directory, a clean install and a clean removal**
+(`docs/specs/2026-10-05-v3-removable-layout.md`). A major version: every
+installed path changed.
+
+- **Everything installs under `cortex/`** (visible, so agents' searches find
+  it): the router (`cortex/AGENTS.md`, with the conventions), the
+  constitution, `config`, `knowledge/`, `changes/`, `harness/`, the scripts
+  (`cortex/bin/`), the adapter and CI sources, the design rules, `version`.
+  Nothing is placed in `docs/` or `scripts/` any more.
+- **Outside it, only recorded blocks and created files.** Your `AGENTS.md`
+  gets a short marked block with the always-on rules (or is created);
+  `adapt.sh` puts its content for `CLAUDE.md`, `GEMINI.md`,
+  `copilot-instructions.md` and `CODEOWNERS` in marked blocks, and writes
+  cortex-named files (`.claude/agents/cortex-*`, `.claude/skills/cortex-*`,
+  the workflow) whole. Each is recorded in `cortex/footprint`. Nothing of the
+  project's is moved or rewritten; an existing `.claude/settings.json` is
+  never edited (the rules it lacks are printed to merge). `INSTALL.md` no
+  longer rewrites `AGENTS.md` or `CLAUDE.md`.
+- **Upgrade:** `bash <clone>/bin/install.sh <repo>` on a 3.x install merges
+  three versions of every file (the installed commit's, the new one, yours)
+  with `git merge-file`: your edits are kept, overlaps are left as conflict
+  markers (exit 1, and `check.sh` C14 fails until they're resolved).
+  `cortex/config` is never changed; new keys are printed. A minor release
+  keeps every earlier minor's test locks valid; a major one refuses while a
+  change is in progress.
+- **Removal:** `bash cortex/bin/remove.sh` gives the hosting steps first
+  (the required check, then Code Owners), lists project lines that name
+  `cortex/` paths, keeps the records (change folders, knowledge, project
+  rules, conventions) in `docs/cortex-records/` unless told otherwise, and
+  removes every recorded block and created file, so the repository is as it
+  was before install.
+- **Checks:** C1 is retired (an upgrade merges edits, so a harness file may
+  name the project) and `PROJECT_NAME` with it; C2 covers
+  `cortex/harness/` only; C3, C10 and C12 read the root block and C8 the
+  `claude` block in `CLAUDE.md`; C11
+  requires `CODE_OWNERS` when `CI=github`; C13 (the footprint matches the
+  repository) and C14 (no conflict markers) are new. New design rule R15,
+  removability.
+- **CI from config:** `CI=github` and `CODE_OWNERS` in `cortex/config` make
+  `adapt.sh` write the workflow and the `CODEOWNERS` block (in whichever
+  `CODEOWNERS` file GitHub reads), instead of copying them by hand.
+- **Platforms:** the install, upgrade and remove suites run in CI on macOS's
+  bash 3.2 and on Git Bash as well as Linux; blocks keep a CRLF file's line
+  endings. **Fixed:** on macOS, `ci-gates.sh` reported every tracked file
+  as hidden (bash 3.2 matched `[a-z]` by locale collation, catching
+  uppercase tags); 2.x had the same bug.
+- **Golden task:** the fixture is rebuilt in the 3.0.0 layout; `refresh.sh`
+  and its suite take the new paths and check the root block.
+
+**For installed repositories:** 3.0.0 doesn't migrate a 2.x install (the
+installer refuses one). There are no 2.x installs outside cortex's own
+fixtures; a 2.x repository that wants 3.x removes the 2.x files by hand and
+installs fresh.
+
 ## 2.3.0 — 2026-10-07
 
 **Before release** (all done): the golden cycle
