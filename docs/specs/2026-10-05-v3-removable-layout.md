@@ -823,8 +823,8 @@ test-writing round, where the spec left a behavior the tests must pin down.
 ## Amendment 2 (2026-10-08): decided during implementation
 
 Status: **decided by the implementer, under the maintainer's delegation of
-the details (2026-10-08); for review in the implementation's pull
-request.** Each keeps the spec's intent where the spec was silent or, in
+the details (2026-10-08); approved by the maintainer with the merge of pull
+request #26 (2026-10-09).** Each keeps the spec's intent where the spec was silent or, in
 B2, where following it literally would break a later upgrade.
 
 - **B1. Refusals on stdout.** A1 makes a refusal an output line like the
