@@ -819,18 +819,58 @@ dup_block() {
 }
 
 # pad_root_block DIR N : the root agents block's original content, padded
-# with "- padding" lines to N content lines
+# with "- padding" lines to N non-blank content lines (Amendment 3, F1: C3
+# counts non-blank lines; was: N content lines, blank ones included)
 pad_root_block() {
   local d="$1" n="$2" c i nl
   nl='
 '
   c="$(block_content "$d/AGENTS.md" agents)"
-  i="$(printf '%s\n' "$c" | grep -c '')"
+  i="$(printf '%s\n' "$c" | grep -c '[^[:space:]]' || true)"
   while [ "$i" -lt "$n" ]; do i=$((i + 1)); c="$c$nl- padding line $i"; done
   set_block "$d/AGENTS.md" agents "$c"
 }
 
-block_lines() { block_content "$1" "$2" | grep -c '' || true; }
+# block_lines FILE ID -> the block's non-blank content lines (Amendment 3,
+# F1: what C3 counts, with the markers; was: every line between the markers)
+block_lines() { block_content "$1" "$2" | grep -c '[^[:space:]]' || true; }
+
+case_C3_root_block_blank_lines_ok() {
+  # Amendment 3, F1: C3 counts the root block's non-blank lines, so a
+  # formatter's blank lines can't fail it
+  local d before; d="$(prepared_install)"; baseline_ok "$d"
+  before="$(block_lines "$d/AGENTS.md" agents)"
+  space_block "$d/AGENTS.md" agents
+  planted "the root block has more than 15 lines with its blank ones" \
+    test "$(block_content "$d/AGENTS.md" agents | grep -c '')" -gt 15
+  planted "no non-blank line changed" test "$(block_lines "$d/AGENTS.md" agents)" = "$before"
+  check_in "$d"
+  assert_exit 0 "$CODE" "a root block padded with blank lines passes (F1)"
+  assert_not_contains "$OUT" "[C3]" "no C3 for blank lines (F1)"
+}
+
+case_C3_root_block_16_nonblank() {
+  # Amendment 3, F1: 14 non-blank content lines, 16 with the markers, fail
+  # C3, blank lines between them or not
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  pad_root_block "$d" 14
+  space_block "$d/AGENTS.md" agents
+  planted "14 non-blank content lines" test "$(block_lines "$d/AGENTS.md" agents)" = 14
+  expect_violation "$d" C3 "AGENTS.md"
+}
+
+case_C13_prettierignore_entry() {
+  # Amendment 3, F2: the recorded .prettierignore entry fails C13 until merged
+  local d; d="$(filled_install)"
+  printf 'node_modules/\n' > "$d/.prettierignore"
+  adapt_quiet "$d" || { fail "adapt.sh failed"; return 0; }
+  planted "the .prettierignore entry is recorded" has_record "$d" entry .prettierignore "cortex/" || return 0
+  expect_fail_ids "$d" "C13" "C13|.prettierignore"
+  append "$d/.prettierignore" "cortex/"
+  check_in "$d"
+  assert_exit 0 "$CODE" "check passes once the line is merged (F2)"
+  assert_not_contains "$OUT" "[C13]" "no C13 once merged (F2)"
+}
 
 case_C3_root_block_16() {
   # criterion 36: a 16-line root block fails C3. Padded to 16 content lines,
@@ -1049,4 +1089,7 @@ run_case "criterion 40: C13 an entry absent from its file" case_C13_entry_absent
 run_case "criterion 32: C13 an unknown footprint format" case_C13_unknown_format
 run_case "criterion 41: C14 a conflict marker under cortex/" case_C14_under_cortex
 run_case "criterion 41: no C14 outside cortex/" case_C14_outside_cortex
+run_case "F1: C3 a root block padded with blank lines ok" case_C3_root_block_blank_lines_ok
+run_case "F1: C3 16 non-blank root block lines" case_C3_root_block_16_nonblank
+run_case "F2: C13 the .prettierignore entry until merged" case_C13_prettierignore_entry
 summary

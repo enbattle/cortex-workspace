@@ -429,6 +429,125 @@ case_v3_gemini_handwritten() {
   assert_line "$OUT" "removed block GEMINI.md gemini" "A1: removed block GEMINI.md gemini"
 }
 
+# ---- Amendment 3 (2026-10-09): F1 formatter-stable blocks, F2 .prettierignore,
+# F4 TEST_GLOBS notes --------------------------------------------------------------
+
+case_F1_blocks_framed() {
+  # F1: every block adapt.sh writes (CODEOWNERS excepted) has one blank line
+  # after its begin marker and one before its end marker
+  local d; d="$(tools_install claude,copilot,gemini)"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0"
+  printf '<!-- cortex:begin claude -->\n\n@AGENTS.md\n\n<!-- cortex:end claude -->\n' > "$TEST_TMP/claude.expected"
+  assert_same_file "$TEST_TMP/claude.expected" "$d/CLAUDE.md" "a created CLAUDE.md is the framed claude block (F1)"
+  assert_true "the gemini block is framed (F1)" block_framed "$d/GEMINI.md" gemini
+  assert_true "the copilot block is framed (F1)" block_framed "$d/.github/copilot-instructions.md" copilot
+  # F1: the framing is not part of the block's sha (A7)
+  assert_true "the claude block's sha is git hash-object of '@AGENTS.md', framing excluded (F1)" \
+    test "$(footprint_records "$d" | awk -F'\t' '$1 == "block" && $2 == "CLAUDE.md" { print $4 }')" = \
+      "$(printf '@AGENTS.md\n' | git hash-object --no-filters --stdin)"
+}
+
+# blank_variant D TEXT LABEL : set CLAUDE.md's claude block to TEXT (differing
+# from what adapt.sh writes only in blank lines); adapt.sh leaves it as is,
+# printing unchanged, and check.sh (C13 included) passes (F1)
+blank_variant() {
+  local d="$1" text="$2" what="$3"
+  set_block "$d/CLAUDE.md" claude "$text"
+  if [ "$(block_body "$d/CLAUDE.md" claude | grep -v '^$' || true)" != "@AGENTS.md" ]; then
+    fail "fixture ($what): the block's non-blank content is not @AGENTS.md"; return 0
+  fi
+  cp "$d/CLAUDE.md" "$TEST_TMP/claude.variant"
+  adapt "$d"
+  assert_exit 0 "$CODE" "$what: adapt exits 0"
+  assert_line "$OUT" "unchanged CLAUDE.md" "$what: adapt prints unchanged CLAUDE.md (F1)"
+  assert_not_contains "$OUT" "overwrote edited block CLAUDE.md" "$what: not an edited block (F1)"
+  assert_same_file "$TEST_TMP/claude.variant" "$d/CLAUDE.md" "$what: CLAUDE.md left as is (F1)"
+  run bash -c 'cd "$1" && ./cortex/bin/check.sh' _ "$d"
+  assert_exit 0 "$CODE" "$what: check passes (F1)"
+  assert_not_contains "$OUT" "[C13]" "$what: C13 accepts the block (F1)"
+}
+
+case_F1_blank_lines_not_edited() {
+  # F1: a block differing from cortex's only in blank lines is not edited
+  local d; d="$(adapted_install)" || return 0
+  blank_variant "$d" $'\n\n@AGENTS.md\n\n' "extra blank lines (a formatter's)"
+  blank_variant "$d" "@AGENTS.md" "no blank lines"
+}
+
+case_F2_prettierignore_entry() {
+  # F2: a root .prettierignore without the line: "merge this line into
+  # .prettierignore:", then the entry line (A1), recorded; the file untouched
+  local d; d="$(tools_install claude)"
+  printf 'node_modules/\ndist/\n' > "$d/.prettierignore"
+  cp "$d/.prettierignore" "$TEST_TMP/pi.orig"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0 with a .prettierignore"
+  assert_line "$OUT" "merge this line into .prettierignore:" "the merge request is printed (F2)"
+  assert_line "$OUT" "entry .prettierignore cortex/" "the line is printed as an entry line (F2, A1)"
+  assert_true "the request comes right before its entry line (F2)" \
+    grep -qxF "entry .prettierignore cortex/" <<<"$(grep -A1 -xF "merge this line into .prettierignore:" <<<"$OUT" || true)"
+  assert_true "the entry is recorded: entry<TAB>.prettierignore<TAB>cortex/ (F2)" has_record "$d" entry .prettierignore "cortex/"
+  assert_true "one entry recorded for .prettierignore (F2)" test "$(entry_count "$d" .prettierignore)" = 1
+  assert_same_file "$TEST_TMP/pi.orig" "$d/.prettierignore" ".prettierignore never edited (F2)"
+  assert_true ".prettierignore not recorded created (D11)" eval '! has_record "$d" created .prettierignore'
+  # merged by hand: no request on the next run, the record stays for removal
+  append "$d/.prettierignore" "cortex/"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0 after the merge"
+  assert_not_contains "$OUT" "merge this line into .prettierignore" "no request once merged (F2)"
+  assert_true "the entry stays recorded once merged (F2)" has_record "$d" entry .prettierignore "cortex/"
+}
+
+case_F2_prettierignore_has_line() {
+  # F2, D11: the line already there is neither printed nor recorded
+  local d; d="$(tools_install claude)"
+  printf 'node_modules/\ncortex/\n' > "$d/.prettierignore"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0"
+  assert_not_contains "$OUT" ".prettierignore" "nothing printed for a .prettierignore that has the line (F2)"
+  assert_true "nothing recorded (F2)" test "$(entry_count "$d" .prettierignore)" = 0
+}
+
+case_F2_no_prettierignore() {
+  # F2: without a root .prettierignore nothing is printed, recorded or created
+  local d; d="$(tools_install claude)"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0"
+  assert_not_contains "$OUT" ".prettierignore" "nothing printed without a .prettierignore (F2)"
+  assert_true "nothing recorded (F2)" test "$(entry_count "$d" .prettierignore)" = 0
+  assert_file_absent "$d/.prettierignore" "no .prettierignore created (F2)"
+}
+
+case_F4_test_globs_note() {
+  # F4: one note per TEST_GLOBS glob that matches no tracked file (pathspecs
+  # anchor at the root unless they start with *); none for a matching glob
+  local d; d="$(tools_install claude)"
+  mkdir -p "$d/sub"
+  printf 'echo a\n' > "$d/sub/a.test.sh"
+  set_config "$d/cortex/config" TEST_GLOBS '*.test.sh a.test.sh tests/**'
+  commit_all "$d" "tracked: sub/a.test.sh"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0 with unmatched globs (a note, not a check)"
+  assert_line "$OUT$ERR" "note: TEST_GLOBS a.test.sh matches no tracked file" "an anchored glob matching nothing is noted (F4)"
+  assert_line "$OUT$ERR" "note: TEST_GLOBS tests/** matches no tracked file" "a directory glob matching nothing is noted (F4)"
+  assert_not_contains "$OUT$ERR" "note: TEST_GLOBS *.test.sh " "a glob that matches is not noted (F4)"
+  assert_true "one note per unmatched glob (F4)" \
+    test "$(grep -c '^note: TEST_GLOBS ' <<<"$OUT$ERR" || true)" = 2
+}
+
+case_F4_test_globs_all_match() {
+  # F4: every glob matches: no note
+  local d; d="$(tools_install claude)"
+  mkdir -p "$d/tests"
+  printf 'echo a\n' > "$d/tests/a.test.sh"
+  set_config "$d/cortex/config" TEST_GLOBS '*.test.sh tests/**'
+  commit_all "$d" "tracked: tests/a.test.sh"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0"
+  assert_not_contains "$OUT$ERR" "note: TEST_GLOBS" "no note when every glob matches (F4)"
+}
+
 run_case "missing cortex/config -> exit 2" case_missing_config
 run_case "AC11 TOOLS placeholder warns, writes nothing" case_tools_placeholder
 run_case "AC11 TOOLS empty warns, writes nothing" case_tools_empty
@@ -457,4 +576,11 @@ run_case "AC34 a stub _config.sh changes what adapt.sh reads" case_AC34_stub_par
 run_case "criterion 8: settings.json created when absent, recorded" case_v3_settings_created
 run_case "criterion 8: existing settings.json gets entries, never edited" case_v3_settings_entries
 run_case "criterion 10: hand-written GEMINI.md gets a block, then loses it" case_v3_gemini_handwritten
+run_case "F1: blocks written with one blank line inside each marker" case_F1_blocks_framed
+run_case "F1: a block differing only in blank lines is not edited" case_F1_blank_lines_not_edited
+run_case "F2: .prettierignore without the line gets an entry" case_F2_prettierignore_entry
+run_case "F2: .prettierignore with the line: nothing printed or recorded" case_F2_prettierignore_has_line
+run_case "F2: no .prettierignore: nothing printed or recorded" case_F2_no_prettierignore
+run_case "F4: a note per TEST_GLOBS glob matching no tracked file" case_F4_test_globs_note
+run_case "F4: no TEST_GLOBS note when every glob matches" case_F4_test_globs_all_match
 summary
