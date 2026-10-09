@@ -14,7 +14,9 @@
 #     content in a marked block; the project's lines stay (A3);
 #   - .claude/settings.json, which can't carry a block: created when absent;
 #     otherwise the rules it lacks are printed for a person or agent to merge
-#     and recorded as entries (Q1). The JSON is never edited here.
+#     and recorded as entries (Q1). The JSON is never edited here;
+#   - a root .prettierignore without a cortex/ line: that line, printed and
+#     recorded as an entry the same way (Amendment 3 F2).
 # A block is output, not source: a re-run rewrites it, reporting an edit it
 # overwrote. A cortex-named file cortex didn't record is the project's, so
 # this script refuses to touch it (D11). Files for a tool dropped from TOOLS
@@ -140,25 +142,23 @@ emit_block() {
   if [ "$(block_count "$f" "$id")" -eq 0 ]; then
     sep="$(block_insert "$f" "$id" "$src")"
     if [ "$new" = 1 ]; then record_created "$f"; echo "created $f"; fi
-    fp_drop block "$f" "$id"
-    fp_add block "$f" "$id" "$(block_sha "$f" "$id")" "$sep"
+    fp_add_block "$f" "$id" "$sep"
     echo "block $f $id"
   else
     sep="$(fp_field "$rec" 5)"
-    block_content "$f" "$id" | tr -d '\r' > "$tmp/current"
-    tr -d '\r' < "$src" > "$tmp/wanted"
-    if cmp -s "$tmp/current" "$tmp/wanted"; then
+    # Blank lines aside (F1): a formatter's blank lines are not an edit, and
+    # rewriting them would only start the formatter's next round.
+    if [ "$(block_content "$f" "$id" | nonblank_sha)" = "$(nonblank_sha < "$src")" ]; then
       echo "unchanged $f"
     else
-      if [ -n "$rec" ] && [ "$(block_sha "$f" "$id")" = "$(fp_field "$rec" 4)" ]; then
+      if [ -n "$rec" ] && block_unedited "$f" "$id" "$rec"; then
         echo "block $f $id"
       else
         echo "overwrote edited block $f $id"
       fi
       block_set "$f" "$id" "$src"
     fi
-    fp_drop block "$f" "$id"
-    fp_add block "$f" "$id" "$(block_sha "$f" "$id")" "${sep:-0}"
+    fp_add_block "$f" "$id" "${sep:-0}"
   fi
   [ -z "$(fp_match created "$f")" ] || record_created "$f"
 }
@@ -260,6 +260,34 @@ case "$ci" in
   none) ;;
   *) echo "warning: unknown CI value $ci (github or none); nothing written for it" ;;
 esac
+
+# ---- the project's formatter (Amendment 3 F2) --------------------------------------------
+
+# cortex's files follow cortex's style, not the project's: Prettier is told
+# to leave cortex/ alone, by a line a person merges (the file is the project's).
+if [ -f .prettierignore ]; then
+  want .prettierignore
+  if ! tr -d '\r' < .prettierignore | grep -qxE '/?cortex/?'; then
+    echo "merge this line into .prettierignore:"
+    [ -n "$(fp_match entry .prettierignore cortex/)" ] || fp_add entry .prettierignore cortex/
+    echo "entry .prettierignore cortex/"
+  fi
+fi
+
+# ---- TEST_GLOBS that lock nothing (Amendment 3 F4) ---------------------------------------
+
+# A glob matching no tracked file locks nothing; often it's anchored at the
+# root by mistake (test_*.py for **/test_*.py). A note, not a check: a new
+# repository may have no tests yet.
+case "$globs" in *'<'*) globs="" ;; esac
+if [ -n "$globs" ] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  set -f
+  # shellcheck disable=SC2086 # the globs are split on purpose, unexpanded
+  for g in $globs; do
+    [ -n "$(git ls-files -- "$g" 2>/dev/null | sed -n 1p)" ] || echo "note: TEST_GLOBS $g matches no tracked file"
+  done
+  set +f
+fi
 
 # ---- what an earlier run wrote and this one doesn't ------------------------------------
 

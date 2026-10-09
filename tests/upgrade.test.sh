@@ -94,7 +94,9 @@ user_edits() { # D : the user's side of the scenario
   mkdir -p "$d/cortex/changes/my-change"
   printf '# my change\n' > "$d/cortex/changes/my-change/proposal.md"
   printf '# mine\n' > "$d/cortex/knowledge/mine.md"
-  set_block "$d/AGENTS.md" agents "$(block_content "$d/AGENTS.md" agents | awk 'NR == 1 { print $0 " (ours)"; next } { print }')"
+  # the block's first non-blank line (Amendment 3, F1: the first line inside
+  # the markers is the blank framing; was: NR == 1)
+  set_block "$d/AGENTS.md" agents "$(block_content "$d/AGENTS.md" agents | awk '!done && $0 != "" { print $0 " (ours)"; done = 1; next } { print }')"
   append "$d/cortex/design-rules.md" "zz-user-design-note"
   commit_all "$d" "the user's edits"
 }
@@ -347,12 +349,39 @@ case_revert_consistent() {
   git -C "$d" revert --no-edit HEAD >/dev/null
   assert_true "cortex/version is 3.0.0 again" test "$(sed -n 1p "$d/cortex/version")" = "3.0.0"
   assert_true "cortex/version names 3.0.0's commit" test "$(sed -n 2p "$d/cortex/version")" = "$v1"
-  assert_true "the block is 3.0.0's" test "$(block_content "$d/AGENTS.md" agents)" = "$(git -C "$c" show v3.0.0:template/blocks/AGENTS.md)"
-  block_content "$d/AGENTS.md" agents > "$TEST_TMP/blk"
+  # Amendment 3, F1: the block's content and sha leave out the blank framing
+  # lines inside the markers (was: block_content, every line between them)
+  assert_true "the block is 3.0.0's" test "$(block_body "$d/AGENTS.md" agents)" = "$(git -C "$c" show v3.0.0:template/blocks/AGENTS.md)"
+  block_body "$d/AGENTS.md" agents > "$TEST_TMP/blk"
   rec="$(footprint_records "$d" | awk -F'\t' '$1 == "block" && $2 == "AGENTS.md" { print $4 }')"
   assert_true "the footprint's block sha matches the block (A7)" test "$rec" = "$(git hash-object --no-filters "$TEST_TMP/blk")"
   run bash -c 'cd "$1" && bash cortex/bin/check.sh' _ "$d"
   assert_not_contains "$OUT" "[C13]" "C13 passes after the revert"
+}
+
+case_F1_blank_lines_unedited() {
+  # Amendment 3, F1: a root block differing from 3.0.0's only in blank lines
+  # is unedited: the upgrade replaces it with 3.1.0's, merging nothing
+  local c d new rec
+  c="$(clone_v1)" || return 0; d="$(installed_from "$c")" || return 0
+  space_block "$d/AGENTS.md" agents
+  if [ "$(block_body "$d/AGENTS.md" agents | grep -v '^$' || true)" != "$(grep -v '^$' "$c/template/blocks/AGENTS.md")" ] ||
+    [ "$(block_body "$d/AGENTS.md" agents)" = "$(cat "$c/template/blocks/AGENTS.md")" ]; then
+    fail "fixture: the block should differ from 3.0.0's in blank lines only"; return 0
+  fi
+  commit_all "$d" "a formatter's blank lines inside the block"
+  append "$c/template/blocks/AGENTS.md" "- zz-upstream-rule"
+  release "$c" 3.1.0
+  upgrade_from "$c" "$d"
+  assert_exit 0 "$CODE" "the upgrade exits 0"
+  assert_not_contains "$OUT" "merged AGENTS.md" "the block is not merged as edited (F1)"
+  assert_not_contains "$OUT" "conflict AGENTS.md" "no conflict (F1)"
+  new="$(cat "$c/template/blocks/AGENTS.md")"
+  assert_true "the block is 3.1.0's, the blank lines replaced with it (F1)" test "$(block_body "$d/AGENTS.md" agents)" = "$new"
+  assert_true "the block is framed as install writes it (F1)" block_framed "$d/AGENTS.md" agents
+  rec="$(footprint_records "$d" | awk -F'\t' '$1 == "block" && $2 == "AGENTS.md" { print $4 }')"
+  assert_true "the record's sha is 3.1.0's block (F1, A7)" \
+    test "$rec" = "$(git hash-object --no-filters "$c/template/blocks/AGENTS.md")"
 }
 
 run_case "criterion 21: an unedited file is replaced; cortex/version updated" case_unedited_replaced
@@ -369,4 +398,5 @@ run_case "criterion 29: same version, another commit, upgrades" case_same_versio
 run_case "criterion 31: a minor upgrade keeps a 3.0.0 lock valid" case_minor_keeps_locks
 run_case "criterion 31: a major upgrade refuses an open lock" case_major_refuses_open_lock
 run_case "criterion 33: reverting an upgrade leaves a consistent install" case_revert_consistent
+run_case "F1: a root block differing only in blank lines upgrades as unedited" case_F1_blank_lines_unedited
 summary

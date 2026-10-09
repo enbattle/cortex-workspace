@@ -60,14 +60,20 @@ if [ -f cortex/harness/commands/review.md ]; then
   printf '%s\n%s\n' "$(tr -d '\r\n' < "$CORTEX/VERSION")" "$commit_line" > cortex/version
   # The root AGENTS.md and CLAUDE.md are cortex's (created by the install),
   # each one block; the footprint records them and adapt.sh's .claude files.
-  { printf '<!-- cortex:begin agents -->\n'; cat "$CORTEX/template/blocks/AGENTS.md"; printf '<!-- cortex:end agents -->\n'; } > AGENTS.md
-  printf '<!-- cortex:begin claude -->\n@AGENTS.md\n<!-- cortex:end claude -->\n' > CLAUDE.md
+  # Written by the install's own helpers, so they come out as an install
+  # writes them (framed, Amendment 3 F1) and are recorded the same way.
   . "$CORTEX/template/cortex/bin/_footprint.sh"
+  rm -f AGENTS.md CLAUDE.md
+  block_insert AGENTS.md agents "$CORTEX/template/blocks/AGENTS.md" >/dev/null
+  claude_src="$(mktemp)"
+  printf '@AGENTS.md\n' > "$claude_src"
+  block_insert CLAUDE.md claude "$claude_src" >/dev/null
+  rm -f "$claude_src"
   FP_RECORDS=""
   fp_add created AGENTS.md "$(file_sha AGENTS.md)"
-  fp_add block AGENTS.md agents "$(block_sha AGENTS.md agents)" 0
+  fp_add_block AGENTS.md agents 0
   fp_add created CLAUDE.md "$(file_sha CLAUDE.md)"
-  fp_add block CLAUDE.md claude "$(block_sha CLAUDE.md claude)" 0
+  fp_add_block CLAUDE.md claude 0
   while IFS= read -r f; do
     [ -n "$f" ] && fp_add created "$f" "$(file_sha "$f")"
   done <<<"$(find .claude -type f | LC_ALL=C sort)"

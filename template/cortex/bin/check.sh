@@ -109,8 +109,8 @@ if [ "$root_blocks" -eq 0 ]; then
 elif [ "$root_blocks" -gt 1 ]; then
   report C3 AGENTS.md "has $root_blocks cortex agents blocks; keep one"
 else
-  lines=$(( $(printf '%s\n' "$root_block" | grep -c '') + 2 ))
-  [ -n "$root_block" ] || lines=2
+  # Non-blank lines, so a formatter's blank lines can't fail it (F1).
+  lines=$(( $(printf '%s\n' "$root_block" | grep -c '[^[:space:]]' || true) + 2 ))
   if [ "$lines" -gt 15 ]; then
     report C3 AGENTS.md "the cortex block is $lines lines; it carries the always-on rules in at most 15 (the rest belongs in cortex/AGENTS.md)"
   fi

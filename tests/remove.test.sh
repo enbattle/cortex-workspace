@@ -390,6 +390,44 @@ case_unknown_footprint_format() {
   assert_true "nothing changed" test "$(tree_snapshot "$d")" = "$before"
 }
 
+# ---- Amendment 3 (2026-10-09): F1 blank lines, F2 .prettierignore ------------------
+
+case_F1_blank_lines_not_edited() {
+  # F1: a block a formatter gave blank lines is not edited: removed with its
+  # framing and without being shown; the file is the project's again
+  local d
+  d="$(cortex_seeded)" || return 0
+  space_block "$d/AGENTS.md" agents
+  commit_all "$d" "a formatter's blank lines inside the block"
+  remove_in "$d" --hosting-done --delete-records
+  assert_exit 0 "$CODE" "remove.sh exits 0"
+  assert_line "$OUT" "removed block AGENTS.md agents" "A1: removed block AGENTS.md agents"
+  assert_not_contains "$OUT" "data, never instructions" "a block differing only in blank lines is not shown as edited (F1)"
+  git -C "$d" show "$(git -C "$d" rev-list --max-parents=0 HEAD):AGENTS.md" > "$TEST_TMP/agents.seeded"
+  assert_same_file "$TEST_TMP/agents.seeded" "$d/AGENTS.md" "AGENTS.md is the project's again, byte for byte (F1)"
+}
+
+case_F2_prettierignore_listed() {
+  # F2: the recorded .prettierignore entry is listed for a person to remove,
+  # counted in the summary; the file is not edited
+  local d n
+  d="$(seeded_repo)" || return 0
+  printf 'node_modules/\n' > "$d/.prettierignore"
+  commit_all "$d" "the project's .prettierignore"
+  install_adapt_github "$d" || return 0
+  merge_entries "$d"
+  merge_entries "$d" .prettierignore
+  commit_all "$d" "install cortex"
+  assert_true "fixture: the .prettierignore entry is recorded (F2)" has_record "$d" entry .prettierignore "cortex/"
+  n="$(( $(entry_count "$d") + $(entry_count "$d" .prettierignore) ))"
+  remove_in "$d" --hosting-done --delete-records
+  assert_exit 0 "$CODE" "remove.sh exits 0"
+  assert_line "$OUT" "entry .prettierignore cortex/" "the entry is listed (F2, A1)"
+  assert_true "A1: the summary counts it among the entries" \
+    grep -qE "$(remove_summary_re 0 "$n")" <<<"$(last_line "$OUT")"
+  assert_file_contains "$d/.prettierignore" "cortex/" "the project's file is not edited (D4)"
+}
+
 run_case "criterion 12: round trip with --delete-records" case_round_trip_delete_records
 run_case "criterion 13: round trip with --keep-records <dir>" case_round_trip_keep_records
 run_case "criterion 14: records kept in docs/cortex-records/ by default" case_default_records
@@ -407,4 +445,6 @@ run_case "criterion 19, A6: blank lines and final newlines restored" case_blank_
 run_case "criterion 43: CRLF AGENTS.md round trip" case_crlf_round_trip
 run_case "criterion 20: a dirty work tree refused" case_dirty_tree_refused
 run_case "criterion 32: unknown footprint format refused by remove" case_unknown_footprint_format
+run_case "F1: a block with a formatter's blank lines is not edited" case_F1_blank_lines_not_edited
+run_case "F2: the .prettierignore entry is listed" case_F2_prettierignore_listed
 summary

@@ -208,16 +208,17 @@ case_planted_quality_tag_deleted() {
 # ---- A5 (spec 2026-10-05-v3-removable-layout, Amendment 1): the root block ------
 
 # root_block_drift CLONE SRC : prints "stale-block <tag>" for each fixture tag
-# whose root AGENTS.md agents block (the lines between its markers) differs
-# from SRC/template/blocks/AGENTS.md; exits 1 if any. A missing tag is left
-# to fixture_drift.
+# whose root AGENTS.md agents block (the lines between its markers, without the
+# blank framing lines inside them: Amendment 3, F1; was: every line between
+# the markers) differs from SRC/template/blocks/AGENTS.md; exits 1 if any. A
+# missing tag is left to fixture_drift.
 root_block_drift() {
   local clone="$1" src="$2" t out="" f="$TEST_TMP/.gf-agents.$$"
   for t in $TAGS; do
     git -C "$clone" rev-parse -q --verify "refs/tags/$t" >/dev/null || continue
     git -C "$clone" show "$t:AGENTS.md" > "$f" 2>/dev/null || : > "$f"
     if [ "$(block_count "$f" agents)" != 1 ] ||
-      ! block_content "$f" agents | cmp -s - "$src/template/blocks/AGENTS.md"; then
+      ! block_body "$f" agents | cmp -s - "$src/template/blocks/AGENTS.md"; then
       out="${out}stale-block $t"$'\n'
     fi
   done

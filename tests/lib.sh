@@ -396,6 +396,38 @@ block_content() {
     l == b { inb = 1 }' "$1"
 }
 
+# block_body FILE ID -> block_content without the blank lines directly inside
+# the markers (Amendment 3, F1: they are the block's framing, not its
+# content); CRs kept
+block_body() {
+  block_content "$1" "$2" | awk '
+    { a[NR] = $0; l = $0; sub(/\r$/, "", l); blank[NR] = (l == "") }
+    END {
+      s = 1; while (s <= NR && blank[s]) s++
+      e = NR; while (e >= s && blank[e]) e--
+      for (i = s; i <= e; i++) print a[i]
+    }'
+}
+
+# block_framed FILE ID : ID's block has exactly one blank line after its
+# begin marker and one before its end marker, around non-blank content (F1)
+block_framed() {
+  block_content "$1" "$2" | awk '
+    { l = $0; sub(/\r$/, "", l); b[NR] = (l == "") }
+    END { exit (NR >= 3 && b[1] && !b[2] && !b[NR - 1] && b[NR]) ? 0 : 1 }'
+}
+
+# space_block FILE ID : a blank line after ID's begin marker and after every
+# line inside the block: a formatter's blank lines, nothing else changed (F1)
+space_block() {
+  filter_file "$1" awk -v b="$(block_begin "$1" "$2")" -v e="$(block_end "$1" "$2")" '
+    { l = $0; sub(/\r$/, "", l) }
+    l == e { inb = 0 }
+    { print }
+    inb || l == b { print "" }
+    l == b { inb = 1 }'
+}
+
 # outside_blocks FILE -> FILE's lines outside every cortex block (markers dropped)
 outside_blocks() {
   [ -f "$1" ] || return 0

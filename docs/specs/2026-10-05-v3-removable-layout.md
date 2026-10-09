@@ -897,3 +897,99 @@ B2, where following it literally would break a later upgrade.
   `remove.sh` step 2 also lists a URL segment such as `.../cortex/...`
   (listing too much costs a confirmation; missing a real reference breaks
   the project); `--keep-records` is relative to the repository root.
+
+## Amendment 3 (2026-10-09): findings from the release-candidate pilot
+
+Status: **approved by the maintainer (2026-10-09).** The pilot
+(criterion 48) installed `3.0.0-rc.1` into a real repository with its own
+formatter, agent instructions and development process. The install
+mechanics held (footprint exact, nothing of the project's changed), but
+cortex broke the project's own gate and gave agents conflicting rules,
+which is D-level intent ("never conflicts with the codebase's practices")
+the test fixtures could not exercise. These ship as `3.0.0-rc.2`; the pilot
+then upgrades to it (criterion 48's upgrade step).
+
+- **F1. Blocks are formatter-stable.** Prettier rewrote both blocks (blank
+  lines after an HTML comment, around a heading and a list), and `adapt.sh`
+  rewrote them back on its next run (`overwrote edited block`), so the
+  project's format check could never stay green.
+  - Every block is written with one blank line after its begin marker and
+    one before its end marker (`CODEOWNERS` blocks excepted: no markdown),
+    and `template/blocks/AGENTS.md` is in CommonMark's normal form (blank
+    lines around the heading and the list, `-` bullets).
+  - Blank lines directly inside the markers belong to the framing, not the
+    content: they are not part of the block's sha, and `remove.sh` removes
+    them with the block.
+  - A block whose content differs from what cortex would write only in
+    blank lines is not edited: `adapt.sh` leaves it as is (printing
+    `unchanged`) and C13 accepts it; upgrade merges compare it the same way.
+  - C3 counts the root block's non-blank lines, markers included (still at
+    most 15), so a formatter's blank lines can't fail it.
+- **F2. Formatters over `cortex/`.** cortex's own files follow cortex's
+  style, not the project's: `prettier --check .` flagged ten of them.
+  `adapt.sh` treats a root `.prettierignore` like the settings file: when it
+  exists and lacks the line, it prints `merge this line into
+  .prettierignore:` and records `entry .prettierignore cortex/` (C13 then
+  fails until it's merged; `remove.sh` lists it). INSTALL step 4 has the
+  agent run `LINT_CMD` once after adapt, and, if another formatter or
+  linter flags files under `cortex/`, add `cortex/` to its ignore file with
+  the user's approval (the project's line, not recorded). Other formatters
+  get no code until a pilot shows one (E4).
+- **F3. A repository with its own process.** The project's agent
+  instructions (here `CLAUDE.md`: its own spec, test-lock and review
+  pipeline) and cortex's disagreed on what is trivial and on commits to the
+  default branch, and `cortex/AGENTS.md` sent agents to a root `AGENTS.md`
+  that held only cortex's block.
+  - INSTALL step 3 adds a question: the agent looks for an existing
+    process (agent instruction files outside cortex's blocks, a contributing
+    guide, an existing spec, test-lock or review workflow) and, if it finds
+    one, asks the user which governs nontrivial changes: cortex's commands,
+    or the project's with cortex's checks alongside. The answer is a line in
+    `cortex/AGENTS.md`'s `## Conventions`.
+  - `cortex/AGENTS.md`'s template replaces "The repository's own `AGENTS.md`
+    (at the root) is the project's; read it too" with: the project's own
+    agent instructions (the root `AGENTS.md` outside cortex's block, a
+    `CLAUDE.md` or other tool file outside cortex's block) apply too; where
+    they and cortex differ, the stricter rule applies; where they conflict
+    and neither is stricter, ask.
+  - The root block is unchanged: its rules are cortex's floor, and "the
+    stricter rule applies" keeps a project's stricter rule in force.
+- **F4. Smaller fixes.**
+  - `adapt.sh` prints `note: TEST_GLOBS <glob> matches no tracked file` per
+    glob that matches nothing (git pathspecs anchor at the root unless they
+    start with `*`); a note, not a check, since a new repository may have no
+    tests yet. The config comment says to use `**/` for nested names.
+  - The file-mode note names the exact files and the time: `after git add,
+    run git update-index --chmod=+x` followed by the scripts the template
+    marks executable (not the sourced `_*.sh` helpers).
+  - The fresh-install summary counts both places:
+    `install: <n> files in cortex/, <c> created, <b> blocks`.
+  - INSTALL step 5 notes that a Code Owners rule on a file Dependabot
+    changes (`package.json`) blocks its auto-merge until an owner approves,
+    and that GitHub won't count an author's own approval (a sole maintainer
+    needs a second owner, or leaves Code Owners review off and relies on the
+    required check). Step 3's deferred-practice deletion puts its reason in
+    the commit message. Step 4 says the user merges the settings lines when
+    the agent's permissions refuse the edit, and that permission rules the
+    project adds for its own commands are the project's, not recorded.
+- **F5. Decided during implementation** (approved by the maintainer with
+  pull request #27, 2026-10-09):
+  - A `block` record gains a sixth field, the sha of the block's non-blank
+    lines (carriage returns dropped). `remove.sh` has only the record to
+    tell a formatter's blank lines from an edit, and the first sha alone
+    can't: the template block has blank lines of its own. A record without
+    the field (written by rc.1) falls back to its sha, which works because
+    rc.1 blocks had no blank lines. The footprint format line stays
+    `# cortex footprint 1`: readers take fields by position, so the extra
+    field is compatible.
+  - "The scripts the template marks executable" are found by name
+    (`cortex/bin/*.sh` but not `_*.sh`), not from the clone's file modes,
+    which a clone made where file modes are ignored (Windows) lacks. The
+    fresh install's `chmod +x` and the upgrade's use the same list as the
+    note, so `_config.sh` and `_footprint.sh` aren't marked executable on
+    disk either.
+  - `<n>` in the summary counts the files the install printed as created
+    under `cortex/` (the template's, `design-rules.md` and `version`), not
+    the footprint written after them.
+  - `.prettierignore` already ignoring cortex in another form (`cortex`,
+    `/cortex`, `/cortex/`) counts as having the line.

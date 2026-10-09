@@ -8,12 +8,18 @@
 # cortex/footprint: the format line, then one tab-separated record per line,
 # sorted with LC_ALL=C sort:
 #   created <path> <sha>                 a file cortex wrote where none was
-#   block   <path> <id> <sha> <sep>      a marked block cortex inserted
+#   block   <path> <id> <sha> <sep> <nb> a marked block cortex inserted
 #   entry   <path> <line>                a line to merge into a file by hand
 # A sha is what `git hash-object` gives with the repository's own filters, so
 # it is the blob git would store and doesn't change with a checkout's line
 # endings. sep is what inserting the block added before it: 0 nothing, 1 a
-# blank line, 2 a final newline and a blank line.
+# blank line, 2 a final newline and a blank line. A block's content is written
+# framed by one blank line inside each marker (CODEOWNERS excepted), so a
+# markdown formatter leaves it alone; the framing is not part of its sha, and
+# nb is the sha of its non-blank lines alone, so a block that differs from
+# what cortex wrote only in blank lines (a formatter's) is not edited
+# (Amendment 3 F1). A record written before nb existed has none; its content
+# had no blank lines, so its sha stands in for nb.
 
 FP_FORMAT="# cortex footprint 1"
 FP_FILE=cortex/footprint
@@ -101,6 +107,35 @@ block_content() {
     !inb && l == b { inb = 1 }' "$1"
 }
 
+# block_body PATH ID -> block_content without the framing: the blank lines
+# directly after the begin marker and directly before the end marker
+block_body() {
+  block_content "$1" "$2" | awk -v BINMODE=3 '
+    { l = $0; sub(/\r$/, "", l) }
+    l == "" { if (seen) held = held $0 "\n"; next }
+    { printf "%s%s\n", held, $0; held = ""; seen = 1 }'
+}
+
+# nonblank_sha < FILE -> git hash-object of the lines of stdin that
+# aren't blank, carriage returns dropped (F1)
+nonblank_sha() { tr -d '\r' | { grep -v '^$' || true; } | git hash-object --no-filters --stdin; }
+
+# block_unedited PATH ID RECORD : the block is as RECORD says cortex left it,
+# blank lines aside (F1)
+block_unedited() {
+  local sha nb
+  sha="$(fp_field "$3" 4)"
+  nb="$(fp_field "$3" 6)"
+  [ -n "$nb" ] || nb="$sha"
+  [ "$(block_sha "$1" "$2")" = "$sha" ] || [ "$(block_content "$1" "$2" | nonblank_sha)" = "$nb" ]
+}
+
+# fp_add_block PATH ID SEP : (re)record PATH's ID block as it is now
+fp_add_block() {
+  fp_drop block "$1" "$2"
+  fp_add block "$1" "$2" "$(block_sha "$1" "$2")" "$3" "$(block_content "$1" "$2" | nonblank_sha)"
+}
+
 # block_count PATH ID -> how many begin markers for ID the file holds
 block_count() {
   if [ -f "$1" ]; then
@@ -110,8 +145,13 @@ block_count() {
   fi
 }
 
-# block_sha PATH ID -> git hash-object of the block's lines (A7)
-block_sha() { block_content "$1" "$2" | git hash-object --stdin --path="$1"; }
+# block_sha PATH ID -> git hash-object of the block's lines, framing aside
+# (A7, F1)
+block_sha() { block_body "$1" "$2" | git hash-object --stdin --path="$1"; }
+
+# framed PATH -> 1 when PATH's blocks are framed by blank lines (F1): every
+# file but CODEOWNERS, which no markdown formatter reads
+framed() { case "${1##*/}" in CODEOWNERS) echo 0 ;; *) echo 1 ;; esac; }
 
 # file_cr PATH -> a carriage return if the file's first line ends in one
 # (the file uses CRLF, and a block in it does too, D15), else nothing
@@ -121,7 +161,8 @@ file_cr() {
 }
 
 # block_insert PATH ID SOURCE -> prints sep : append ID's block, holding
-# SOURCE's lines, at the end of PATH (created if absent) after one blank line
+# SOURCE's lines (framed, F1), at the end of PATH (created if absent) after
+# one blank line
 block_insert() {
   local f="$1" id="$2" src="$3" sep cr
   cr="$(file_cr "$f")"
@@ -137,28 +178,42 @@ block_insert() {
     if [ "$sep" = 2 ]; then printf '%s\n' "$cr"; fi
     if [ "$sep" != 0 ]; then printf '%s\n' "$cr"; fi
     printf '%s%s\n' "$(marker_begin "$f" "$id")" "$cr"
-    awk -v BINMODE=3 -v cr="$cr" '{ sub(/\r$/, ""); print $0 cr }' "$src"
+    frame_lines "$src" "$(framed "$f")" "$cr"
     printf '%s%s\n' "$(marker_end "$f" "$id")" "$cr"
   } >> "$f"
   printf '%s' "$sep"
 }
 
+# frame_lines SOURCE FRAMED CR -> SOURCE's lines without leading or trailing
+# blank lines, each ended by CR and a newline, with one blank line before and
+# after when FRAMED is 1 (F1)
+frame_lines() {
+  awk -v BINMODE=3 -v fr="$2" -v cr="$3" '
+    { sub(/\r$/, "") }
+    $0 == "" { if (seen) held = held cr "\n"; next }
+    { if (fr && !seen) printf "%s\n", cr; printf "%s%s%s\n", held, $0, cr; held = ""; seen = 1 }
+    END { if (fr && seen) printf "%s\n", cr }' "$1"
+}
+
 # block_set PATH ID SOURCE : replace the first ID block's lines with SOURCE's,
-# in the file's line endings; the markers and everything outside stay
+# framed (F1), in the file's line endings; the markers and everything outside
+# stay
 block_set() {
-  local f="$1" id="$2" src="$3" nl=1
+  local f="$1" id="$2" src="$3" nl=1 cr
   [ -z "$(tail -c 1 "$f")" ] || nl=0
-  awk -v BINMODE=3 -v b="$(marker_begin "$f" "$id")" -v e="$(marker_end "$f" "$id")" -v t="$src" -v nl="$nl" '
-    { l = $0; cr = ""; if (sub(/\r$/, "", l)) cr = "\r" }
+  cr="$(file_cr "$f")"
+  frame_lines "$src" "$(framed "$f")" "$cr" > "$f.cortex-src"
+  awk -v BINMODE=3 -v b="$(marker_begin "$f" "$id")" -v e="$(marker_end "$f" "$id")" -v t="$f.cortex-src" -v nl="$nl" '
+    { l = $0; sub(/\r$/, "", l) }
     !done && !skip && l == b {
       out[++n] = $0
-      while ((getline x < t) > 0) { sub(/\r$/, "", x); out[++n] = x cr }
+      while ((getline x < t) > 0) out[++n] = x
       skip = 1; next }
     skip && l == e { skip = 0; done = 1 }
     !skip { out[++n] = $0 }
     END { for (i = 1; i <= n; i++) printf "%s%s", out[i], (i < n || nl ? "\n" : "") }' "$f" > "$f.cortex-tmp"
   cat "$f.cortex-tmp" > "$f" # in place: a link stays a link, the mode stays
-  rm -f "$f.cortex-tmp"
+  rm -f "$f.cortex-tmp" "$f.cortex-src"
 }
 
 # block_strip PATH ID SEP : remove the first ID block, its markers, and what
@@ -208,12 +263,11 @@ rmdir_up() {
 # fp_remove_block PATH ID : remove a recorded block and its record; an edited
 # block is shown first. Prints A1's "removed block <path> <id>".
 fp_remove_block() {
-  local f="$1" id="$2" rec sha sep
+  local f="$1" id="$2" rec sep
   rec="$(fp_match block "$f" "$id" | sed -n 1p)"
-  sha="$(fp_field "$rec" 4)"
   sep="$(fp_field "$rec" 5)"
   if [ -f "$f" ] && [ "$(block_count "$f" "$id")" -gt 0 ]; then
-    if [ "$(block_sha "$f" "$id")" != "$sha" ]; then
+    if ! block_unedited "$f" "$id" "$rec"; then
       echo "note: the $id block in $f was edited after install; its content was:"
       block_content "$f" "$id" | tr -d '\r' | sed 's/^/  | /'
     fi

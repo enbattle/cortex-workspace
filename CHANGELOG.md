@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.0 — unreleased (3.0.0-rc.1)
+## 3.0.0 — unreleased (3.0.0-rc.2)
 
 **Before release:** the golden cycle on the 3.0.0 layout; the completeness
 audit and its findings; the full suites and CI, on Linux, macOS and Windows;
@@ -57,6 +57,18 @@ installed path changed.
   uppercase tags); 2.x had the same bug.
 - **Golden task:** the fixture is rebuilt in the 3.0.0 layout; `refresh.sh`
   and its suite take the new paths and check the root block.
+- **From the release-candidate pilot (rc.2,** spec Amendment 3): cortex's
+  blocks are written the way markdown formatters write them, and a
+  formatter's blank lines in a block are not an edit, so a format check
+  stays green; a root `.prettierignore` gets a `cortex/` line to merge
+  (printed and recorded like the settings entries); the router says the
+  project's own agent instructions apply too, the stricter rule winning, and
+  INSTALL asks which process governs when the project has its own;
+  `adapt.sh` notes a `TEST_GLOBS` pattern that matches no tracked file;
+  the file-mode note names the exact scripts (not the sourced helpers) and
+  says to run it after `git add`; the install summary counts the files in
+  `cortex/` too. A block record gains a sixth field, the sha of its
+  non-blank lines.
 
 **For installed repositories:** 3.0.0 doesn't migrate a 2.x install (the
 installer refuses one). There are no 2.x installs outside cortex's own
