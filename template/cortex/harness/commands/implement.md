@@ -4,7 +4,7 @@
 
 Make the locked tests pass and complete the approved change, including the
 docs it makes stale. Runs as its own role in a fresh context (design rule
-R12, in `.cortex/design-rules.md`), separate from the test writer and the reviewer.
+R12, in `cortex/design-rules.md`), separate from the test writer and the reviewer.
 
 ## Preconditions
 
@@ -12,11 +12,12 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
   by the user, or on their explicit instruction: design rule R6) and whose
   folder has a `lock.md` (written by `test-first`). If not, stop and name the
   missing step (`test-first`).
-- `bash scripts/cortex/tests-locked.sh <change-folder>` passes before you start.
+- `bash cortex/bin/tests-locked.sh <change-folder>` passes before you start.
 - You are on the change branch.
-- Load `docs/constitution.md`, the repository's `AGENTS.md`, the "Design
+- Load `cortex/constitution.md`, the repository's `AGENTS.md` files (the root one,
+  `cortex/AGENTS.md`, and a package's own), the "Design
   and simplicity" and "Performance and resources" sections of
-  `harness/policies/review-checklist.md`, and only the knowledge files the
+  `cortex/harness/policies/review-checklist.md`, and only the knowledge files the
   change folder names.
 
 ## Procedure
@@ -35,11 +36,11 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    you can't change the reviewer's rating. A High finding, including any
    that breaks the constitution, can't be a known limitation: fix it, or
    stop for the user to change the spec or explicitly amend
-   `docs/constitution.md` so it is no longer a High. The **fix** outcomes are then this run's task list. Otherwise
+   `cortex/constitution.md` so it is no longer a High. The **fix** outcomes are then this run's task list. Otherwise
    work through `tasks.md` in order.
 2. **The locked tests are the specification.** Never edit, delete, or add a
    test: not one listed in `lock.md`, not an existing test, not a new one.
-   Never edit `lock.md` or `.cortex/config` either; both are locked for the
+   Never edit `lock.md` or `cortex/config` either; both are locked for the
    duration of the change. That is the test writer's job. If a test looks wrong, stop and report it. A wrong
    test is a spec problem; the user decides whether `test-first` re-runs
    (a re-lock with their sign-off: `test-first` step 7).
@@ -56,24 +57,25 @@ R12, in `.cortex/design-rules.md`), separate from the test writer and the review
    back to the user, who renews the approval line's date or tells the
    session they are talking to to do it (design rule R6). You never renew it
    yourself.
-5. Update any doc the change makes stale: `AGENTS.md`, `docs/knowledge/`,
+5. Update any doc the change makes stale: the `AGENTS.md` files (in the root
+   one, only outside cortex's block), `cortex/knowledge/`,
    a README. Only what actually changed. That includes the verification
-   recipe, `docs/knowledge/verification.md`: add or update the entry for a
+   recipe, `cortex/knowledge/verification.md`: add or update the entry for a
    feature the change adds or alters, and fix a step of it that no longer
    works.
 6. Verify the change on the real artifact, as the "Verification on the real
-   artifact" section of `harness/policies/review-checklist.md` describes,
+   artifact" section of `cortex/harness/policies/review-checklist.md` describes,
    following the verification recipe where it covers the feature, and paste
    the evidence under `## Verification` in `tasks.md`, naming the entries of
-   `docs/knowledge/verification.md` you used (so review may read them). If
+   `cortex/knowledge/verification.md` you used (so review may read them). If
    the change affects an interface, record its blast radius there too: the
    callers you found, with the search that found them, and the result of
    running at least one existing caller against the change. If it can't run
    here (a permission prompt nobody can answer, for example), stop and give
    the user the exact command and the output to expect; record what they
    report, and never hand off to `review` with it unrun. Then, before
-   handing off, run `bash scripts/cortex/gates.sh <change-folder>` (the
-   test lock, the build, test and lint commands from `.cortex/config`, and
+   handing off, run `bash cortex/bin/gates.sh <change-folder>` (the
+   test lock, the build, test and lint commands from `cortex/config`, and
    the harness check) and paste its output under `## Gate output` in
    `tasks.md`, then commit `tasks.md`: `review` requires a clean tree. It
    must end with `gates: ok`.

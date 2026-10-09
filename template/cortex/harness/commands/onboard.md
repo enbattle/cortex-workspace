@@ -6,8 +6,8 @@ Walk a new engineer through this repository and its workflow, interactively.
 
 ## Preconditions
 
-- Load `docs/knowledge/index.md`, `docs/knowledge/architecture.md` and
-  `docs/knowledge/glossary.md`. If any is still a placeholder, say which and
+- Load `cortex/knowledge/index.md`, `cortex/knowledge/architecture.md` and
+  `cortex/knowledge/glossary.md`. If any is still a placeholder, say which and
   offer to help fill it in first.
 
 ## Procedure
@@ -19,7 +19,7 @@ Walk a new engineer through this repository and its workflow, interactively.
    why the test writer, implementer and reviewer run in separate fresh
    contexts.
 3. Show how to invoke a command in their agent tool (the universal form is
-   *"Read and execute `harness/commands/<name>.md`"*).
+   *"Read and execute `cortex/harness/commands/<name>.md`"*).
 4. Check understanding with two questions: where would a change folder for a
    given hypothetical change go, and what should they do if `implement` says
    a test looks wrong?

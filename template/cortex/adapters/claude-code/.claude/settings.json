@@ -12,7 +12,7 @@
       "Bash(git checkout -b *)",
       "Bash(git add *)",
       "Bash(git commit *)",
-      "Bash(bash scripts/cortex/*)",
+      "Bash(bash cortex/bin/*)",
       "PowerShell(git status*)",
       "PowerShell(git diff*)",
       "PowerShell(git log*)",
@@ -24,7 +24,7 @@
       "PowerShell(git checkout -b *)",
       "PowerShell(git add *)",
       "PowerShell(git commit *)",
-      "PowerShell(bash scripts/cortex/*)"
+      "PowerShell(bash cortex/bin/*)"
     ],
     "deny": [
       "Bash(git*push*--force*)",

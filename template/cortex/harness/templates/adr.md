@@ -1,6 +1,6 @@
 # NNNN — <decision title>
 
-<!-- Architecture decisions live in docs/knowledge/decisions/, numbered
+<!-- Architecture decisions live in cortex/knowledge/decisions/, numbered
 NNNN-slug.md. Write one when a choice is costly to reverse or will puzzle a
 future reader; a change folder's design.md covers the rest. -->
 

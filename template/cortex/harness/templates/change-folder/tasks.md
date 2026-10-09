@@ -25,5 +25,5 @@ change, the blast radius. -->
 
 ## Gate output
 
-<!-- implement pastes the output of scripts/cortex/gates.sh here before
+<!-- implement pastes the output of cortex/bin/gates.sh here before
 handing off to review, and commits it. -->

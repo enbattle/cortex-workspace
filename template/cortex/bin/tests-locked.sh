@@ -10,7 +10,7 @@
 # Locked, and compared with their content at T (committed, staged and
 # unstaged edits and deletions all count): every listed file; every file
 # matching TEST_GLOBS as configured at T, so existing tests can't be weakened;
-# and .cortex/config itself, which also freezes the gate commands. A file
+# and cortex/config itself, which also freezes the gate commands. A file
 # matching TEST_GLOBS that didn't exist at T (committed later, staged, or
 # untracked) fails too: adding tests is the test writer's job.
 #
@@ -18,18 +18,18 @@
 # locked file fails like any other edit. To bring a locked branch up to date
 # with a base that changed locked files, merge it and re-lock, the merge
 # commit being the re-lock's tests commit. A re-lock blesses only its own
-# tests commit and may not change .cortex/config. Rebasing after the lock is
+# tests commit and may not change cortex/config. Rebasing after the lock is
 # not supported: the lock commit stops being an ancestor.
 #
 # It compares against commits rather than using `git diff` alone, because
 # `git diff` never shows untracked files.
 #
-# Usage: scripts/cortex/tests-locked.sh <change-folder>
+# Usage: cortex/bin/tests-locked.sh <change-folder>
 # Exit:  0 unchanged, 1 a lock is broken, 2 usage error.
 set -euo pipefail
 
 if [ "$#" -ne 1 ]; then
-  echo "usage: scripts/cortex/tests-locked.sh <change-folder>" >&2
+  echo "usage: cortex/bin/tests-locked.sh <change-folder>" >&2
   exit 2
 fi
 folder="$1"
@@ -145,8 +145,8 @@ empty_tree="$(g hash-object -t tree /dev/null)"
 # globs_at SHA : TEST_GLOBS as configured at SHA (parsed, never sourced), so
 # narrowing it afterwards can't unlock anything.
 globs_at() {
-  g cat-file -e "$1:.cortex/config" 2>/dev/null || return 0
-  g show "$1:.cortex/config" | config_value TEST_GLOBS
+  g cat-file -e "$1:cortex/config" 2>/dev/null || return 0
+  g show "$1:cortex/config" | config_value TEST_GLOBS
 }
 
 # lock_set_at SHA LIST : what a lock naming SHA covers: the listed paths, every
@@ -161,7 +161,7 @@ lock_set_at() {
     matched="$(g diff --name-only "$empty_tree" "$1" -- $globs)"
     set +f
   fi
-  g cat-file -e "$1:.cortex/config" 2>/dev/null && config=.cortex/config
+  g cat-file -e "$1:cortex/config" 2>/dev/null && config=cortex/config
   printf '%s\n%s\n%s\n' "$2" "$matched" "$config" | awk 'NF && !seen[$0]++'
 }
 
@@ -195,11 +195,11 @@ while read -r prev tests_commit prev_lock_commit; do
       [ -z "$path" ] || lock added "$path"
     done <<<"$w_added"
   fi
-  config_prev="$(g rev-parse --verify --quiet "$prev:.cortex/config" || true)"
-  config_at="$(g rev-parse --verify --quiet "$at:.cortex/config" || true)"
-  config_relock="$(g rev-parse --verify --quiet "$tests_commit:.cortex/config" || true)"
+  config_prev="$(g rev-parse --verify --quiet "$prev:cortex/config" || true)"
+  config_at="$(g rev-parse --verify --quiet "$at:cortex/config" || true)"
+  config_relock="$(g rev-parse --verify --quiet "$tests_commit:cortex/config" || true)"
   if [ "$config_prev" = "$config_at" ] && [ "$config_at" != "$config_relock" ]; then
-    lock modified ".cortex/config"
+    lock modified "cortex/config"
   fi
 done <<<"$relocks"
 

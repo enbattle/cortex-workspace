@@ -1,7 +1,7 @@
 <!-- Written by test-first (step 4) right after the commit that adds the
 tests, and rewritten only by a signed re-lock (step 7); read by
-scripts/cortex/tests-locked.sh. Locked: the listed files, every file
-matching TEST_GLOBS as of the named commit, and .cortex/config. -->
+cortex/bin/tests-locked.sh. Locked: the listed files, every file
+matching TEST_GLOBS as of the named commit, and cortex/config. -->
 
 Tests-locked-at: <full sha of the commit that added the tests>
 

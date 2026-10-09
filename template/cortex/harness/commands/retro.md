@@ -4,8 +4,8 @@
 
 Turn friction from a finished change into specific edits to the harness or
 the knowledge, and log the run so patterns across changes become visible.
-This is the maintenance loop for everything under `harness/` and
-`docs/knowledge/`; it produces diffs, not impressions.
+This is the maintenance loop for everything under `cortex/harness/` and
+`cortex/knowledge/`; it produces diffs, not impressions.
 
 ## Preconditions
 
@@ -23,7 +23,7 @@ This is the maintenance loop for everything under `harness/` and
    - knowledge that was wrong or stale (a correction);
    - a gate that failed, or a step that added nothing (a candidate for
      removal: deletions count as improvements);
-   - an adapter that broke (`scripts/cortex/adapt.sh` or its source).
+   - an adapter that broke (`cortex/bin/adapt.sh` or its source).
 2. For each, propose a specific file edit, at the strongest level that fits:
    a mechanical check (a script or test) first, then a correction to the file
    that already covers it, then new text only if neither applies. A new
@@ -32,20 +32,20 @@ This is the maintenance loop for everything under `harness/` and
    nothing could go.
 3. A recurring review finding (the same kind across changes) means something
    upstream leaks: propose moving the check earlier (the constitution, the
-   clarify questions, the repository's conventions).
-4. Check `docs/deferred-practices.md`: has any entry's trigger fired during
+   clarify questions, the conventions in `cortex/AGENTS.md`).
+4. Check `cortex/deferred-practices.md`: has any entry's trigger fired during
    this change, or does an entry now pass the four checks of R14
-   (`.cortex/design-rules.md`)? If so, propose adopting it to the user with
+   (`cortex/design-rules.md`)? If so, propose adopting it to the user with
    the trigger or the four answers (a large one is its own change folder),
    record them in the pipeline-log row, and update the entry; don't build it
    inside the retro.
 5. Show the user the proposed edits. Apply only what they approve.
-6. Append one row to `changes/pipeline-log.md` recording what was actually
+6. Append one row to `cortex/changes/pipeline-log.md` recording what was actually
    applied (its header defines the columns). An **escaped defect** (a bug
    found after review approved the change that introduced it) is recorded
    in that change's row and gets a retro immediately.
 7. Once the change has merged, archive its folder: `git mv` it under
-   `changes/archive/`, alone in its own commit. The CI gates skip archived
+   `cortex/changes/archive/`, alone in its own commit. The CI gates skip archived
    folders, so the lock record stays in history without being gated again.
 
 Budget: one pass over the evidence; no loop. Proposals the user declines are
@@ -53,7 +53,7 @@ logged in the row, not re-proposed in the same retro.
 
 ## Output
 
-Approved edits applied, and one new row in `changes/pipeline-log.md`.
+Approved edits applied, and one new row in `cortex/changes/pipeline-log.md`.
 
 ## Autonomy
 

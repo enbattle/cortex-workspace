@@ -1,22 +1,21 @@
-# Human review for the files that decide whether a change is judged fairly.
-# Copy to .github/CODEOWNERS, replace @OWNER with a person or team, and turn
-# on "Require review from Code Owners" for the default branch; without that
-# setting this file only suggests reviewers.
+# The source of cortex's block in the repository's CODEOWNERS (spec D8).
+# cortex/bin/adapt.sh writes these patterns, then one per TEST_GLOBS entry,
+# each owned by CODE_OWNERS from cortex/config; lines starting with # here are
+# not copied. Turn on "Require review from Code Owners" for the default
+# branch; without it the block only suggests reviewers. In CODEOWNERS the last
+# matching line wins, so for these paths the block replaces the project's own
+# owners: list them in CODE_OWNERS too if they must keep approving.
 #
-# Tests and their locks: an agent may add tests through test-first, but a
-# person approves what they assert.
-changes/**/lock.md      @OWNER
-# TODO(install): add this repository's test paths, the same ones as
-# TEST_GLOBS in .cortex/config, e.g.
-# /test/                @OWNER
-# *.test.ts             @OWNER
-
+# Test locks: an agent may add tests through test-first, but a person
+# approves what they assert.
+/cortex/changes/**/lock.md    @OWNER
 # The harness, its configuration and the gates that enforce it.
-/.cortex/               @OWNER
-/scripts/cortex/        @OWNER
-/harness/               @OWNER
-/docs/constitution.md   @OWNER
-/AGENTS.md              @OWNER
-
-# CI, including this file.
-/.github/               @OWNER
+/cortex/bin/                  @OWNER
+/cortex/config                @OWNER
+/cortex/harness/              @OWNER
+/cortex/constitution.md       @OWNER
+/cortex/AGENTS.md             @OWNER
+/AGENTS.md                    @OWNER
+# CI, including the file that holds this block.
+/.github/workflows/cortex.yml @OWNER
+/.github/CODEOWNERS           @OWNER

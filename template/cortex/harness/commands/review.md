@@ -8,10 +8,11 @@ against the change before approving it.
 
 ## Preconditions
 
-- **Isolation (design rule R4, in `.cortex/design-rules.md`).** You are running in a fresh context. Your
-  only inputs are: the diff, the change folder, `docs/constitution.md`,
-  `harness/policies/review-checklist.md`, the repository's `AGENTS.md`
-  files (their conventions), and knowledge files the change folder names. If this conversation contains the change's planning or
+- **Isolation (design rule R4, in `cortex/design-rules.md`).** You are running in a fresh context. Your
+  only inputs are: the diff, the change folder, `cortex/constitution.md`,
+  `cortex/harness/policies/review-checklist.md`, the repository's `AGENTS.md`
+  files (the root one, `cortex/AGENTS.md`, and a package's own: their
+  conventions), and knowledge files the change folder names. If this conversation contains the change's planning or
   implementation, refuse and tell the user to start a fresh context. A
   command or skill invoked inside the implementing session is not a fresh
   context.
@@ -32,23 +33,23 @@ against the change before approving it.
    `git diff <base>...HEAD`. Because the tree is clean, every new file is
    committed and appears in it (plain `git diff` would miss untracked files).
 3. Re-run the gates yourself rather than trusting `tasks.md`:
-   `bash scripts/cortex/gates.sh <change-folder>`. A failing gate is a finding.
+   `bash cortex/bin/gates.sh <change-folder>`. A failing gate is a finding.
    Then repeat the verification on the real artifact that `tasks.md` records
    under `## Verification` (the checklist says what counts), following the
-   entries of `docs/knowledge/verification.md` it names. If there is no
+   entries of `cortex/knowledge/verification.md` it names. If there is no
    record, run it yourself: a missing record is Low; a recipe step you can't
    follow as written is Low; a verification that fails is a finding at the
    severity of what fails.
 4. Verify each acceptance criterion is actually met, not that code exists
    that looks related. Check each manual-verify item is listed for the user.
-5. Walk `harness/policies/review-checklist.md` item by item.
+5. Walk `cortex/harness/policies/review-checklist.md` item by item.
 6. Actively construct failure cases: invalid and hostile input, empty and
    huge input, concurrency and retries, authorization gaps, partial failure.
 7. **Security depth.** If the diff adds or changes an external surface (a
    network endpoint, an authentication or authorization boundary, a webhook,
    file upload, deserialization of untrusted data, a new outbound call with
    credentials, a new dependency), a separate security pass is required: a
-   second fresh reviewer runs `harness/policies/security-review.md` against
+   second fresh reviewer runs `cortex/harness/policies/security-review.md` against
    the same inputs. Its findings join yours.
 8. Label every finding as introduced by this diff or already present. Only
    introduced findings block approval; list the rest separately for the user.

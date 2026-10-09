@@ -4,7 +4,7 @@
 
 Write the failing tests for an approved change, before any implementation
 exists, and lock them. This runs as its own role in a fresh context (design
-rule R12, in `.cortex/design-rules.md`): a context that already has the implementation in mind shapes the
+rule R12, in `cortex/design-rules.md`): a context that already has the implementation in mind shapes the
 tests to fit it, so the tests stop encoding the spec.
 
 ## Preconditions
@@ -18,8 +18,8 @@ tests to fit it, so the tests stop encoding the spec.
   the step (`spec-clarify`, or the user's approval).
 - You are on the change branch, and its latest commit contains the approved
   change folder (`spec-clarify` commits it). If not, stop and say so.
-- Load `docs/constitution.md` and the repository's `AGENTS.md`
-  (for conventions; the test command is `TEST_CMD` in `.cortex/config`).
+- Load `cortex/constitution.md` and the repository's `AGENTS.md` files
+  (for conventions; the test command is `TEST_CMD` in `cortex/config`).
 - A re-lock: `lock.md` already exists, and either the user has decided this
   command re-runs because a locked test is wrong (reported by `implement`),
   or the branch has just merged a base that changed locked files. Go to
@@ -31,7 +31,7 @@ tests to fit it, so the tests stop encoding the spec.
    read or plan the implementation.
 2. For each criterion marked **automatable**, write one or more tests in the
    repository's test style, to the bar in the Tests section of
-   `harness/policies/review-checklist.md`. Create or edit test files and
+   `cortex/harness/policies/review-checklist.md`. Create or edit test files and
    test fixtures only; never an implementation file.
 3. Run the test command and confirm each new test **fails for the expected
    reason**: the behavior is missing, not a typo, an import error, or a
@@ -40,20 +40,20 @@ tests to fit it, so the tests stop encoding the spec.
    behavior ("inputs without the new option behave as before"): its test is
    expected to pass now. Say so in the criterion-to-test mapping.
 4. Commit the tests on the change branch (commit T). Then, as the **very
-   next commit**, copy `harness/templates/change-folder/lock.md` into the
+   next commit**, copy `cortex/harness/templates/change-folder/lock.md` into the
    change folder, fill in T's full sha and one `- <path>` line per test or
    fixture file T created or changed, and commit it alone. That file isn't
    edited again except by a re-lock (step 7); existing tests matching
-   `TEST_GLOBS`, and `.cortex/config` itself, are locked automatically. Then fill in
+   `TEST_GLOBS`, and `cortex/config` itself, are locked automatically. Then fill in
    `## Criteria to tests` in `tasks.md` and commit it.
 5. Record each **manual-verify** criterion in `tasks.md` as an item that
    needs the user's sign-off after implementation.
-6. Run `bash scripts/cortex/tests-locked.sh <change-folder>` and confirm it passes.
+6. Run `bash cortex/bin/tests-locked.sh <change-folder>` and confirm it passes.
 7. **Re-lock**, only when the user has decided this command re-runs because
    a locked test is wrong (a spec problem `implement` reported), or after
    merging a base that changed locked files. T2 is a commit of the corrected
    tests and fixtures alone, or, after such a merge, the merge commit.
-   Neither may change `.cortex/config`: if the base changed it, the change
+   Neither may change `cortex/config`: if the base changed it, the change
    can't take that base in; stop and tell the user that the merge must be
    undone, and the change finished without that base or started over from
    it. Rewrite `lock.md`: T2's full sha, every file the earlier lock listed,

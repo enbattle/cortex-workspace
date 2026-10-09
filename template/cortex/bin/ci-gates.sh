@@ -2,7 +2,7 @@
 # The server-side boundary for the test lock (design rule R11). Run in CI on
 # every pull request, from a fresh checkout with full history:
 #
-#   bash scripts/cortex/ci-gates.sh origin/<base branch>
+#   bash cortex/bin/ci-gates.sh origin/<base branch>
 #
 # The local scripts are guardrails: an agent with git access on its own
 # machine can rewrite history, hide edits with --skip-worktree, or edit the
@@ -10,16 +10,16 @@
 # workflow extracts this script from the base too), so a change can't weaken
 # the scripts that judge it; a fresh checkout has no hidden edits, and any
 # flagged file is refused anyway; and the gates run on the branch as pushed.
-# What no script can judge (the tests' assertions, .cortex/config edits made
+# What no script can judge (the tests' assertions, cortex/config edits made
 # before the lock, what a re-lock's sign-off blesses, the workflow file
 # itself) is covered by required human review of those paths (CODEOWNERS).
 #
-# Usage: scripts/cortex/ci-gates.sh <base-ref>
+# Usage: cortex/bin/ci-gates.sh <base-ref>
 # Exit:  0 all passed, 1 something failed, 2 usage error.
 set -euo pipefail
 
 if [ "$#" -ne 1 ]; then
-  echo "usage: scripts/cortex/ci-gates.sh <base-ref>" >&2
+  echo "usage: cortex/bin/ci-gates.sh <base-ref>" >&2
   exit 2
 fi
 base="$1"
@@ -40,14 +40,14 @@ fail() { # message
 # 1. The checker comes from the base branch.
 tools="$(mktemp -d)"
 trap 'rm -rf "$tools"' EXIT
-if g cat-file -e "$base:scripts/cortex/gates.sh" 2>/dev/null; then
+if g cat-file -e "$base:cortex/bin/gates.sh" 2>/dev/null; then
   while IFS= read -r path; do
     [ -n "$path" ] || continue
     g show "$base:$path" > "$tools/$(basename "$path")"
-  done <<<"$(g ls-tree --name-only "$base" -- scripts/cortex/ | grep '\.sh$' || true)"
+  done <<<"$(g ls-tree --name-only "$base" -- cortex/bin/ | grep '\.sh$' || true)"
   echo "ci-gates: using scripts from $base"
 else
-  cp scripts/cortex/*.sh "$tools/"
+  cp cortex/bin/*.sh "$tools/"
   echo "ci-gates: note: $base has no cortex scripts; using this branch's copy"
 fi
 
@@ -73,8 +73,8 @@ fi
 # reachable from HEAD and not from the base, read from its tree, so merges
 # need no special case) must still be a regular file at HEAD, unless the
 # base's history held that exact content at that path: then it is a finished
-# change's lock, not this branch's. A lock is changes/<folder>/lock.md, one
-# folder deep, so archived copies (changes/archive/<folder>/) never count as
+# change's lock, not this branch's. A lock is cortex/changes/<folder>/lock.md,
+# one folder deep, so archived copies (cortex/changes/archive/<folder>/) never count as
 # kept. Paths are compared literally; a name git has to quote can't be, so it
 # fails unless the base's tip holds it unchanged.
 
@@ -83,8 +83,8 @@ fi
 lock_entries() {
   local c
   while IFS= read -r c; do
-    g ls-tree -r "$c" -- changes/
-  done | awk -F '\t' '$2 ~ /^"?changes\/[^\/]+\/lock\.md"?$/ && $2 !~ /^"?changes\/archive\// {
+    g ls-tree -r "$c" -- cortex/changes/
+  done | awk -F '\t' '$2 ~ /^"?cortex\/changes\/[^\/]+\/lock\.md"?$/ && $2 !~ /^"?cortex\/changes\/archive\// {
     split($1, m, " "); print $2 "\t" m[3] }' | LC_ALL=C sort -u
 }
 # base_had PATH BLOB : the base's history held BLOB at PATH
@@ -117,8 +117,8 @@ while IFS=$'\t' read -r path blob; do
 done <<<"$(g rev-list "$base..HEAD" | lock_entries)"
 
 # 5. Every change folder whose lock was added or changed on this branch.
-# Archived changes (changes/archive/) finished earlier and are not gated.
-folders="$(g diff --name-only "$base...HEAD" -- 'changes/*/lock.md' | grep -v '^changes/archive/' | sed 's|/lock\.md$||' | LC_ALL=C sort -u || true)"
+# Archived changes (cortex/changes/archive/) finished earlier and are not gated.
+folders="$(g diff --name-only "$base...HEAD" -- 'cortex/changes/*/lock.md' | grep -v '^cortex/changes/archive/' | sed 's|/lock\.md$||' | LC_ALL=C sort -u || true)"
 while IFS= read -r folder; do
   [ -n "$folder" ] || continue
   [ -f "$folder/lock.md" ] || continue

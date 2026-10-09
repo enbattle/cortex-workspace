@@ -10,8 +10,8 @@ toward the spec, not polite to it.
 
 - A change folder with a drafted `proposal.md` (from `spec-new`). If there is
   none, stop and tell the user to run `spec-new`.
-- Load `docs/constitution.md`, `docs/knowledge/glossary.md`, the "Design
-  and simplicity" section of `harness/policies/review-checklist.md`, and
+- Load `cortex/constitution.md`, `cortex/knowledge/glossary.md`, the "Design
+  and simplicity" section of `cortex/harness/policies/review-checklist.md`, and
   only the knowledge files the proposal's affected areas point to.
 
 ## Procedure
@@ -46,13 +46,14 @@ toward the spec, not polite to it.
    for the change's problem is dated or weaker than a known better one,
    raise it with the user, who chooses: follow it (recorded in `design.md`
    as known debt), adopt the better one for this change (recorded in the
-   conventions), or migrate the old uses as a change of its own. Fill
+   Conventions section of `cortex/AGENTS.md`), or migrate the old uses as a
+   change of its own. Fill
    `tasks.md`: small, ordered tasks, each with a done-check that can be run
    or observed. Until the last task
    the locked tests still fail, so an earlier done-check names the tests it
    runs, not the whole test command. A task can't edit a file the test lock
    covers (a non-test file matching `TEST_GLOBS`, such as the test runner's
-   config, or `.cortex/config`): flag it before approval and settle it with
+   config, or `cortex/config`): flag it before approval and settle it with
    the user (a separate change, or a narrower `TEST_GLOBS`).
 6. Brief the user from a fresh context: one that hasn't seen this
    conversation (a new session or an isolated subagent) reads the change

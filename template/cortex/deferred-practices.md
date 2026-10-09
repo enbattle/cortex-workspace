@@ -11,7 +11,7 @@ Each entry: **what it is**, **why deferred** (the actual reasoning, not "not
 needed"), **revisit when** (a condition that can be checked true or false).
 "It's a best practice" is not a trigger. An entry can also be adopted
 before its trigger fires when it passes the four checks of R14
-(`.cortex/design-rules.md`); the retro records the answers.
+(`cortex/design-rules.md`); the retro records the answers.
 
 The entries below are seeded from cortex's extensions catalog; the catalog
 (cortex `docs/02-extensions.md`) has how to build each one and its pitfalls.
@@ -34,7 +34,7 @@ nobody can say whether the edit helps, or an escaped defect appears.
 
 **A change-folder presence check in CI.** A pull request touching source
 must include a change-folder update or carry a `no-spec` label. (The harness
-check and the test lock already run in CI: `scripts/cortex/ci-gates.sh`.)
+check and the test lock already run in CI: `cortex/bin/ci-gates.sh`.)
 *Deferred:* until the process is stable enough to enforce. *Revisit when:* a
 nontrivial change merges without a change folder.
 

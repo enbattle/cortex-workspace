@@ -32,7 +32,7 @@ cases. spec-clarify marks each (automatable) or (manual-verify: <reason>). -->
 
 <!-- Only for a fix to a bug that an earlier approved change introduced:
 the earlier change folder's path. Leave empty otherwise. retro records it in
-changes/pipeline-log.md. -->
+cortex/changes/pipeline-log.md. -->
 
 ## Approval
 

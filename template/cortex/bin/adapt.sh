@@ -1,103 +1,284 @@
 #!/usr/bin/env bash
-# Generates agent-tool adapters from TOOLS in .cortex/config (design rule R8).
+# Generates the agent-tool files from TOOLS in cortex/config (design rule R8)
+# and, with CI=github, the pull request boundary (spec D8).
 #
-# Canonical content lives in AGENTS.md and harness/; every file written here
-# either points at it or enforces it with a tool-specific mechanism, and
-# carries the marker "cortex:generated". A file is (re)written only if it is
-# absent or already carries the marker; a hand-written file is left alone and
-# reported. .claude/settings.json is copied only when absent (JSON can't carry
-# the marker), and otherwise never touched.
+# Canonical content lives in AGENTS.md, cortex/AGENTS.md and cortex/harness/;
+# every file written here points at it or enforces it with a tool-specific
+# mechanism. Everything written outside cortex/ is recorded in
+# cortex/footprint (D7), so remove.sh can take it out again:
+#   - a file whose path is cortex's own (.claude/agents/cortex-*.md,
+#     .claude/skills/cortex-*/, .cursor/rules/cortex.mdc,
+#     .github/workflows/cortex.yml) is written whole, recorded "created";
+#   - a file whose name a tool fixes and a project may share (CLAUDE.md,
+#     GEMINI.md, .github/copilot-instructions.md, CODEOWNERS) gets cortex's
+#     content in a marked block; the project's lines stay (A3);
+#   - .claude/settings.json, which can't carry a block: created when absent;
+#     otherwise the rules it lacks are printed for a person or agent to merge
+#     and recorded as entries (Q1). The JSON is never edited here.
+# A block is output, not source: a re-run rewrites it, reporting an edit it
+# overwrote. A cortex-named file cortex didn't record is the project's, so
+# this script refuses to touch it (D11). Files for a tool dropped from TOOLS
+# (or for CI=none) are removed by remove.sh's rules: an edited file is kept.
 #
-# Tool config formats change. When an adapter stops working, fix its source in
-# .cortex/adapters/ (or the pointer text below) and re-run; canonical files are
-# never touched by this script.
+# Tool config formats change. When an adapter stops working, fix its source
+# in cortex/adapters/ (or the text below) and re-run.
 #
-# Usage: scripts/cortex/adapt.sh [repo-root]
-# Exit:  0 done, 2 .cortex/config missing.
+# Usage: cortex/bin/adapt.sh [repo-root]
+# Exit:  0 done, 2 cortex/config missing or a refusal (nothing written).
 set -euo pipefail
 
-# The config parser next to this file, resolved before the cd below.
+# The helpers next to this file, resolved before the cd below.
+here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=_config.sh
-. "$(cd "$(dirname "$0")" && pwd)/_config.sh"
+. "$here/_config.sh"
+# shellcheck source=_footprint.sh
+. "$here/_footprint.sh"
 cd "${1:-.}"
-MARKER="cortex:generated"
+
+ADAPTERS=cortex/adapters/claude-code
 POINTER="Read \`AGENTS.md\` in the repository root and follow it; it is the canonical agent context."
 
-if [ ! -f .cortex/config ]; then
-  echo "error: .cortex/config not found (run cortex's scripts/install.sh first)" >&2
+refuse() { echo "refused $1: $2"; exit 2; }
+
+if [ ! -f cortex/config ]; then
+  echo "error: cortex/config not found (install cortex first: bin/install.sh in a cortex clone)" >&2
   exit 2
 fi
+fp_load || refuse cortex/footprint "unknown format '$FP_BAD_FORMAT' (this cortex reads '$FP_FORMAT')"
 
 # TOOLS is a comma-separated list; whitespace around the names is dropped.
-tools="$(config_value TOOLS < .cortex/config | tr -d '[:space:]')"
-if [ -z "$tools" ]; then
-  echo "warning: TOOLS is not set in .cortex/config; no adapters written"
-  exit 0
+tools="$(config_value TOOLS < cortex/config | tr -d '[:space:]')"
+ci="$(config_value CI < cortex/config | tr -d '[:space:]')"
+[ -n "$ci" ] || ci=none
+owners="$(config_value CODE_OWNERS < cortex/config)"
+globs="$(config_value TEST_GLOBS < cortex/config)"
+
+active() { case ",$tools," in *",$1,"*) return 0 ;; esac; return 1; }
+
+# The CODEOWNERS file GitHub reads is the first of these that exists; a
+# second one elsewhere would be ignored, or would hide the project's.
+codeowners="$(fp_match block | awk -F'\t' '$3 == "codeowners" { print $2; exit }')"
+if [ -z "$codeowners" ]; then
+  codeowners=.github/CODEOWNERS
+  for p in .github/CODEOWNERS CODEOWNERS docs/CODEOWNERS; do
+    if [ -f "$p" ]; then codeowners="$p"; break; fi
+  done
 fi
 
-# emit PATH : writes stdin to PATH under the marker rule.
-emit() {
-  local path="$1" tmp
-  tmp="$(mktemp)"
-  cat > "$tmp"
-  if [ -e "$path" ] && ! grep -qF "$MARKER" "$path"; then
-    echo "skipped $path (hand-written; merge manually)"
-  elif [ -e "$path" ] && cmp -s "$tmp" "$path"; then
-    echo "unchanged $path"
-  else
-    mkdir -p "$(dirname "$path")"
-    cp "$tmp" "$path"
-    echo "wrote $path"
-  fi
-  rm -f "$tmp"
-}
+# ---- what this run writes ------------------------------------------------------------
 
-adapt_claude() {
-  printf '<!-- %s -->\n@AGENTS.md\n' "$MARKER" | emit CLAUDE.md
-  local src=.cortex/adapters/claude-code rel
-  [ -d "$src" ] || return 0
+# whole files: "<path>\t<source>"
+wholes=""
+if active claude && [ -d "$ADAPTERS" ]; then
   while IFS= read -r rel; do
-    [ -n "$rel" ] || continue
-    if [ "$rel" = .claude/settings.json ]; then
-      if [ -e .claude/settings.json ] && cmp -s "$src/$rel" .claude/settings.json; then
-        echo "unchanged .claude/settings.json"
-      elif [ -e .claude/settings.json ]; then
-        echo "skipped .claude/settings.json (exists; merge the permissions block from $src/.claude/settings.json)"
-      else
-        mkdir -p .claude
-        cp "$src/$rel" .claude/settings.json
-        echo "wrote .claude/settings.json"
-      fi
-    else
-      emit "$rel" < "$src/$rel"
-    fi
-  done <<<"$(cd "$src" && find . -type f | sed 's|^\./||' | LC_ALL=C sort)"
-}
+    [ -n "$rel" ] && [ "$rel" != .claude/settings.json ] || continue
+    wholes="$wholes$rel$TAB$ADAPTERS/$rel"$'\n'
+  done <<<"$(cd "$ADAPTERS" && find . -type f | sed 's|^\./||' | LC_ALL=C sort)"
+fi
+cursor_src=""
+if active cursor; then
+  cursor_src="$(mktemp)"
+  printf -- '---\ndescription: Canonical agent context for this repository\nalwaysApply: true\n---\n%s\n' "$POINTER" > "$cursor_src"
+  wholes="$wholes.cursor/rules/cortex.mdc$TAB$cursor_src"$'\n'
+fi
+if [ "$ci" = github ]; then
+  wholes="$wholes.github/workflows/cortex.yml${TAB}cortex/ci/github/cortex.yml"$'\n'
+fi
 
-# stale TOOL PATH : a generated file for a tool no longer in TOOLS (never deleted)
-stale() {
-  case ",$tools," in *",$1,"*) return 0 ;; esac
-  if [ -f "$2" ] && grep -qF "$MARKER" "$2"; then
-    echo "stale $2 ($1 is not in TOOLS; delete it if unused)"
+# D11: refuse before writing anything
+while IFS="$TAB" read -r p src; do
+  [ -n "$p" ] || continue
+  if [ -e "$p" ] && [ -z "$(fp_match created "$p")" ]; then
+    refuse "$p" "exists and is not recorded as cortex's (D11); rename or remove it, then run adapt.sh again"
+  fi
+done <<<"$wholes"
+
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp" ${cursor_src:+"$cursor_src"}' EXIT
+desired=""   # every path this run keeps, one per line
+want() { desired="$desired$1"$'\n'; }
+
+# record_created PATH : (re)record a file cortex created, with its sha now
+record_created() { fp_drop created "$1"; fp_add created "$1" "$(file_sha "$1")"; }
+
+# emit_file PATH SOURCE : a whole file (A3)
+emit_file() {
+  local f="$1" src="$2" rec
+  want "$f"
+  rec="$(fp_match created "$f" | sed -n 1p)"
+  if [ ! -e "$f" ]; then
+    case "$f" in */*) mkdir -p "${f%/*}" ;; esac
+    cp "$src" "$f"
+    record_created "$f"
+    echo "created $f"
+  elif cmp -s "$src" "$f"; then
+    echo "unchanged $f"
+  elif [ "$(file_sha "$f")" = "$(fp_field "$rec" 3)" ]; then
+    cp "$src" "$f"
+    record_created "$f"
+    echo "replaced $f"
+  else
+    echo "kept $f (edited)"
   fi
 }
 
-IFS=',' read -r -a tool_list <<<"$tools"
-for tool in "${tool_list[@]}"; do
-  case "$tool" in
-    "") ;;
-    claude) adapt_claude ;;
-    cursor)
-      printf -- '---\ndescription: Canonical agent context for this repository\nalwaysApply: true\n---\n<!-- %s -->\n%s\n' "$MARKER" "$POINTER" |
-        emit .cursor/rules/cortex.mdc ;;
-    copilot) printf '<!-- %s -->\n%s\n' "$MARKER" "$POINTER" | emit .github/copilot-instructions.md ;;
-    gemini) printf '<!-- %s -->\n%s\n' "$MARKER" "$POINTER" | emit GEMINI.md ;;
-    codex) echo "codex: reads AGENTS.md natively" ;;
-    *) echo "warning: unknown tool $tool" ;;
-  esac
-done
+# emit_block PATH ID SOURCE : cortex's content in a block (A3)
+emit_block() {
+  local f="$1" id="$2" src="$3" rec sep new=0
+  want "$f"
+  rec="$(fp_match block "$f" "$id" | sed -n 1p)"
+  [ -e "$f" ] || new=1
+  if [ "$(block_count "$f" "$id")" -eq 0 ]; then
+    sep="$(block_insert "$f" "$id" "$src")"
+    if [ "$new" = 1 ]; then record_created "$f"; echo "created $f"; fi
+    fp_drop block "$f" "$id"
+    fp_add block "$f" "$id" "$(block_sha "$f" "$id")" "$sep"
+    echo "block $f $id"
+  else
+    sep="$(fp_field "$rec" 5)"
+    block_content "$f" "$id" | tr -d '\r' > "$tmp/current"
+    tr -d '\r' < "$src" > "$tmp/wanted"
+    if cmp -s "$tmp/current" "$tmp/wanted"; then
+      echo "unchanged $f"
+    else
+      if [ -n "$rec" ] && [ "$(block_sha "$f" "$id")" = "$(fp_field "$rec" 4)" ]; then
+        echo "block $f $id"
+      else
+        echo "overwrote edited block $f $id"
+      fi
+      block_set "$f" "$id" "$src"
+    fi
+    fp_drop block "$f" "$id"
+    fp_add block "$f" "$id" "$(block_sha "$f" "$id")" "${sep:-0}"
+  fi
+  [ -z "$(fp_match created "$f")" ] || record_created "$f"
+}
 
-stale claude CLAUDE.md
-stale cursor .cursor/rules/cortex.mdc
-stale copilot .github/copilot-instructions.md
-stale gemini GEMINI.md
+# emit_entries PATH SOURCE : SOURCE's permission rules that PATH lacks,
+# printed and recorded as entries; a rule already there is the project's (D11)
+emit_entries() {
+  local f="$1" src="$2" line rule header=0
+  want "$f"
+  while IFS= read -r line; do
+    line="${line%"$CR"}"
+    rule="$(printf '%s\n' "$line" | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p')"
+    [ -n "$rule" ] || continue
+    if grep -qF -- "$rule" "$f"; then
+      continue # merged already (a recorded entry stays recorded), or the project's own
+    fi
+    if [ "$header" = 0 ]; then
+      echo "merge these lines into $f (where each goes: $src):"
+      header=1
+    fi
+    [ -n "$(fp_match entry "$f" "$line")" ] || fp_add entry "$f" "$line"
+    echo "entry $f $line"
+  done <<<"$(grep -E '^[[:space:]]*"[^"]*",?[[:space:]]*$' "$src" || true)"
+}
+
+# ---- tools ------------------------------------------------------------------------------
+
+if [ -z "$tools" ]; then
+  echo "warning: TOOLS is not set in cortex/config; no adapters written"
+else
+  IFS=',' read -r -a tool_list <<<"$tools"
+  for tool in "${tool_list[@]}"; do
+    case "$tool" in
+      "") ;;
+      claude)
+        printf '@AGENTS.md\n' > "$tmp/claude"
+        emit_block CLAUDE.md claude "$tmp/claude"
+        while IFS="$TAB" read -r p src; do
+          [ -n "$p" ] || continue
+          case "$src" in "$ADAPTERS"/*) emit_file "$p" "$src" ;; esac
+        done <<<"$wholes"
+        settings=.claude/settings.json
+        # created when absent; replaced while cortex's copy is unedited;
+        # otherwise (the project's, or edited) the missing rules are entries
+        rec="$(fp_match created "$settings" | sed -n 1p)"
+        if [ -f "$ADAPTERS/$settings" ]; then
+          if [ ! -e "$settings" ] || cmp -s "$ADAPTERS/$settings" "$settings" ||
+            { [ -n "$rec" ] && [ "$(file_sha "$settings")" = "$(fp_field "$rec" 3)" ]; }; then
+            if [ -z "$rec" ] && [ -e "$settings" ]; then
+              want "$settings"
+              echo "unchanged $settings"
+            else
+              emit_file "$settings" "$ADAPTERS/$settings"
+            fi
+          else
+            emit_entries "$settings" "$ADAPTERS/$settings"
+          fi
+        fi ;;
+      cursor) emit_file .cursor/rules/cortex.mdc "$cursor_src" ;;
+      copilot)
+        printf '%s\n' "$POINTER" > "$tmp/copilot"
+        emit_block .github/copilot-instructions.md copilot "$tmp/copilot" ;;
+      gemini)
+        printf '%s\n' "$POINTER" > "$tmp/gemini"
+        emit_block GEMINI.md gemini "$tmp/gemini" ;;
+      codex) echo "codex: reads AGENTS.md natively" ;;
+      *) echo "warning: unknown tool $tool" ;;
+    esac
+  done
+fi
+
+# ---- the pull request boundary (D8) ----------------------------------------------------
+
+case "$ci" in
+  github)
+    emit_file .github/workflows/cortex.yml cortex/ci/github/cortex.yml
+    if [ -z "$owners" ]; then
+      want "$codeowners" # an earlier block stays until CODE_OWNERS is set again
+      echo "warning: CI=github but CODE_OWNERS is not set in cortex/config; no CODEOWNERS block written"
+    else
+      {
+        grep -v '^#' cortex/ci/github/CODEOWNERS | grep -v '^[[:space:]]*$' || true
+        echo "# The tests (TEST_GLOBS in cortex/config):"
+        set -f
+        # shellcheck disable=SC2086 # the globs are split on purpose, unexpanded
+        for g in $globs; do printf '%s\n' "$g"; done
+        set +f
+      } | awk -v o="$owners" -v co="/$codeowners" '
+        /^#/ { print; next }
+        { p = $1; if (p == "/.github/CODEOWNERS") p = co; printf "%-40s %s\n", p, o }' > "$tmp/codeowners"
+      emit_block "$codeowners" codeowners "$tmp/codeowners"
+    fi ;;
+  none) ;;
+  *) echo "warning: unknown CI value $ci (github or none); nothing written for it" ;;
+esac
+
+# ---- what an earlier run wrote and this one doesn't ------------------------------------
+
+# owner PATH -> the part of the config that writes PATH
+owner() {
+  case "$1" in
+    AGENTS.md) echo install ;;
+    CLAUDE.md | .claude/*) echo claude ;;
+    .cursor/*) echo cursor ;;
+    .github/copilot-instructions.md) echo copilot ;;
+    GEMINI.md) echo gemini ;;
+    .github/workflows/cortex.yml | CODEOWNERS | .github/CODEOWNERS | docs/CODEOWNERS) echo ci ;;
+    *) echo other ;;
+  esac
+}
+
+dropped_entries=""
+while IFS= read -r p; do
+  [ -n "$p" ] || continue
+  grep -qxF -- "$p" <<<"$desired" && continue
+  o="$(owner "$p")"
+  case "$o" in install | other) continue ;; ci) ;; *) [ -n "$tools" ] || continue ;; esac
+  fp_remove_path "$p" 0
+  while IFS= read -r rec; do
+    [ -n "$rec" ] || continue
+    dropped_entries="$dropped_entries$p$TAB$(printf '%s\n' "$rec" | cut -f3-)"$'\n'
+  done <<<"$(fp_match entry "$p")"
+  fp_drop entry "$p"
+done <<<"$(printf '%s\n' "$FP_RECORDS" | cut -f2 | LC_ALL=C sort -u)"
+if [ -n "$dropped_entries" ]; then
+  echo "remove these lines by hand; cortex added them and no longer needs them:"
+  while IFS="$TAB" read -r p line; do
+    [ -z "$p" ] || echo "entry $p $line"
+  done <<<"$dropped_entries"
+fi
+
+fp_save

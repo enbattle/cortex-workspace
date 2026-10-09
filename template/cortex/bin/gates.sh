@@ -1,20 +1,20 @@
 #!/usr/bin/env bash
 # Runs every gate a change must pass before review (R11), in order:
-# the test lock, the build, test and lint commands from .cortex/config, and
+# the test lock, the build, test and lint commands from cortex/config, and
 # the harness check. Every gate runs even after one fails, so the output is
 # the full picture; a failing gate's own output is printed above its line.
 #
-# The commands come from .cortex/config, the repository's own file: they are
+# The commands come from cortex/config, the repository's own file: they are
 # read by parsing (the file is never sourced) and run with `bash -c` from the
 # repository root. Running them is the point of this script. The other
 # scripts run through `bash`, so a lost executable bit can't break the gates.
 #
-# Usage: scripts/cortex/gates.sh <change-folder>
+# Usage: cortex/bin/gates.sh <change-folder>
 # Exit:  0 all gates pass, 1 any gate failed, 2 usage error.
 set -euo pipefail
 
 if [ "$#" -ne 1 ]; then
-  echo "usage: scripts/cortex/gates.sh <change-folder>" >&2
+  echo "usage: cortex/bin/gates.sh <change-folder>" >&2
   exit 2
 fi
 folder="$(cd "$1" 2>/dev/null && pwd || printf '%s' "$1")"
@@ -50,9 +50,9 @@ gate() { # name command... : run it, show its output if it fails
 
 config_gate() { # name KEY
   local cmd=""
-  [ ! -f .cortex/config ] || cmd="$(config_value "$2" < .cortex/config)"
+  [ ! -f cortex/config ] || cmd="$(config_value "$2" < cortex/config)"
   if [ -z "$cmd" ]; then
-    echo "gate $1: FAIL (not set in .cortex/config)"
+    echo "gate $1: FAIL (not set in cortex/config)"
     failed=$((failed + 1))
   else
     gate "$1" bash -c "$cmd"
