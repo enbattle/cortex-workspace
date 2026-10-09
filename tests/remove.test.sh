@@ -348,7 +348,8 @@ case_crlf_round_trip() {
   run "$CORTEX_INSTALL" "$d"
   assert_exit 0 "$CODE" "install into a CRLF AGENTS.md exits 0"
   total="$(grep -c '' "$d/AGENTS.md")"
-  crlf="$(grep -c "$(printf '\r')\$" "$d/AGENTS.md" || true)"
+  # -U: Git Bash's grep drops a line's CR before matching unless told not to
+  crlf="$(grep -cU "$(printf '\r')\$" "$d/AGENTS.md" || true)"
   assert_true "every line of AGENTS.md, the block's included, ends in CRLF (D15)" test "$total" = "$crlf"
   commit_all "$d" "install"
   remove_in "$d" --hosting-done --delete-records
