@@ -536,6 +536,38 @@ case_G7_kept_delete_records() {
   assert_not_contains "$OUT" "kept as" "no kept line with --delete-records"
 }
 
+# ---- spec 3.1.0 As built (criterion 17): G7's kept paths -----------------------------
+#
+# docs/specs/2026-10-09-v3.1-pilot-followups.md, As built: a cortex/ preceded
+# by "/" (docs/cortex/changes/x.md) is a project path, so it gets no kept
+# line; a #fragment or ?query after a kept path is dropped from the kept line.
+
+R17_PROJ="reference notes/c17.md:1: Old notes are in docs/cortex/changes/old.md now."
+R17_FRAG="reference notes/c17.md:2: Principles: cortex/constitution.md#project explains."
+R17_QUERY="reference notes/c17.md:3: Source: cortex/changes/x/proposal.md?plain=1 on the host."
+
+case_C17_kept_paths() {
+  local d
+  d="$(cortex_seeded)" || return 0
+  mkdir -p "$d/notes"
+  printf '%s\n' \
+    'Old notes are in docs/cortex/changes/old.md now.' \
+    'Principles: cortex/constitution.md#project explains.' \
+    'Source: cortex/changes/x/proposal.md?plain=1 on the host.' > "$d/notes/c17.md"
+  commit_all "$d" "the project's notes name cortex paths"
+  remove_in "$d" --hosting-done
+  assert_exit 0 "$CODE" "the stop for confirmation exits 0"
+  assert_not_contains "$(line_after "$OUT" "$R17_PROJ")" "kept as" "no kept line for docs/cortex/changes/old.md"
+  assert_not_contains "$OUT" "kept as docs/cortex-records/changes/old.md" "docs/cortex/changes/old.md is not kept"
+  assert_line "$OUT" "$R17_FRAG" "the constitution#fragment reference is listed"
+  assert_true "  kept as docs/cortex-records/constitution.md follows it, fragment dropped" \
+    test "$(line_after "$OUT" "$R17_FRAG")" = "  kept as docs/cortex-records/constitution.md"
+  assert_line "$OUT" "$R17_QUERY" "the proposal?query reference is listed"
+  assert_true "  kept as docs/cortex-records/changes/x/proposal.md follows it, query dropped" \
+    test "$(line_after "$OUT" "$R17_QUERY")" = "  kept as docs/cortex-records/changes/x/proposal.md"
+  assert_true "two kept lines in all" test "$(grep -c '^  kept as ' <<<"$OUT" || true)" = 2
+}
+
 # ---- spec 3.1.0 G8 (criterion 13): a block record without nb ------------------------
 #
 # G8: block_unedited's fallback for a record without the sixth field (nb)
@@ -617,4 +649,5 @@ run_case "G7 criterion 12: kept as <dir>/... with --keep-records" case_G7_kept_k
 run_case "G7 criterion 12: no kept line with --delete-records" case_G7_kept_delete_records
 run_case "G8 criterion 13: no nb, blank lines changed: shown as edited" case_G8_no_nb_blank_lines_edited
 run_case "G8 criterion 13: no nb, unchanged: removed" case_G8_no_nb_unchanged_removed
+run_case "As built criterion 17: kept lines name only kept paths, without #fragment or ?query" case_C17_kept_paths
 summary

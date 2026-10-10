@@ -548,6 +548,76 @@ case_G2_block_placeholder_and_real_conflict() {
   assert_same_file "$G2/expected" "$G2/block.result" "the block is 3.0.0's merge: both hunks with markers"
 }
 
+# ---- spec 3.1.0 As built (criterion 16): G2's parser reads only its own markers -------
+#
+# docs/specs/2026-10-09-v3.1-pilot-followups.md, As built: the placeholder
+# merge recognizes only the merge's own labelled markers ("<<<<<<< <path>
+# (yours)", "||||||| <path> (cortex <installed>)", "=======", ">>>>>>> <path>
+# (cortex <new>)"); any other line, "<<<<<<< HEAD" included, is content. A
+# conflict still open at the end of the file means the placeholder merge
+# fails, so 3.0.0's output stands. Criterion 16: a user line "<<<<<<< HEAD",
+# above or below a placeholder hunk, is kept intact, the file is reported
+# merged, and C14 still flags it.
+
+# c16_doc CONVENTIONS TOP BOTTOM -> ph_doc's document with a preamble; TOP
+# (when non-empty) is a line in the preamble, BOTTOM one after n6; each is
+# several unchanged lines away from the Conventions section and n8
+c16_doc() {
+  printf '# Guide\n\n'
+  [ -z "$2" ] || printf '%s\n' "$2"
+  printf 'i1\ni2\ni3\ni4\n\n## Conventions\n\n%b\n\n## Notes\n\nn1\nn2\nn3\nn4\nn5\nn6\n' "$1"
+  [ -z "$3" ] || printf '%s\n' "$3"
+  printf 'n7\nn8\nn9\nn10\n'
+}
+
+# c16_case TOP BOTTOM : the user filled the placeholder and has TOP/BOTTOM
+# as their own lines; 3.1.0 only rewords the placeholder
+c16_case() {
+  local d p="$FX/ph.md" top="$1" bottom="$2"
+  G2="$(mktemp -d "$TEST_TMP/g2.XXXXXX")"
+  c16_doc "$PH_OLD" "" "" > "$G2/ph.md.base"
+  c16_doc "$PH_USER" "$top" "$bottom" > "$G2/ph.md.user"
+  c16_doc "$PH_NEW" "" "" > "$G2/ph.md.new"
+  assert_true "fixture: git merge-file leaves one labelled conflict" test "$(
+    git -C "$TEST_TMP" merge-file -p -L "$p (yours)" -L "$p (cortex 3.0.0)" -L "$p (cortex 3.1.0)" \
+      "$G2/ph.md.user" "$G2/ph.md.base" "$G2/ph.md.new" | grep -c "^<<<<<<< $p (yours)$" || true)" = 1
+  d="$(g2_run ph.md)" || return 0; g2_result
+  assert_exit 0 "$CODE" "a placeholder-only conflict exits 0"
+  assert_line "$OUT" "merged $p $PH_NOTE" "reported merged, the user's text kept"
+  assert_not_contains "$OUT" "conflict $p" "not reported as a conflict"
+  assert_true "counted as merged, not as a conflict" grep -qE "$(g2_summary_re 1 0)" <<<"$(last_line "$OUT")"
+  assert_same_file "$G2/ph.md.user" "$d/$p" "the file is the user's text, <<<<<<< HEAD intact, every line kept"
+  assert_file_contains "$d/$p" "<<<<<<< HEAD" "the user's <<<<<<< HEAD line is kept"
+  assert_file_not_contains "$d/$p" "(yours)" "no (yours) marker left"
+  assert_file_not_contains "$d/$p" "(cortex " "no (cortex ...) marker left"
+  run bash -c 'cd "$1" && bash cortex/bin/check.sh' _ "$d"
+  assert_contains "$OUT" "FAIL [C14] $p" "C14 still flags the user's <<<<<<< HEAD line"
+}
+
+case_C16_head_below_placeholder() { c16_case "" "<<<<<<< HEAD"; }
+case_C16_head_above_placeholder() { c16_case "<<<<<<< HEAD" ""; }
+
+case_C16_unclosed_labelled_conflict() {
+  # a leftover opening marker of the merge's own form (from an earlier
+  # upgrade, half resolved), below the placeholder hunk: that conflict is
+  # still open at the end of the file, so the placeholder merge fails and
+  # 3.0.0's output stands
+  local d p="$FX/ph.md"
+  G2="$(mktemp -d "$TEST_TMP/g2.XXXXXX")"
+  c16_doc "$PH_OLD" "" "" > "$G2/ph.md.base"
+  c16_doc "$PH_USER" "" "<<<<<<< $p (yours)" > "$G2/ph.md.user"
+  c16_doc "$PH_NEW" "" "" > "$G2/ph.md.new"
+  d="$(g2_run ph.md)" || return 0; g2_result
+  merge_expected "$d" "$p" "$G2/ph.md.user" "$G2/ph.md.base" "$G2/ph.md.new" > "$G2/expected"
+  assert_true "fixture: git merge-file leaves one conflict" \
+    test "$(grep -c '^>>>>>>> ' "$G2/expected" || true)" = 1
+  assert_exit 1 "$CODE" "an unclosed conflict exits 1"
+  assert_line "$OUT" "conflict $p" "reported as a conflict"
+  assert_not_contains "$OUT" "$PH_NOTE" "no kept-your-text line"
+  assert_same_file "$G2/expected" "$d/$p" "the file is 3.0.0's merge, every user line kept"
+  assert_true "counted as a conflict" grep -qE "$(g2_summary_re 0 1)" <<<"$(last_line "$OUT")"
+}
+
 run_case "criterion 21: an unedited file is replaced; cortex/version updated" case_unedited_replaced
 run_case "criterion 22: a user-edited file is kept" case_edited_kept
 run_case "criterion 23: non-overlapping edits merge" case_both_merged
@@ -568,4 +638,7 @@ run_case "G2 criterion 5: plus a real conflicting hunk: 3.0.0's output" case_G2_
 run_case "G2 criterion 6: only one side a placeholder is a real conflict" case_G2_one_side_placeholder
 run_case "G2 criterion 7: the root block, as criterion 4" case_G2_block_placeholder_reworded
 run_case "G2 criterion 7: the root block, as criterion 5" case_G2_block_placeholder_and_real_conflict
+run_case "As built criterion 16: a user <<<<<<< HEAD below a placeholder hunk is kept" case_C16_head_below_placeholder
+run_case "As built criterion 16: a user <<<<<<< HEAD above a placeholder hunk is kept" case_C16_head_above_placeholder
+run_case "As built criterion 16: an unclosed labelled conflict: 3.0.0's output" case_C16_unclosed_labelled_conflict
 summary
