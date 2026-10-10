@@ -1,8 +1,8 @@
 # Changelog
 
-## 3.1.0 — unreleased
+## 3.1.0 — 2026-10-10
 
-**Before release:** the golden cycle (review.md changed); the
+**Before release** (all done): the golden cycle (review.md changed); the
 completeness audit and its findings; the full suites and CI on Linux, macOS
 and Windows; the fixture refreshed; README's status and install tag; a date
 here, and the tag.

@@ -8,7 +8,7 @@ evidence. It is plain markdown and a few bash scripts, works with any agent
 tool, and ships a Claude Code adapter that enforces as much of the isolation
 as the tool allows.
 
-**Status:** 3.0.0, released 2026-10-09: everything cortex installs lives in
+**Status:** 3.1.0, released 2026-10-10 (3.0.0 on 2026-10-09): everything cortex installs lives in
 one `cortex/` directory, and installs upgrade and remove cleanly (see
 [CHANGELOG.md](CHANGELOG.md)). Its release candidate was installed, used for
 one real change, upgraded and removed in a real repository first
@@ -74,13 +74,13 @@ Prerequisites: git and bash (Git Bash on Windows; macOS's bash 3.2 is fine).
 
 Ask your agent, in your repository:
 
-> Install cortex v3.0.0 from https://github.com/enbattle/cortex-workspace by following its INSTALL.md.
+> Install cortex v3.1.0 from https://github.com/enbattle/cortex-workspace by following its INSTALL.md.
 
 It works on a branch, runs the installer, interviews you for the commands,
 tools and conventions, and runs the checks. Everything it can't know is left
 as a visible `TODO`. Later:
 
-> Upgrade cortex to v3.1.0 by following its INSTALL.md.
+> Upgrade cortex to v3.2.0 by following its INSTALL.md.
 
 > Remove cortex from this repository.
 
@@ -88,7 +88,7 @@ Without an agent, from a clone made outside your repository (full history,
 so upgrades can read the installed version):
 
 ```bash
-git clone --branch v3.0.0 https://github.com/enbattle/cortex-workspace.git ../cortex
+git clone --branch v3.1.0 https://github.com/enbattle/cortex-workspace.git ../cortex
 bash ../cortex/bin/install.sh .     # install, or upgrade an older 3.x
 bash cortex/bin/remove.sh           # remove: it stops for the hosting steps first
 ```
