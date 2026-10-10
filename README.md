@@ -8,14 +8,15 @@ evidence. It is plain markdown and a few bash scripts, works with any agent
 tool, and ships a Claude Code adapter that enforces as much of the isolation
 as the tool allows.
 
-**Status:** 3.0.0 in development: everything cortex installs now lives in
+**Status:** 3.0.0, released 2026-10-09: everything cortex installs lives in
 one `cortex/` directory, and installs upgrade and remove cleanly (see
-[CHANGELOG.md](CHANGELOG.md)). It is released only after a release candidate
-has been installed, upgraded and removed in a real repository; until then the
-latest release is 2.3.0 (2026-10-07). The scripts are covered by test suites
+[CHANGELOG.md](CHANGELOG.md)). Its release candidate was installed, used for
+one real change, upgraded and removed in a real repository first
+([the pilot](evals/pilots/2026-10-09-rc-pilot-til.md)). The scripts are covered by test suites
 written by a separate agent before the scripts were (`tests/`, 9 suites). The
 whole pipeline has run end to end
-three times, on toy repositories. In
+three times on toy repositories, and once in a real one (the pilot
+above). In
 [pilot 1](evals/pilots/2026-09-23-toy-repo.md), review caught a real
 compatibility break, and a fresh reviewer caught a planted bug the tests
 missed. [Pilot 2](evals/pilots/2026-09-24-pilot-2.md) then ran the Claude

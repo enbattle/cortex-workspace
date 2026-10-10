@@ -68,8 +68,8 @@ batch where you can:
    (`package.json` if its scripts pick the tests, `jest.config.*`,
    `pytest.ini`, and similar), or the test command can be narrowed without
    touching a test. Patterns are git pathspecs: one that doesn't start with
-   `*` is anchored at the root, so write `**/test_*.py` for test files in
-   any directory. `adapt.sh` notes each pattern that matches no tracked file.
+   `*` is anchored at the root, and `**/` needs a directory, so write
+   `test_*.py **/test_*.py` for test files anywhere. `adapt.sh` notes each pattern that matches no tracked file.
 4. Which agent tools the team uses (`claude`, `cursor`, `copilot`, `gemini`,
    `codex`).
 5. Whether the repository is hosted on GitHub and should get the pull
@@ -231,8 +231,8 @@ edits are kept; where both changed, `git merge-file` merges them, and an
 overlap leaves conflict markers and a `conflict <path>` line (exit 1).
 `cortex/config` is never changed: a key the new version added is printed as
 `config KEY=default`, to add if wanted. It also prints each release's notes
-for installed repositories. Merge any `entry .claude/settings.json` lines it
-prints, as in step 4. Resolve every conflict (C14 fails until they're
+for installed repositories. Merge any `entry .claude/settings.json` or
+`entry .prettierignore` lines it prints, as in step 4. Resolve every conflict (C14 fails until they're
 gone), run `bash cortex/bin/check.sh`, show the user the diff, and commit.
 To undo before committing: `git restore . && git clean -fd`; after:
 `git revert` the commit.
@@ -264,5 +264,5 @@ the conventions) are kept in `docs/cortex-records/` unless the user names
 another directory (`--keep-records <dir>`) or chooses `--delete-records`.
 Then it removes every block and created file the footprint records, keeping a
 created file the project edited (`--force` deletes it anyway), lists the
-settings lines to remove by hand, and deletes `cortex/`. Show the user the
+settings and `.prettierignore` lines to remove by hand, and deletes `cortex/`. Show the user the
 diff and commit.
