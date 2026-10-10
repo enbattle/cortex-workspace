@@ -126,7 +126,8 @@ files follow cortex's style, not the project's.
 
 Then run `LINT_CMD` once. If another formatter or linter flags files under
 `cortex/`, add `cortex/` to its ignore file with the user's approval (that
-line is the project's; removal doesn't list it). cortex's blocks in
+line is the project's, not recorded; removal lists it as a reference to
+remove). cortex's blocks in
 `AGENTS.md` and `CLAUDE.md` are written in the form markdown formatters
 produce, and a formatter's blank lines in them are not an edit.
 
@@ -229,7 +230,10 @@ It merges three versions of every cortex file: the one installed, the new
 one, and this repository's. Files the project didn't edit are replaced;
 edits are kept; where both changed, `git merge-file` merges them, and an
 overlap leaves conflict markers and a `conflict <path>` line (exit 1).
-`cortex/config` is never changed: a key the new version added is printed as
+Where every overlap is cortex rewording a placeholder comment the project
+replaced, the project's text is kept and the line reads `merged <path>
+(kept your text where cortex changed a placeholder)`; check the release
+notes for what the new placeholder asks. `cortex/config` is never changed: a key the new version added is printed as
 `config KEY=default`, to add if wanted. It also prints each release's notes
 for installed repositories. Merge any `entry .claude/settings.json` or
 `entry .prettierignore` lines it prints, as in step 4. Resolve every conflict (C14 fails until they're
@@ -256,8 +260,10 @@ It stops twice before changing anything, and you relay both to the user:
    while its check is required blocks every pull request. Once the user has
    done both, re-run with `--hosting-done`.
 2. Project lines that name paths under `cortex/` (a script calling
-   `cortex/bin/gates.sh`, a link to `cortex/knowledge/`). Fix them with the
-   user and commit, or re-run with `--references-ok`.
+   `cortex/bin/gates.sh`, a link to `cortex/knowledge/`). A line naming a
+   record that is kept is followed by `kept as <records-dir>/...`, its new
+   path. Fix them with the user and commit, or re-run with
+   `--references-ok`.
 
 The records (change folders, knowledge, the constitution's Project section,
 the conventions) are kept in `docs/cortex-records/` unless the user names

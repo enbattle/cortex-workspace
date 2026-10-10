@@ -298,7 +298,11 @@ placeholder_merge() {
   rc=$?
   set -e
   [ "$rc" -gt 0 ] && [ "$rc" -lt 128 ] || return 1
-  awk '
+  # Only this merge's own labelled markers delimit a hunk; any other line,
+  # one that looks like a marker included, is content. A hunk opened inside
+  # another, or left open, fails the whole placeholder merge.
+  PH_OURS="<<<<<<< $4 (yours)" PH_BASE="||||||| $4 (cortex $installed)" \
+    PH_THEIRS=">>>>>>> $4 (cortex $version)" awk '
     # only HTML comments and blank lines, at least one comment
     function placeholder(s,   n, e) {
       n = 0
@@ -311,17 +315,22 @@ placeholder_merge() {
         s = substr(s, e + 3); n++
       }
     }
-    part == "" && /^<<<<<<< / { part = "ours"; ours = base = theirs = ""; next }
-    part == "ours" && /^\|\|\|\|\|\|\| / { part = "base"; next }
-    part == "base" && /^=======$/ { part = "theirs"; next }
-    part == "theirs" && /^>>>>>>> / {
+    $0 == ENVIRON["PH_OURS"] {
+      if (part != "") exit 1
+      part = "ours"; ours = base = theirs = ""; next
+    }
+    part == "ours" && $0 == ENVIRON["PH_BASE"] { part = "base"; next }
+    part == "base" && $0 == "=======" { part = "theirs"; next }
+    part == "theirs" && $0 == ENVIRON["PH_THEIRS"] {
       if (!placeholder(base) || !placeholder(theirs)) exit 1
-      printf "%s", ours; part = ""; next
+      printf "%s", ours; part = ""; hunks++; next
     }
     part == "ours" { ours = ours $0 "\n"; next }
     part == "base" { base = base $0 "\n"; next }
     part == "theirs" { theirs = theirs $0 "\n"; next }
-    { print }' "$work/merge.diff3"
+    { print }
+    # merge-file reported conflicts, so finding none means a marker went unread
+    END { if (part != "" || hunks == 0) exit 1 }' "$work/merge.diff3"
 }
 
 # merge3 USER BASE NEW LABEL : git merge-file into USER; 0 clean, 1 conflicts.

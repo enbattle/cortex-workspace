@@ -4,7 +4,8 @@
 
 **Before release:** the golden cycle (review.md changed); the
 completeness audit and its findings; the full suites and CI on Linux, macOS
-and Windows; the fixture refreshed; a date here, and the tag.
+and Windows; the fixture refreshed; README's status and install tag; a date
+here, and the tag.
 
 **Changed: the 3.0.0 pilot's follow-ups**
 (`docs/specs/2026-10-09-v3.1-pilot-followups.md`; the pilot record's R2–R8
@@ -38,8 +39,11 @@ and the release audit's findings).
 - **Removed:** the footprint's fallback for rc.1's 5-field block records.
 
 **For installed repositories:** after upgrading, `gates.sh` (and CI) fail a
-change folder with an unticked task or no `tasks.md`; tick finished tasks.
-Record review approvals in `review-findings.md` from now on.
+change folder with an unticked task or no `tasks.md`: tick finished tasks,
+and delete any task for running the gates or review. A recorded
+`.prettierignore` line must be `cortex`, `/cortex`, `cortex/` or `/cortex/`
+(C13 no longer accepts other lines that contain `cortex/`). Record review
+approvals in `review-findings.md` from now on.
 
 ## 3.0.0 — 2026-10-09
 

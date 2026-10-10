@@ -138,14 +138,15 @@ while IFS= read -r m; do
   fi
   [ "$skip" = 1 ] && continue
   refs="${refs}reference $path:$line: $text"$'\n'
-  # where a path the records step keeps will be (G7)
+  # where a path the records step keeps will be (G7): not one under another
+  # directory (docs/cortex/...), and without a #fragment or ?query
   if [ "$kept_dir" != delete ]; then
     while IFS= read -r p; do
       case "$p" in
         cortex/changes/* | cortex/knowledge/* | cortex/constitution.md)
           refs="${refs}  kept as $kept_dir/${p#cortex/}"$'\n' ;;
       esac
-    done <<<"$(printf '%s\n' "$text" | grep -oE '(^|[^A-Za-z0-9_.-])cortex/[^][:space:]()<>`"'\'']*' | sed -e 's|^[^c]||' -e 's/[.,;:]*$//' || true)"
+    done <<<"$(printf '%s\n' "$text" | grep -oE '(^|[^A-Za-z0-9_./-])cortex/[^][:space:]()<>`"'\''#?]*' | sed -e 's|^[^c]||' -e 's/[.,;:]*$//' || true)"
   fi
 done <<<"$(git -c core.quotepath=off grep -I -n --no-color -E '(^|[^A-Za-z0-9_.-])cortex/' -- . ':(exclude)cortex' 2>/dev/null || true)"
 if [ -n "$refs" ]; then
