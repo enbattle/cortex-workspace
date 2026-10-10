@@ -1,6 +1,6 @@
 # Plan: the audits' open nominations (no release)
 
-Status: **draft, awaiting the maintainer's approval.** A point-in-time
+Status: **approved by the maintainer, 2026-10-10.** A point-in-time
 record.
 
 ## Context
