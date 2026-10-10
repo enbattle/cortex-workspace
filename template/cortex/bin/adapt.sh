@@ -267,7 +267,7 @@ esac
 # to leave cortex/ alone, by a line a person merges (the file is the project's).
 if [ -f .prettierignore ]; then
   want .prettierignore
-  if ! tr -d '\r' < .prettierignore | grep -qxE '/?cortex/?'; then
+  if ! prettierignore_has .prettierignore; then
     echo "merge this line into .prettierignore:"
     [ -n "$(fp_match entry .prettierignore cortex/)" ] || fp_add entry .prettierignore cortex/
     echo "entry .prettierignore cortex/"

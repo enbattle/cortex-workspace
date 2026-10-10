@@ -11,8 +11,8 @@ This is the maintenance loop for everything under `cortex/harness/` and
 
 - A change that has been through `review` (approved or stopped), or a session
   the user wants to reflect on.
-- The change folder, its `review-findings.md` if any, and the gate output in
-  `tasks.md`. Friction is taken from these, not from memory.
+- The change folder, its `review-findings.md` (each round's verdict and
+  findings), and the gate output in `tasks.md`. Friction is taken from these, not from memory.
 
 ## Procedure
 
@@ -39,7 +39,9 @@ This is the maintenance loop for everything under `cortex/harness/` and
    the trigger or the four answers (a large one is its own change folder),
    record them in the pipeline-log row, and update the entry; don't build it
    inside the retro.
-5. Show the user the proposed edits. Apply only what they approve.
+5. Show the user the proposed edits, and wait for their answer on every
+   one before step 6: the row records the answers. Apply only what they
+   approve.
 6. Append one row to `cortex/changes/pipeline-log.md` recording what was actually
    applied (its header defines the columns). An **escaped defect** (a bug
    found after review approved the change that introduced it) is recorded

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Runs every gate a change must pass before review (R11), in order:
-# the test lock, the build, test and lint commands from cortex/config, and
-# the harness check. Every gate runs even after one fails, so the output is
+# the test lock, no open task in tasks.md, the build, test and lint commands
+# from cortex/config, and the harness check. Every gate runs even after one fails, so the output is
 # the full picture; a failing gate's own output is printed above its line.
 #
 # The commands come from cortex/config, the repository's own file: they are
@@ -59,7 +59,23 @@ config_gate() { # name KEY
   fi
 }
 
+# open_tasks FOLDER : fails, listing each one, if tasks.md has an open task
+# (- [ ] or * [ ]) before its first ## heading, or is missing (G3). The
+# sections after it (manual verification and the rest) aren't tasks.
+open_tasks() {
+  local f="$1/tasks.md"
+  if [ ! -f "$f" ]; then
+    echo "$f: missing"
+    return 1
+  fi
+  tr -d '\r' < "$f" | awk -v f="$f" '
+    /^## / { exit }
+    /^[[:blank:]]*[-*] \[ \]/ { print f ":" NR ": " $0; open = 1 }
+    END { exit open }'
+}
+
 gate tests-locked bash "$here/tests-locked.sh" "$folder"
+gate tasks open_tasks "$folder"
 config_gate build BUILD_CMD
 config_gate test TEST_CMD
 config_gate lint LINT_CMD

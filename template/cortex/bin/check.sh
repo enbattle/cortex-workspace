@@ -220,7 +220,9 @@ else
       entry)
         rule="$(printf '%s\n' "$f3" | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p')"
         [ -n "$rule" ] || rule="$f3"
-        if [ ! -f "$path" ] || ! grep -qF -- "$rule" "$path"; then
+        if [ "$path" = .prettierignore ]; then
+          prettierignore_has "$path" || report C13 "$path" "lacks the recorded entry $rule (merge it as adapt.sh printed)"
+        elif [ ! -f "$path" ] || ! grep -qF -- "$rule" "$path"; then
           report C13 "$path" "lacks the recorded entry $rule (merge it as adapt.sh printed)"
         fi ;;
       *) report C13 "$FP_FILE" "unknown record kind '$kind'" ;;

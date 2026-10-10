@@ -1,5 +1,46 @@
 # Changelog
 
+## 3.1.0 — unreleased
+
+**Before release:** the golden cycle twice (review.md changed); the
+completeness audit and its findings; the full suites and CI on Linux, macOS
+and Windows; the fixture refreshed; a date here, and the tag.
+
+**Changed: the 3.0.0 pilot's follow-ups**
+(`docs/specs/2026-10-09-v3.1-pilot-followups.md`; the pilot record's R2–R8
+and the release audit's findings).
+
+- **Gates fail on an open task.** `gates.sh` has a new `tasks` gate, after
+  the test lock: a `- [ ]` task above `tasks.md`'s first `## ` heading, or a
+  missing `tasks.md`, fails it, with each open task listed. CI's gates run
+  it too. `spec-clarify` no longer writes a "run the gates" task.
+- **Review's verdict is recorded.** Every round, an approval included, goes
+  into `review-findings.md` as `## Round <n>` with a
+  `Verdict: approve|request changes at <commit>, <date>.` line. Review and
+  implement also read the project's own agent instructions (a `CLAUDE.md`
+  outside cortex's block).
+- **An upgrade keeps your filled-in placeholders.** When every conflicting
+  hunk is cortex rewording an HTML-comment placeholder that you replaced,
+  the file takes your text and prints `merged <path> (kept your text where
+  cortex changed a placeholder)`. Any real conflict keeps 3.0.0's output.
+- **One `.prettierignore` rule.** `adapt.sh`, C13 and `remove.sh` agree:
+  `cortex`, `/cortex`, `cortex/` or `/cortex/` (blanks around it aside) is
+  the line; `src/cortex/x` isn't.
+- **Removal points references at the kept records:** a reference to a kept
+  path gets a `kept as <records-dir>/...` line.
+- **Wording:**
+  - `spec-new` may branch from a base the user names.
+  - A shell outside the repository root may `cd` there first, alone.
+  - "I approve" isn't an instruction to write the approval line.
+  - `retro` writes its row after the user answers.
+  - INSTALL's question about an existing process is now part of the
+    Conventions item.
+- **Removed:** the footprint's fallback for rc.1's 5-field block records.
+
+**For installed repositories:** after upgrading, `gates.sh` (and CI) fail a
+change folder with an unticked task or no `tasks.md`; tick finished tasks.
+Record review approvals in `review-findings.md` from now on.
+
 ## 3.0.0 — 2026-10-09
 
 **Before release** (all done): the golden cycle on the 3.0.0 layout

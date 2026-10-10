@@ -12,7 +12,9 @@ against the change before approving it.
   only inputs are: the diff, the change folder, `cortex/constitution.md`,
   `cortex/harness/policies/review-checklist.md`, the repository's `AGENTS.md`
   files (the root one, `cortex/AGENTS.md`, and a package's own: their
-  conventions), and knowledge files the change folder names. If this conversation contains the change's planning or
+  conventions), the project's own agent instructions that `cortex/AGENTS.md`
+  names (outside cortex's blocks), and knowledge files the change folder
+  names. If this conversation contains the change's planning or
   implementation, refuse and tell the user to start a fresh context. A
   command or skill invoked inside the implementing session is not a fresh
   context.
@@ -74,7 +76,7 @@ against the change before approving it.
 9. Confirm the working tree is exactly as it was in step 1.
 
 Budget: this review runs once. After two request-changes rounds on the same
-change (count the rounds in `review-findings.md`), refuse a third automated
+change (count them in `review-findings.md`), refuse a third automated
 round: repeated rejection means the spec or design is wrong, and the user
 must decide how to proceed.
 
@@ -87,11 +89,16 @@ empty approval is visible as one. The verdict also lists every procedure
 step and every checklist item as **done** (a few words on what was checked)
 or `skip: <reason>`, so a step skipped silently is visible as one.
 
-On request-changes, write the findings to `review-findings.md` in the change folder with the round number (the folder
-carries them to the next `implement`, not this conversation). Each round is
-a section headed `## Round <n>`, so the round count is mechanical. If you
+Record every round, an approval included, in `review-findings.md` in the
+change folder (the folder carries it to the next `implement` and to `retro`,
+not this conversation). Each round is a section headed `## Round <n>`, so
+the round count is mechanical, whose first line is
+`Verdict: approve at <commit>, <date>.` or
+`Verdict: request changes at <commit>, <date>.` (the commit reviewed, the
+date). Under it go the findings, and for an approval the paragraph on what
+was probed and found sound. If you
 are running read-only (an adapter may take away your write tools), return
-the findings in that format instead; the session that started the review
+the round in that format instead; the session that started the review
 writes the file and makes no other change. Either way, `review-findings.md` is
 committed on its own, so the next `implement` round starts from a clean tree.
 

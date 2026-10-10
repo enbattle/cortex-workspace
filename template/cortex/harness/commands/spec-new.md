@@ -14,7 +14,9 @@ unknown size, a refactor) and draft its proposal with the user.
 ## Procedure
 
 1. Create a branch `change/<yyyymmdd>-<slug>` from an up-to-date default
-   branch (the same date and slug as the folder), then create `cortex/changes/<yyyymmdd>-<slug>/` (today's date, a short kebab-case
+   branch, unless the user names another base (for example, while cortex's
+   own install is on an unmerged branch), with the same date and slug as the
+   folder. Then create `cortex/changes/<yyyymmdd>-<slug>/` (today's date, a short kebab-case
    slug) on it and copy `proposal.md`, `design.md` and `tasks.md` from
    `cortex/harness/templates/change-folder/` (not `lock.md`: `test-first` adds it in a
    commit of its own, and the lock fails if any other commit touches it)

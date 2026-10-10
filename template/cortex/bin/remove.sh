@@ -102,6 +102,8 @@ fi
 # Project lines naming a path under cortex/ ("mycortex/" doesn't count):
 # cortex's own blocks, the files it created and its entry lines are left out.
 created_paths="$(fp_match created | cut -f2)"
+kept_dir="${records:-docs/cortex-records}"   # step 3's directory, as far as known
+kept_dir="${kept_dir%/}"
 refs=""
 while IFS= read -r m; do
   [ -n "$m" ] || continue
@@ -120,17 +122,31 @@ while IFS= read -r m; do
       l ~ /^(<!-- |# )cortex:end / { inb = 0 }' "$path")"
     [ "$inside" = 1 ] && continue
   fi
-  # a recorded entry line?
+  # a recorded entry line? (.prettierignore's in any of its forms, G1; any
+  # other file's by its quoted rule, B6)
   skip=0
-  while IFS= read -r rec; do
-    [ -n "$rec" ] || continue
-    # a quoted rule (B6), or the whole line (the .prettierignore entry, F2)
-    rule="$(printf '%s\n' "$rec" | cut -f3 | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p')"
-    [ -n "$rule" ] || rule="$(printf '%s\n' "$rec" | cut -f3)"
-    if [ -n "$rule" ] && grep -qF -- "$rule" <<<"$text"; then skip=1; break; fi
-  done <<<"$(fp_match entry "$path")"
+  if [ -n "$(fp_match entry "$path")" ]; then
+    if [ "$path" = .prettierignore ]; then
+      grep -qxE -- "$PRETTIERIGNORE_LINE" <<<"$text" && skip=1
+    else
+      while IFS= read -r rec; do
+        [ -n "$rec" ] || continue
+        rule="$(printf '%s\n' "$rec" | cut -f3 | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p')"
+        if [ -n "$rule" ] && grep -qF -- "$rule" <<<"$text"; then skip=1; break; fi
+      done <<<"$(fp_match entry "$path")"
+    fi
+  fi
   [ "$skip" = 1 ] && continue
   refs="${refs}reference $path:$line: $text"$'\n'
+  # where a path the records step keeps will be (G7)
+  if [ "$kept_dir" != delete ]; then
+    while IFS= read -r p; do
+      case "$p" in
+        cortex/changes/* | cortex/knowledge/* | cortex/constitution.md)
+          refs="${refs}  kept as $kept_dir/${p#cortex/}"$'\n' ;;
+      esac
+    done <<<"$(printf '%s\n' "$text" | grep -oE '(^|[^A-Za-z0-9_.-])cortex/[^][:space:]()<>`"'\'']*' | sed -e 's|^[^c]||' -e 's/[.,;:]*$//' || true)"
+  fi
 done <<<"$(git -c core.quotepath=off grep -I -n --no-color -E '(^|[^A-Za-z0-9_.-])cortex/' -- . ':(exclude)cortex' 2>/dev/null || true)"
 if [ -n "$refs" ]; then
   echo "These project lines name paths under cortex/, which will be gone:"

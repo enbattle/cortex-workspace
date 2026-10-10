@@ -49,7 +49,8 @@ toward the spec, not polite to it.
    Conventions section of `cortex/AGENTS.md`), or migrate the old uses as a
    change of its own. Fill
    `tasks.md`: small, ordered tasks, each with a done-check that can be run
-   or observed. Until the last task
+   or observed. No task runs the gates or review: `implement`'s last step
+   and `review` do those. Until the last task
    the locked tests still fail, so an earlier done-check names the tests it
    runs, not the whole test command. A task can't edit a file the test lock
    covers (a non-test file matching `TEST_GLOBS`, such as the test runner's
@@ -66,8 +67,10 @@ toward the spec, not polite to it.
    folder, in which case write their name marked "(written by the agent on
    <name>'s instruction)" and the date, and commit it yourself with the
    user's instruction quoted in the commit message, so the record shows who
-   wrote it and on what words. Never infer approval from anything else, and
-   never draft the line.
+   wrote it and on what words. "I approve" with nothing about who writes
+   the line approves the spec but isn't that instruction: ask whether they
+   will write it or want you to. Never infer approval from anything else,
+   and never draft the line.
 7. Once the approval line is filled in, commit the change folder (with
    `brief.md`) on the change branch, so the approved spec is in history
    before any test is written against it.

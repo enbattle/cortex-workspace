@@ -43,13 +43,6 @@ guide) first: much of what follows may already be written there, and
 cortex reads those files too, so it doesn't need a copy. Then ask, in one
 batch where you can:
 
-0. If the repository already has a development process of its own (agent
-   instruction files beyond cortex's blocks, a contributing guide, an
-   existing spec, test-lock or review workflow), which one governs
-   nontrivial changes: cortex's commands, or the project's with cortex's
-   checks alongside. Write the answer as the first line of
-   `cortex/AGENTS.md`'s Conventions section. Either way, where the
-   project's rules and cortex's differ, the stricter one applies.
 1. One sentence on what the repository is.
 2. The build, test and lint commands. Detect candidates first (`package.json`
    scripts, a `Makefile`, `pyproject.toml`, `Cargo.toml`, CI workflows) and
@@ -84,9 +77,16 @@ batch where you can:
 8. How to start the software, check it's healthy, and stop it (for
    `cortex/knowledge/verification.md`), if there is something to run. Its
    feature rows are filled in later, as changes touch each feature.
-9. Conventions: the style guide the lint command enforces, and, for an
-   existing codebase, which patterns shouldn't be copied and what replaces
-   each. Those the root `AGENTS.md` already states stay there; write only the
+9. Conventions, for `cortex/AGENTS.md`'s Conventions section. First, if the
+   repository already has a development process of its own (agent
+   instruction files beyond cortex's blocks, a contributing guide, an
+   existing spec, test-lock or review workflow), which one governs
+   nontrivial changes: cortex's commands, or the project's with cortex's
+   checks alongside; the answer is the section's first line. Either way,
+   where the project's rules and cortex's differ, the stricter one applies.
+   Then the style guide the lint command enforces, and, for an existing
+   codebase, which patterns shouldn't be copied and what replaces each.
+   Those the root `AGENTS.md` already states stay there; write only the
    rest.
 
 Then fill in, all under `cortex/`: `cortex/config` (`BUILD_CMD`, `TEST_CMD`,
