@@ -668,6 +668,63 @@ case_v3_footprint_unknown_format() {
   assert_true "nothing written" test "$(tree_snapshot "$d")" = "$before"
 }
 
+# ---- spec 3.1.0 G9 (criterion 14): a template clone without file modes ----------------
+#
+# docs/specs/2026-10-09-v3.1-pilot-followups.md, G9: installing from a clone
+# where no file is executable (as on Windows) still marks exactly the scripts
+# named by cortex/bin/*.sh minus _*.sh executable, and the filemode note
+# names them.
+
+# modes_work : this file system keeps a cleared executable bit (Windows
+# reports a #! file executable whatever its mode)
+modes_work() {
+  local f="$TEST_TMP/.modes.$$" r=0
+  printf '#!/bin/sh\n' > "$f"
+  chmod -x "$f"
+  [ ! -x "$f" ] || r=1
+  rm -f "$f"
+  return "$r"
+}
+
+case_G9_modeless_clone() {
+  local c d want f note files
+  c="$(cortex_clone)"
+  git -C "$c" config core.filemode false
+  # nothing executable: not in the clone's index, not on disk
+  git -C "$c" ls-files -s | awk '$1 == "100755" { sub(/^[^\t]*\t/, ""); print }' > "$TEST_TMP/g9.exec"
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    git -C "$c" update-index --chmod=-x -- "$f"
+  done < "$TEST_TMP/g9.exec"
+  find "$c/bin" "$c/template" -type f -exec chmod -x {} +
+  git -C "$c" commit -q -m "no file modes" || true
+  assert_true "fixture: the clone's index marks no file executable" \
+    test -z "$(git -C "$c" ls-files -s | awk '$1 == "100755"')"
+  if modes_work; then
+    assert_true "fixture: no file in the clone's template is executable" \
+      test -z "$(find "$c/template" -type f -perm -u+x)"
+  fi
+  want="$(cd "$c/template/cortex" && find bin -maxdepth 1 -type f -name '*.sh' ! -name '_*' | sed 's|^|cortex/|' | LC_ALL=C sort)"
+  assert_true "fixture: the template has scripts" test -n "$want"
+  d="$(new_git_repo)"
+  git -C "$d" config core.filemode false
+  run bash "$c/bin/install.sh" "$d"
+  assert_exit 0 "$CODE" "install from a mode-less clone exits 0"
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    assert_true "$f is executable" test -x "$d/$f"
+  done <<<"$want"
+  if modes_work; then
+    # exactly those: no other installed file is executable
+    files="$(cd "$d" && find cortex -type f -perm -u+x | LC_ALL=C sort)"
+    assert_true "exactly the scripts named by cortex/bin/*.sh minus _*.sh are executable" test "$files" = "$want"
+  fi
+  note="$(printf '%s\n' "$OUT$ERR" | grep -F -- "$FILEMODE_NOTE_AT" | sed -n 1p || true)"
+  assert_true "the filemode note is printed" test -n "$note"
+  files="$(printf '%s\n' "${note#*"$FILEMODE_NOTE_AT"}" | tr ' ' '\n' | grep . | LC_ALL=C sort || true)"
+  assert_true "the note names exactly those scripts" test "$files" = "$want"
+}
+
 run_case "no argument -> exit 2" case_no_argument
 run_case "missing target dir -> exit 2" case_missing_dir
 run_case "non-git dir -> exit 2" case_non_git_dir
@@ -696,4 +753,5 @@ run_case "criterion 32: unknown footprint format refused by install" case_v3_foo
 run_case "F1: template/blocks/AGENTS.md in CommonMark normal form" case_v3_template_block_normal_form
 run_case "F1: CODEOWNERS blocks are not framed; markdown blocks are" case_v3_codeowners_unframed
 run_case "F3: cortex/AGENTS.md: the stricter rule applies" case_v3_router_stricter_rule
+run_case "G9 criterion 14: install from a clone without file modes" case_G9_modeless_clone
 summary

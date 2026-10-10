@@ -16,8 +16,16 @@ set -euo pipefail
 BASE="origin/main"
 
 # lock_folder DIR FOLDER : commit everything as T, then FOLDER/lock.md naming
-# T (locking tests/b.test.sh) as its own commit L
-lock_folder() { lock_tests "$1" "$2" tests/b.test.sh; }
+# T (locking tests/b.test.sh) as its own commit L. FOLDER gets a tasks.md
+# with every task ticked first, unless it has one: spec 3.1.0 G3's tasks gate
+# fails a change folder without it (was: no tasks.md written)
+lock_folder() {
+  if [ ! -f "$1/$2/tasks.md" ]; then
+    mkdir -p "$1/$2"
+    printf '# Tasks: %s\n\n- [x] the change -- done when: its test passes\n' "${2##*/}" > "$1/$2/tasks.md"
+  fi
+  lock_tests "$1" "$2" tests/b.test.sh
+}
 
 # base_only -> filled install committed as the base (origin/main), checked out
 # on branch "feature" at the same commit; nothing locked yet
@@ -1033,6 +1041,38 @@ ci-gates: FAIL cortex/changes/x
 ci-gates: 1 failed" "the folder fails, nothing else"
 }
 
+# ---- spec 3.1.0 G3, criterion 10: an open task fails CI ------------------------------
+
+case_G3_open_task_fails_ci() {
+  # a pull request whose locked change folder has an open task fails; once
+  # the task is ticked (and committed) it passes
+  local d; d="$(base_only)"
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  mkdir -p "$d/cortex/changes/x"
+  printf '# Tasks: x\n\n- [x] zz-done\n- [ ] zz-still-open -- done when: it runs\n\n## Manual verification\n' \
+    > "$d/cortex/changes/x/tasks.md"
+  lock_folder "$d" cortex/changes/x
+  ci_gates "$d" "$BASE"
+  assert_exit 1 "$CODE" "an open task in the locked change folder -> exit 1"
+  expect_ci_lines "ci-gates: using scripts from $BASE
+ci-gates: check ok
+ci-gates: FAIL cortex/changes/x
+ci-gates: 1 failed" "the folder fails, nothing else"
+  assert_line "$OUT" "gate tasks: FAIL (exit 1)" "the base gates.sh's tasks gate fails"
+  assert_contains "$OUT" "zz-still-open" "the open task is named"
+  assert_line "$OUT" "gate tests-locked: ok" "the lock itself is fine"
+  printf '# Tasks: x\n\n- [x] zz-done\n- [x] zz-still-open -- done when: it runs\n\n## Manual verification\n' \
+    > "$d/cortex/changes/x/tasks.md"
+  commit_all "$d" "tick the last task"
+  ci_gates "$d" "$BASE"
+  assert_exit 0 "$CODE" "every task ticked -> exit 0"
+  expect_ci_lines "ci-gates: using scripts from $BASE
+ci-gates: check ok
+ci-gates: cortex/changes/x ok
+ci-gates: ok" "the folder passes once the task is ticked"
+  assert_line "$OUT" "gate tasks: ok" "the tasks gate passes"
+}
+
 run_case "ci-gates.sh shipped and installed executable" case_installed
 run_case "AC25 no argument -> exit 2" case_usage_no_argument
 run_case "AC25 unresolvable ref -> exit 2" case_usage_bad_ref
@@ -1076,4 +1116,5 @@ run_case "AC65 base merged into a locked branch, no re-lock -> FAIL" case_base_m
 run_case "AC66 base merged, then a signed re-lock -> ok" case_base_merged_and_relocked
 run_case "AC35 a branch's stub _config.sh: the base's parser is used" case_AC35_branch_stub_parser
 run_case "AC62 a merged side branch weakening a locked test fails" case_AC62_side_branch_weakens_locked_test
+run_case "G3 criterion 10: an open task fails CI until ticked" case_G3_open_task_fails_ci
 summary

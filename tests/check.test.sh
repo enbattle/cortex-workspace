@@ -1014,6 +1014,49 @@ case_C14_outside_cortex() {
   assert_not_contains "$OUT" "[C14]" "no C14 outside cortex/"
 }
 
+# ---- spec 3.1.0 G1 (criterion 2): C13 and the four forms -------------------------
+#
+# docs/specs/2026-10-09-v3.1-pilot-followups.md, G1: with the entry
+# `entry .prettierignore cortex/` recorded, C13 passes when some line, without
+# a carriage return and surrounding spaces and tabs, is exactly cortex,
+# /cortex, cortex/ or /cortex/, and fails when none is.
+
+# g1_entry_install -> a filled install whose .prettierignore entry adapt.sh recorded
+g1_entry_install() {
+  local d
+  d="$(filled_install)" || return 1
+  printf 'node_modules/\n' > "$d/.prettierignore"
+  adapt_quiet "$d" || { fail "g1_entry_install: adapt.sh failed"; return 1; }
+  printf '%s\n' "$d"
+}
+
+case_G1_C13_forms_pass() {
+  local d form v n
+  d="$(g1_entry_install)" || return 0
+  planted "the .prettierignore entry is recorded" has_record "$d" entry .prettierignore "cortex/" || return 0
+  for form in cortex /cortex cortex/ /cortex/; do
+    n=0
+    for v in 'node_modules/\n%s\n' 'node_modules/\r\n%s\r\n' 'node_modules/\n  %s \t\n' 'node_modules/\n\t%s\n'; do
+      n=$((n + 1))
+      # shellcheck disable=SC2059 # the variant is the format
+      printf "$v" "$form" > "$d/.prettierignore"
+      check_in "$d"
+      assert_exit 0 "$CODE" "'$form' variant $n: check passes"
+      assert_not_contains "$OUT" "[C13]" "'$form' variant $n: no C13"
+    done
+  done
+}
+
+case_G1_C13_no_form_fails() {
+  local d v
+  d="$(g1_entry_install)" || return 0
+  planted "the .prettierignore entry is recorded" has_record "$d" entry .prettierignore "cortex/" || return 0
+  for v in 'node_modules/\nsrc/cortex/x\n' 'node_modules/\ncortex/x\n' 'node_modules/\n# cortex/\n' 'node_modules/\n'; do
+    printf '%b' "$v" > "$d/.prettierignore"
+    expect_fail_ids "$d" "C13" "C13|.prettierignore"
+  done
+}
+
 run_case "token absent from template" case_token_absent_from_template
 run_case "AC4 baseline check: ok" case_baseline_ok
 run_case "repo-root argument" case_root_argument
@@ -1092,4 +1135,6 @@ run_case "criterion 41: no C14 outside cortex/" case_C14_outside_cortex
 run_case "F1: C3 a root block padded with blank lines ok" case_C3_root_block_blank_lines_ok
 run_case "F1: C3 16 non-blank root block lines" case_C3_root_block_16_nonblank
 run_case "F2: C13 the .prettierignore entry until merged" case_C13_prettierignore_entry
+run_case "G1 criterion 2: C13 passes for each form of the line" case_G1_C13_forms_pass
+run_case "G1 criterion 2: C13 fails without a form, src/cortex/x included" case_G1_C13_no_form_fails
 summary

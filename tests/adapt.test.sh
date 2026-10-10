@@ -548,6 +548,52 @@ case_F4_test_globs_all_match() {
   assert_not_contains "$OUT$ERR" "note: TEST_GLOBS" "no note when every glob matches (F4)"
 }
 
+# ---- spec 3.1.0 G1 (criterion 1): one rule for "already ignores cortex" -------------
+#
+# docs/specs/2026-10-09-v3.1-pilot-followups.md, G1: a .prettierignore line
+# ignores cortex when, without a carriage return and surrounding spaces and
+# tabs, it is exactly cortex, /cortex, cortex/ or /cortex/.
+
+# g1_variants FORM -> one .prettierignore per line of output, \n-escaped for
+# printf %b: FORM plain, with CRLF line endings, and with spaces and tabs
+# around it
+g1_variants() {
+  printf '%s\n' 'node_modules/\n'"$1"'\n' 'node_modules/\r\n'"$1"'\r\n' \
+    'node_modules/\n  '"$1"' \t\n' 'node_modules/\n\t'"$1"'\n'
+}
+
+g1_already_ignored() { # FORM
+  local d v n=0
+  while IFS= read -r v; do
+    [ -n "$v" ] || continue
+    n=$((n + 1))
+    d="$(tools_install claude)"
+    printf '%b' "$v" > "$d/.prettierignore"
+    adapt "$d"
+    assert_exit 0 "$CODE" "'$1' variant $n: adapt exits 0"
+    assert_not_contains "$OUT" "merge this line into .prettierignore" "'$1' variant $n: no merge line"
+    assert_not_contains "$OUT" ".prettierignore" "'$1' variant $n: nothing printed for .prettierignore"
+    assert_true "'$1' variant $n: nothing recorded" test "$(entry_count "$d" .prettierignore)" = 0
+  done <<<"$(g1_variants "$1")"
+  assert_true "fixture: four variants of '$1' tried" test "$n" = 4
+}
+
+case_G1_form_cortex() { g1_already_ignored cortex; }
+case_G1_form_slash_cortex() { g1_already_ignored /cortex; }
+case_G1_form_cortex_slash() { g1_already_ignored cortex/; }
+case_G1_form_slash_cortex_slash() { g1_already_ignored /cortex/; }
+
+case_G1_other_path_asks() {
+  # a line naming a path under some other directory's cortex/ doesn't count
+  local d; d="$(tools_install claude)"
+  printf 'node_modules/\nsrc/cortex/x\n' > "$d/.prettierignore"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0"
+  assert_line "$OUT" "merge this line into .prettierignore:" "src/cortex/x: the merge line is printed"
+  assert_line "$OUT" "entry .prettierignore cortex/" "src/cortex/x: the entry line is printed"
+  assert_true "src/cortex/x: the entry is recorded" has_record "$d" entry .prettierignore "cortex/"
+}
+
 run_case "missing cortex/config -> exit 2" case_missing_config
 run_case "AC11 TOOLS placeholder warns, writes nothing" case_tools_placeholder
 run_case "AC11 TOOLS empty warns, writes nothing" case_tools_empty
@@ -583,4 +629,9 @@ run_case "F2: .prettierignore with the line: nothing printed or recorded" case_F
 run_case "F2: no .prettierignore: nothing printed or recorded" case_F2_no_prettierignore
 run_case "F4: a note per TEST_GLOBS glob matching no tracked file" case_F4_test_globs_note
 run_case "F4: no TEST_GLOBS note when every glob matches" case_F4_test_globs_all_match
+run_case "G1 criterion 1: .prettierignore with cortex (four variants)" case_G1_form_cortex
+run_case "G1 criterion 1: .prettierignore with /cortex (four variants)" case_G1_form_slash_cortex
+run_case "G1 criterion 1: .prettierignore with cortex/ (four variants)" case_G1_form_cortex_slash
+run_case "G1 criterion 1: .prettierignore with /cortex/ (four variants)" case_G1_form_slash_cortex_slash
+run_case "G1 criterion 1: .prettierignore with src/cortex/x asks" case_G1_other_path_asks
 summary

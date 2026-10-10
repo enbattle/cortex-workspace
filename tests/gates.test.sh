@@ -1,11 +1,18 @@
 #!/usr/bin/env bash
 # Tests for cortex/bin/gates.sh (spec Amendment 1, A4, and Amendment 2,
-# B2/B3; acceptance criteria 12 and 17). gates.sh runs tests-locked, BUILD_CMD,
-# TEST_CMD, LINT_CMD and check.sh, every one of them even after a failure.
+# B2/B3; acceptance criteria 12 and 17). gates.sh runs tests-locked, tasks,
+# BUILD_CMD, TEST_CMD, LINT_CMD and check.sh, every one of them even after a
+# failure. The tasks gate is spec 3.1.0's G3
+# (docs/specs/2026-10-09-v3.1-pilot-followups.md, criteria 8 and 9).
 set -euo pipefail
 . "$(cd "$(dirname "$0")" && pwd)/lib.sh"
 
-GATE_NAMES="tests-locked build test lint check"
+# spec 3.1.0 G3, criterion 9: the tasks gate runs after tests-locked, before
+# build (was: "tests-locked build test lint check")
+GATE_NAMES="tests-locked tasks build test lint check"
+
+# A tasks.md whose every task is ticked: the tasks gate passes on it (G3)
+TICKED_TASKS='# Tasks: x\n\n- [x] the change -- done when: its test passes\n'
 
 # gated_repo [KEY=VALUE...] -> a filled install (check: ok; BUILD/TEST/LINT_CMD
 # =true, TEST_GLOBS=*.test.sh) with tests/a.test.sh locked in the Amendment 2
@@ -26,13 +33,19 @@ gated_repo() {
   printf '%s\n' "$d"
 }
 
-# lock_a DIR : add tests/a.test.sh and src/app.txt, and lock cortex/changes/x on them
+# lock_a DIR : add tests/a.test.sh, src/app.txt and cortex/changes/x/tasks.md
+# (every task ticked: spec 3.1.0 G3 fails a missing tasks.md), and lock
+# cortex/changes/x on them
 lock_a() {
-  mkdir -p "$1/tests" "$1/src"
+  mkdir -p "$1/tests" "$1/src" "$1/cortex/changes/x"
   printf 'echo a\n' > "$1/tests/a.test.sh"
   printf 'app\n' > "$1/src/app.txt"
+  printf '%b' "$TICKED_TASKS" > "$1/cortex/changes/x/tasks.md"
   lock_tests "$1" cortex/changes/x tests/a.test.sh
 }
+
+# write_tasks DIR TEXT : cortex/changes/x/tasks.md is TEXT (printf %b)
+write_tasks() { printf '%b' "$2" > "$1/cortex/changes/x/tasks.md"; }
 
 gates() { # dir [change-folder...] -> run installed gates.sh from the repo root
   local d="$1"; shift
@@ -42,7 +55,8 @@ gates() { # dir [change-folder...] -> run installed gates.sh from the repo root
 # line number of the first exact line, or empty
 line_no() { grep -nxF -- "$2" <<<"$1" | sed -n '1s/:.*//p' || true; }
 
-# expect_order OUT : the five gate lines appear, each once, in the spec order
+# expect_order OUT : the six gate lines appear, each once, in the spec order
+# (spec 3.1.0 G3: was five, without tasks)
 expect_order() {
   local prev=0 n g ln
   for g in $GATE_NAMES; do
@@ -260,6 +274,137 @@ case_AC34_stub_parser() {
   done
 }
 
+# ---- spec 3.1.0 G3 (criteria 8 and 9): the tasks gate -----------------------------
+
+TASKS_FAIL="gate tasks: FAIL (exit 1)"
+
+# names_open_task LINE-NO TEXT msg : a line of OUT above the tasks gate's
+# FAIL line holds TEXT and LINE-NO (as a number of its own)
+names_open_task() {
+  local n="$1" t="$2" f hit=""
+  f="$(line_no "$OUT" "$TASKS_FAIL")"
+  if [ -n "$f" ] && [ "$f" -gt 1 ]; then
+    hit="$(head -n "$((f - 1))" <<<"$OUT" | grep -F -- "$t" | grep -E "(^|[^0-9])$n([^0-9]|\$)" || true)"
+  fi
+  if [ -n "$hit" ]; then pass; else fail "$3 (no line naming line $n and '$t' above '$TASKS_FAIL')"; show_output; fi
+}
+
+# expect_only_tasks_fails : the tasks gate fails, every other gate runs and
+# passes, in order, and one failure is counted
+expect_only_tasks_fails() {
+  local g
+  assert_exit 1 "$CODE" "an open task -> exit 1"
+  assert_line "$OUT" "$TASKS_FAIL" "the tasks gate fails"
+  for g in tests-locked build test lint check; do
+    assert_line "$OUT" "gate $g: ok" "gate $g still runs and passes"
+  done
+  expect_order "$OUT"
+  assert_line "$OUT" "gates: 1 failed" "one failure counted"
+  assert_not_contains "$OUT" "gates: ok" "does not claim ok"
+}
+
+# expect_tasks_ok : the tasks gate and every other gate pass
+expect_tasks_ok() {
+  assert_exit 0 "$CODE" "$1: exit 0"
+  assert_line "$OUT" "gate tasks: ok" "$1: gate tasks: ok"
+  assert_line "$OUT" "gates: ok" "$1: gates: ok"
+  expect_order "$OUT"
+}
+
+case_G3_open_dash_task_fails() {
+  local d; d="$(gated_repo)"
+  write_tasks "$d" '# Tasks: x\n\n- [x] zz-done-one\n- [ ] zz-open-dash -- done when: it runs\n\n## Manual verification\n'
+  gates "$d" cortex/changes/x
+  expect_only_tasks_fails
+  names_open_task 4 "zz-open-dash" "the open '- [ ]' task is named with its line number"
+  assert_not_contains "$OUT" "zz-done-one" "a ticked task is not listed"
+}
+
+case_G3_open_star_task_fails() {
+  local d; d="$(gated_repo)"
+  write_tasks "$d" '# Tasks: x\n\n* [ ] zz-open-star\n'
+  gates "$d" cortex/changes/x
+  expect_only_tasks_fails
+  names_open_task 3 "zz-open-star" "the open '* [ ]' task is named with its line number"
+}
+
+case_G3_open_indented_task_fails() {
+  local d; d="$(gated_repo)"
+  write_tasks "$d" '# Tasks: x\n\n- [x] zz-parent\n    - [ ] zz-open-indented\n'
+  gates "$d" cortex/changes/x
+  expect_only_tasks_fails
+  names_open_task 4 "zz-open-indented" "the indented open task is named with its line number"
+}
+
+case_G3_every_open_task_listed() {
+  local d; d="$(gated_repo)"
+  write_tasks "$d" '# Tasks: x\n\n- [ ] zz-open-a\n- [x] zz-done\n* [ ] zz-open-b\n  - [ ] zz-open-c\n\t* [ ] zz-open-d\n\n## Gate output\n\n- [ ] zz-later\n'
+  gates "$d" cortex/changes/x
+  expect_only_tasks_fails
+  names_open_task 3 "zz-open-a" "first open task listed"
+  names_open_task 5 "zz-open-b" "second open task listed"
+  names_open_task 6 "zz-open-c" "third open task listed"
+  names_open_task 7 "zz-open-d" "a tab-indented open task listed"
+  assert_not_contains "$OUT" "zz-later" "a task under a later heading is not listed"
+}
+
+case_G3_missing_tasks_fails() {
+  local d; d="$(gated_repo)"
+  rm "$d/cortex/changes/x/tasks.md"
+  gates "$d" cortex/changes/x
+  expect_only_tasks_fails
+}
+
+case_G3_ticked_tasks_pass() {
+  local d; d="$(gated_repo)"
+  write_tasks "$d" '# Tasks: x\n\n- [x] zz-lower\n- [X] zz-upper\n  * [x] zz-star-indented\n'
+  gates "$d" cortex/changes/x
+  expect_tasks_ok "ticked with x and X"
+  assert_not_contains "$OUT" "zz-" "no task listed"
+}
+
+case_G3_open_under_later_heading_passes() {
+  local d; d="$(gated_repo)"
+  write_tasks "$d" '# Tasks: x\n\n- [x] zz-done\n\n## Manual verification\n\n- [ ] zz-manual\n\n## Gate output\n\n* [ ] zz-gate\n'
+  gates "$d" cortex/changes/x
+  expect_tasks_ok "open tasks only under later headings"
+  assert_not_contains "$OUT" "zz-manual" "a manual-verification task is not listed"
+}
+
+case_G3_other_gates_still_run() {
+  # criterion 8: every other gate still runs; gates: N failed counts both
+  local d; d="$(gated_repo "TEST_CMD=false")"
+  write_tasks "$d" '# Tasks: x\n\n- [ ] zz-open\n'
+  gates "$d" cortex/changes/x
+  assert_exit 1 "$CODE" "two failing gates -> exit 1"
+  assert_line "$OUT" "gate tests-locked: ok" "tests-locked runs"
+  assert_line "$OUT" "$TASKS_FAIL" "tasks fails"
+  assert_line "$OUT" "gate build: ok" "build runs after the tasks gate fails"
+  assert_line "$OUT" "gate test: FAIL (exit 1)" "test fails"
+  assert_line "$OUT" "gate lint: ok" "lint runs"
+  assert_line "$OUT" "gate check: ok" "check runs"
+  expect_order "$OUT"
+  assert_line "$OUT" "gates: 2 failed" "both failures counted"
+}
+
+case_G3_gate_order() {
+  # criterion 9: tests-locked, tasks, build, test, lint, check, every one
+  # reported once, whether they pass or fail
+  local d; d="$(gated_repo "BUILD_CMD=false" "LINT_CMD=false")"
+  rm "$d/cortex/changes/x/tasks.md"
+  printf 'echo weakened\n' > "$d/tests/a.test.sh"
+  gates "$d" cortex/changes/x
+  assert_exit 1 "$CODE" "failing gates -> exit 1"
+  assert_line "$OUT" "gate tests-locked: FAIL (exit 1)" "tests-locked fails"
+  assert_line "$OUT" "$TASKS_FAIL" "tasks fails"
+  assert_line "$OUT" "gate build: FAIL (exit 1)" "build fails"
+  assert_line "$OUT" "gate lint: FAIL (exit 1)" "lint fails"
+  expect_order "$OUT"
+  assert_true "the gate lines are exactly tests-locked, tasks, build, test, lint, check" \
+    test "$(grep -E '^gate [a-z-]+: ' <<<"$OUT" | sed 's/^gate \([a-z-]*\):.*/\1/' | tr '\n' ' ')" = "tests-locked tasks build test lint check "
+  assert_line "$OUT" "gates: 4 failed" "four failures counted"
+}
+
 run_case "gates.sh shipped and installed executable" case_installed_executable
 run_case "usage error -> exit 2" case_usage_error
 run_case "all gates pass -> gates: ok" case_all_pass
@@ -280,4 +425,13 @@ run_case "AC32 BUILD_CMD after a commented-out line" case_AC32_comment
 run_case "AC32 BUILD_CMD after a line without =" case_AC32_no_equals
 run_case "AC32 BUILD_CMD twice: the first wins" case_AC32_twice
 run_case "AC34 a stub _config.sh changes what gates.sh reads" case_AC34_stub_parser
+run_case "G3 criterion 8: an open - [ ] task fails the tasks gate" case_G3_open_dash_task_fails
+run_case "G3 criterion 8: an open * [ ] task fails the tasks gate" case_G3_open_star_task_fails
+run_case "G3 criterion 8: an indented open task fails the tasks gate" case_G3_open_indented_task_fails
+run_case "G3 criterion 8: every open task is listed" case_G3_every_open_task_listed
+run_case "G3 criterion 8: a missing tasks.md fails the tasks gate" case_G3_missing_tasks_fails
+run_case "G3 criterion 8: tasks ticked with x and X pass" case_G3_ticked_tasks_pass
+run_case "G3 criterion 8: open tasks under a later heading pass" case_G3_open_under_later_heading_passes
+run_case "G3 criterion 8: every other gate still runs" case_G3_other_gates_still_run
+run_case "G3 criterion 9: the gate order" case_G3_gate_order
 summary
