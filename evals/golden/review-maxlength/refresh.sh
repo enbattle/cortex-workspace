@@ -6,7 +6,8 @@
 # filled in when the fixture was built), .claude/ (adapt.sh's copies of the
 # Claude Code adapter), cortex/design-rules.md, cortex/version's first line,
 # the root AGENTS.md's agents block, and cortex/footprint's shas. It remaps
-# lock.md's Tests-locked-at to the rewritten test commit. Source, tests,
+# lock.md's Tests-locked-at to the rewritten test commit, and a passing gate
+# output recorded in tasks.md to the gates gates.sh runs now. Source, tests,
 # planted content, messages, authors and dates stay as they are.
 #
 # The bundle is replaced only if gates.sh prints "gates: ok" at each of the
@@ -78,6 +79,17 @@ if [ -f cortex/harness/commands/review.md ]; then
     [ -n "$f" ] && fp_add created "$f" "$(file_sha "$f")"
   done <<<"$(find .claude -type f | LC_ALL=C sort)"
   fp_save
+fi
+# A passing gate output recorded in tasks.md lists the gates gates.sh runs
+# now, in its order (N5), so the record matches what review re-runs.
+tasks=cortex/changes/20260924-slugify-maxlength/tasks.md
+if [ -f "$tasks" ] && grep -qx 'gates: ok' "$tasks"; then
+  GATE_LINES="$(sed -n -E 's/^(config_)?gate ([a-z-]+) .*/gate \2: ok/p' "$CORTEX/template/cortex/bin/gates.sh")" awk '
+    /^## Gate output/ { sec = 1 }
+    sec && !inb && /^```/ { print; print ENVIRON["GATE_LINES"]; inb = 1; next }
+    inb && $0 == "gates: ok" { print; inb = 0; sec = 0; next }
+    inb { next }
+    { print }' "$tasks" > "$tasks.tmp" && mv "$tasks.tmp" "$tasks"
 fi
 lock=cortex/changes/20260924-slugify-maxlength/lock.md
 if [ -f "$lock" ]; then

@@ -138,6 +138,24 @@ prettierignore_has() {
   [ -f "$1" ] && tr -d '\r' < "$1" | grep -qxE -- "$PRETTIERIGNORE_LINE"
 }
 
+# entry_rule FIELD -> an entry record's quoted rule ("Bash(git add *)"), or
+# nothing if the field has none (.prettierignore's cortex/)
+entry_rule() { printf '%s\n' "$1" | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p'; }
+
+# entry_present PATH FIELD TEXT : TEXT (a file's content, or one of its
+# lines) has the entry recorded for PATH with FIELD: for .prettierignore a
+# PRETTIERIGNORE_LINE (G1), for any other file the field's quoted rule (B6).
+# The one rule C13 and remove.sh's references step share (N1).
+entry_present() {
+  local rule
+  if [ "$1" = .prettierignore ]; then
+    printf '%s\n' "$3" | tr -d '\r' | grep -qxE -- "$PRETTIERIGNORE_LINE"
+    return
+  fi
+  rule="$(entry_rule "$2")"
+  [ -n "$rule" ] && grep -qF -- "$rule" <<<"$3"
+}
+
 # fp_add_block PATH ID SEP : (re)record PATH's ID block as it is now
 fp_add_block() {
   fp_drop block "$1" "$2"

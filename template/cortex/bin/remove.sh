@@ -122,20 +122,12 @@ while IFS= read -r m; do
       l ~ /^(<!-- |# )cortex:end / { inb = 0 }' "$path")"
     [ "$inside" = 1 ] && continue
   fi
-  # a recorded entry line? (.prettierignore's in any of its forms, G1; any
-  # other file's by its quoted rule, B6)
+  # a recorded entry line? (entry_present: the rule C13 uses)
   skip=0
-  if [ -n "$(fp_match entry "$path")" ]; then
-    if [ "$path" = .prettierignore ]; then
-      grep -qxE -- "$PRETTIERIGNORE_LINE" <<<"$text" && skip=1
-    else
-      while IFS= read -r rec; do
-        [ -n "$rec" ] || continue
-        rule="$(printf '%s\n' "$rec" | cut -f3 | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p')"
-        if [ -n "$rule" ] && grep -qF -- "$rule" <<<"$text"; then skip=1; break; fi
-      done <<<"$(fp_match entry "$path")"
-    fi
-  fi
+  while IFS= read -r rec; do
+    [ -n "$rec" ] || continue
+    if entry_present "$path" "$(printf '%s\n' "$rec" | cut -f3)" "$text"; then skip=1; break; fi
+  done <<<"$(fp_match entry "$path")"
   [ "$skip" = 1 ] && continue
   refs="${refs}reference $path:$line: $text"$'\n'
   # where a path the records step keeps will be (G7): not one under another
