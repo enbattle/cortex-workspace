@@ -250,7 +250,6 @@ trap 'rm -rf "$work"' EXIT
 replaced=0
 merged=0
 conflicts=0
-placeholder_kept=0   # set by merge3 (G2)
 scripts=()
 exec_list="$(executables)"
 

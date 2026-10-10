@@ -218,12 +218,9 @@ else
           report C13 "$path" "has $n cortex $f3 blocks; keep one"
         fi ;;
       entry)
-        rule="$(printf '%s\n' "$f3" | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p')"
-        [ -n "$rule" ] || rule="$f3"
-        if [ "$path" = .prettierignore ]; then
-          prettierignore_has "$path" || report C13 "$path" "lacks the recorded entry $rule (merge it as adapt.sh printed)"
-        elif [ ! -f "$path" ] || ! grep -qF -- "$rule" "$path"; then
-          report C13 "$path" "lacks the recorded entry $rule (merge it as adapt.sh printed)"
+        if [ ! -f "$path" ] || ! entry_present "$path" "$f3" "$(cat "$path")"; then
+          rule="$(entry_rule "$f3")"
+          report C13 "$path" "lacks the recorded entry ${rule:-$f3} (merge it as adapt.sh printed)"
         fi ;;
       *) report C13 "$FP_FILE" "unknown record kind '$kind'" ;;
     esac

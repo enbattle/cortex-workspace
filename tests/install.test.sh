@@ -219,7 +219,11 @@ tree_files() {
 
 case_2x_install_refused() {
   # was "AC19 version mismatch": a 2.x install (.cortex/version) is refused
-  # (install step 0; no migration from 2.x, Non-goals)
+  # (install step 0; no migration from 2.x, Non-goals). N4 (spec
+  # 2026-10-10-open-nominations) merged case_2x_same_version_refused in: the
+  # second input is a 2.x install naming this version (was "matching version
+  # accepted"); its refusal-message assertions duplicated the first input's
+  # and were dropped.
   local d before
   d="$(new_git_repo)"
   mkdir -p "$d/.cortex"
@@ -238,6 +242,16 @@ case_2x_install_refused() {
   assert_file_absent "$d/AGENTS.md" "no AGENTS.md created"
   assert_true ".cortex/version left as-is" test "$(cat "$d/.cortex/version")" = "0.0.1"
   assert_not_contains "$OUT" "created " "no created lines"
+
+  # the same refusal when .cortex/version names this version
+  d="$(new_git_repo)"
+  mkdir -p "$d/.cortex"
+  cp "$ROOT/VERSION" "$d/.cortex/version"
+  run "$INSTALL" "$d"
+  # install step 0: exit 2 (was: exit 0)
+  assert_exit 2 "$CODE" "a 2.x install at this version is refused"
+  # install step 0: nothing installed (was: the template installed)
+  assert_file_absent "$d/cortex" "nothing installed at this version"
 }
 
 case_newer_installed_refused() {
@@ -260,25 +274,6 @@ case_newer_installed_refused() {
   assert_contains "$OUT$ERR" "$(this_version)" "names the clone's version too (A1)"
   assert_true "nothing copied" test "$(tree_files "$d")" = "$before"
   assert_file_absent "$d/cortex/AGENTS.md" "removed file not restored"
-}
-
-case_2x_same_version_refused() {
-  # was "matching version accepted": a 2.x .cortex/version is refused even
-  # when it names this version (install step 0, no migration from 2.x)
-  local d
-  d="$(new_git_repo)"
-  mkdir -p "$d/.cortex"
-  cp "$ROOT/VERSION" "$d/.cortex/version"
-  run "$INSTALL" "$d"
-  # install step 0: exit 2 (was: exit 0)
-  assert_exit 2 "$CODE" "a 2.x install at this version is refused"
-  # install step 0: names .cortex/version (was: "unchanged .cortex/version")
-  # A1: a refusal is the output line "refused <cause>: <reason>", on either
-  # stream (was: assert_contains "$ERR", stderr only)
-  assert_contains "$OUT$ERR" ".cortex/version" "the refusal names .cortex/version"
-  assert_true "A1: a refused .cortex/version line" has_line_starting "$OUT$ERR" "refused "
-  # install step 0: nothing installed (was: the template installed)
-  assert_file_absent "$d/cortex" "nothing installed"
 }
 
 case_non_root_target_refused() {
@@ -735,9 +730,8 @@ run_case "never deletes or modifies user files" case_never_deletes
 run_case "design rules come from docs/, not template/ (A5)" case_design_rules_not_in_template
 run_case "cortex/ that is not an install is refused (D1)" case_existing_cortex_dir_refused
 run_case "design rules idempotent (AC13)" case_design_rules_idempotent
-run_case "2.x install refused: exit 2, nothing copied (install step 0)" case_2x_install_refused
+run_case "2.x install refused, at another version or this one: exit 2, nothing copied (install step 0)" case_2x_install_refused
 run_case "newer installed version refused (install step 4)" case_newer_installed_refused
-run_case "2.x install at this version still refused (install step 0)" case_2x_same_version_refused
 run_case "AC19 non-root target: exit 2, nothing copied" case_non_root_target_refused
 run_case "AC19 filemode note when core.filemode=false" case_filemode_false_note
 run_case "no filemode note when core.filemode=true" case_filemode_true_no_note
