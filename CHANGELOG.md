@@ -2,7 +2,7 @@
 
 ## 3.1.0 — unreleased
 
-**Before release:** the golden cycle twice (review.md changed); the
+**Before release:** the golden cycle (review.md changed); the
 completeness audit and its findings; the full suites and CI on Linux, macOS
 and Windows; the fixture refreshed; a date here, and the tag.
 
