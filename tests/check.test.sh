@@ -100,40 +100,76 @@ case_root_argument() {
 
 # ---- AC5: one plant per check -------------------------------------------------
 
-case_C1() {
-  # D9: C1 is retired; a harness file naming the project passes (was:
-  # expect_violation C1)
-  local d r; d="$(prepared_install)"; baseline_ok "$d"
+# 3.0.0 spec criterion 34: C1 is retired (D9) and PROJECT_NAME is neither
+# required nor read (D16). One case for the inputs the five C1 cases used to
+# cover (N3, spec 2026-10-10-open-nominations): no project name, a harness
+# file naming the project, a leftover PROJECT_NAME, an empty PROJECT_NAME,
+# and the whole-word variants (AC18). Each passes with no [C1] line. The
+# guard on why SUBWORD_NAME is not "Cortex" (a sixth case) is folded in too.
+
+# A project name that appears in the installed cortex/harness only inside other words.
+# "Cortex" is not usable: grep -w treats / and . as word boundaries, so
+# "cortex" occurs as a whole word in paths like cortex/bin/gates.sh and
+# cortex/design-rules.md throughout cortex/harness/. "View" occurs only inside
+# "review", "preview" etc. The guard below re-verifies this against the
+# actual template so the case can't pass vacuously.
+SUBWORD_NAME="View"
+
+# passes_without_C1 DIR MSG : check.sh in DIR exits 0, prints check: ok, and
+# no [C1] line (one assertion)
+passes_without_C1() {
+  check_in "$1"
+  if [ "$CODE" = 0 ] && grep -qxF "check: ok" <<<"$OUT" && ! grep -qF "[C1]" <<<"$ALL"; then
+    pass
+  else
+    fail "$2 (expected exit 0, check: ok and no [C1]; got exit $CODE)"; show_output
+  fi
+}
+
+case_C1_retired() {
+  local d r
+  # no project name configured (AC18); the fixture guards on SUBWORD_NAME
+  d="$(filled_install)"
+  if grep -riqF "$SUBWORD_NAME" "$d/cortex/harness" && ! grep -riqw "$SUBWORD_NAME" "$d/cortex/harness"; then
+    pass
+  else
+    fail "fixture: '$SUBWORD_NAME' must appear in cortex/harness/ only inside other words; pick another name"
+    return 0
+  fi
+  assert_true "'cortex' is a whole word under cortex/harness/ (paths like cortex/bin/), so it is not SUBWORD_NAME" \
+    grep -riqw "cortex" "$d/cortex/harness"
+  passes_without_C1 "$d" "a filled install with no project name"
+
+  # a harness file naming the project (was: expect_violation C1)
+  d="$(prepared_install)"; baseline_ok "$d"
   r="$(a_command "$d")"
   append "$d/$r" "Notes for $TOKEN."
   planted "token in $r" grep -qF "$TOKEN" "$d/$r"
-  check_in "$d"
-  assert_exit 0 "$CODE" "a harness file naming the project passes (D9)"
-  assert_not_contains "$OUT" "[C1]" "no C1 (D9: retired)"
-}
+  passes_without_C1 "$d" "a harness file naming the project"
 
-case_C1_case_insensitive() {
-  # D9/D16: a leftover PROJECT_NAME line is not read (was: the mixed-case
-  # name fired C1)
-  local d r; d="$(prepared_install)"; baseline_ok "$d"
+  # a leftover PROJECT_NAME line, the name in mixed case (was: C1 fired)
+  d="$(prepared_install)"; baseline_ok "$d"
   set_config "$d/cortex/config" PROJECT_NAME "$TOKEN"
   r="$(a_command "$d")"
   append "$d/$r" "Notes for zQXPROJ."
   planted "mixed-case token in $r" grep -qF "zQXPROJ" "$d/$r"
-  check_in "$d"
-  assert_exit 0 "$CODE" "a PROJECT_NAME line is not read, the name passes (D9, D16)"
-  assert_not_contains "$OUT" "[C1]" "no C1 for a leftover PROJECT_NAME (D9)"
-}
+  passes_without_C1 "$d" "a leftover PROJECT_NAME line is not read"
 
-case_C1_unset_project_name() {
-  local d r; d="$(prepared_install)"; baseline_ok "$d"
+  # an empty PROJECT_NAME (was: reported as C11)
+  d="$(prepared_install)"; baseline_ok "$d"
   set_config "$d/cortex/config" PROJECT_NAME ""
   r="$(a_command "$d")"
   append "$d/$r" "Notes for $TOKEN."
-  check_in "$d"
-  assert_not_contains "$OUT" "[C1]" "empty PROJECT_NAME: no C1"
-  # D16: PROJECT_NAME is neither required nor read (was: reported as C11)
-  assert_not_contains "$OUT" "PROJECT_NAME is not set" "empty PROJECT_NAME is not a C11 failure (D16)"
+  passes_without_C1 "$d" "an empty PROJECT_NAME"
+  assert_not_contains "$OUT" "PROJECT_NAME is not set" "an empty PROJECT_NAME is not a C11 failure (D16)"
+
+  # a whole-word project name (AC18; was: exit 1 and a FAIL [C1] line)
+  d="$(filled_install)"
+  set_config "$d/cortex/config" PROJECT_NAME "$SUBWORD_NAME"
+  r="$(a_command "$d")"
+  append "$d/$r" "Notes for the view team."
+  planted "whole-word name in $r" grep -qw "view" "$d/$r"
+  passes_without_C1 "$d" "a whole-word project name"
 }
 
 case_C2() {
@@ -406,51 +442,7 @@ case_C12() {
   expect_violation "$d" C12 "cortex/AGENTS.md"
 }
 
-# ---- AC18 (B5): C1 whole word (retired, D9); C8 comments -----------------------
-
-# A project name that appears in the installed cortex/harness only inside other words.
-# "Cortex" is not usable: grep -w treats / and . as word boundaries, so
-# "cortex" occurs as a whole word in paths like cortex/bin/gates.sh and
-# cortex/design-rules.md throughout cortex/harness/. "View" occurs only inside
-# "review", "preview" etc. The guard below re-verifies this against the
-# actual template so the case can't pass vacuously.
-SUBWORD_NAME="View"
-
-case_C1_substring_only_ok() {
-  # D9/D16: there is no project name to configure; the filled install passes
-  # (the fixture guard on SUBWORD_NAME is kept as it was)
-  local d; d="$(filled_install)"
-  if grep -riqF "$SUBWORD_NAME" "$d/cortex/harness" && ! grep -riqw "$SUBWORD_NAME" "$d/cortex/harness"; then
-    pass
-  else
-    fail "fixture: '$SUBWORD_NAME' must appear in cortex/harness/ only inside other words; pick another name"
-    return 0
-  fi
-  check_in "$d"
-  assert_not_contains "$OUT" "[C1]" "a name found only inside other words is not C1"
-  assert_exit 0 "$CODE" "filled install passes"
-  assert_line "$OUT" "check: ok" "check: ok"
-}
-
-case_C1_substring_name_whole_word_fires() {
-  # D9: C1 is retired, so a whole-word project name no longer fails (was:
-  # exit 1 and a FAIL [C1] line)
-  local d r; d="$(filled_install)"
-  set_config "$d/cortex/config" PROJECT_NAME "$SUBWORD_NAME"
-  r="$(a_command "$d")"
-  append "$d/$r" "Notes for the view team."
-  planted "whole-word name in $r" grep -qw "view" "$d/$r"
-  check_in "$d"
-  assert_exit 0 "$CODE" "a whole-word project name passes (D9)"
-  assert_not_contains "$OUT" "FAIL [C1] $r:" "no C1 for $r (D9)"
-}
-
-case_C1_cortex_is_whole_word_in_template() {
-  # documents why SUBWORD_NAME is not "Cortex" (see above)
-  local d; d="$(fresh_install)"
-  assert_true "'cortex' is a whole word under cortex/harness/ (paths like cortex/bin/)" \
-    grep -riqw "cortex" "$d/cortex/harness"
-}
+# ---- AC18 (B5): C8 comments (C1's whole-word cases are in case_C1_retired) -----
 
 # check table C8 (D4): the comment plants below go inside the claude block
 # (was: the whole hand-written CLAUDE.md)
@@ -1060,9 +1052,7 @@ case_G1_C13_no_form_fails() {
 run_case "token absent from template" case_token_absent_from_template
 run_case "AC4 baseline check: ok" case_baseline_ok
 run_case "repo-root argument" case_root_argument
-run_case "C1 retired: project name in cortex/harness passes (D9)" case_C1
-run_case "C1 retired: a PROJECT_NAME line is not read (D9, D16)" case_C1_case_insensitive
-run_case "PROJECT_NAME unset is not C11 (D16)" case_C1_unset_project_name
+run_case "criterion 34: C1 is retired, PROJECT_NAME not read (D9, D16, AC18)" case_C1_retired
 run_case "C2 ignores cortex/knowledge (D9)" case_C2
 run_case "C2 tool name in cortex/harness" case_C2_harness
 run_case "C2 whole word only" case_C2_whole_word_only
@@ -1090,9 +1080,6 @@ run_case "C11 whitespace-only value" case_C11_whitespace_only
 run_case "C11 key line absent" case_C11_missing_key
 run_case "C11 one line per unset key" case_C11_two_keys
 run_case "C12 TODO in cortex/AGENTS.md" case_C12
-run_case "AC18 filled install with no project name -> ok" case_C1_substring_only_ok
-run_case "AC18 C1 retired: a whole-word name passes (D9)" case_C1_substring_name_whole_word_fires
-run_case "AC18 'cortex' is a whole word in cortex/harness/" case_C1_cortex_is_whole_word_in_template
 run_case "AC18 C8 a different comment" case_C8_other_comment_only
 run_case "AC18 C8 a second, different comment" case_C8_second_comment
 run_case "C8 project content outside the claude block ok" case_C8_project_content_outside_ok

@@ -243,6 +243,37 @@ case_planted_root_block_drift() {
   done
 }
 
+# ---- N5 (spec 2026-10-10-open-nominations): the recorded gate output ---------
+
+CHANGE=cortex/changes/20260924-slugify-maxlength
+
+# recorded_gate_output TASKS : the lines of the first fenced block under
+# "## Gate output" in TASKS, without the fences (carriage returns dropped)
+recorded_gate_output() {
+  tr -d '\r' < "$1" | awk '
+    /^## / { inside = ($0 == "## Gate output"); next }
+    inside && /^```/ { if (fence) exit; fence = 1; next }
+    inside && fence { print }'
+}
+
+case_gate_output_matches_gates() {
+  # N5: at golden-clean, the block equals what gates.sh prints there
+  local w recorded actual
+  w="$(work_copy)"
+  git -C "$w" -c advice.detachedHead=false checkout -q golden-clean
+  recorded="$(recorded_gate_output "$w/$CHANGE/tasks.md")"
+  assert_true "tasks.md has a gate output block" [ -n "$recorded" ]
+  run bash -c 'cd "$1" && bash cortex/bin/gates.sh "$2"' _ "$w" "$CHANGE"
+  assert_exit 0 "$CODE" "gates.sh passes at golden-clean"
+  actual="$(tr -d '\r' <<<"$OUT")"
+  if [ "$recorded" = "$actual" ]; then
+    pass
+  else
+    fail "the recorded gate output differs from gates.sh's (refresh the fixture: evals/golden/review-maxlength/README.md)"
+    diff <(printf '%s\n' "$recorded") <(printf '%s\n' "$actual") | sed 's/^/    /' >&2 || true
+  fi
+}
+
 run_case "committed fixture.bundle matches template/" case_committed_bundle_matches
 run_case "planted: every drifted or missing source file is named" case_planted_source_drift
 run_case "planted: golden-planted changing a harness file is named" case_planted_tag_changes_harness
@@ -250,4 +281,5 @@ run_case "planted: golden-quality changing a harness file is named" case_planted
 run_case "planted: a deleted golden-quality tag is named" case_planted_quality_tag_deleted
 run_case "A5: the fixture's root block matches template/blocks/AGENTS.md" case_root_block_matches
 run_case "planted: a drifted root block source is named (A5)" case_planted_root_block_drift
+run_case "N5: the recorded gate output is what gates.sh prints at golden-clean" case_gate_output_matches_gates
 summary
