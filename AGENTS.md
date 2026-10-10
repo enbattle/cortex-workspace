@@ -34,13 +34,17 @@ repositories. Route yourself with the table below.
   written.
 - **Changes land through a branch and a pull request**, and merge only when
   CI passes. Nothing is committed directly to `main`.
-- While iterating, run only the suites you touched
-  (`bash tests/run.sh ci-gates tests-locked`); run the full
-  `bash tests/run.sh` before opening the pull request. CI runs the full set
-  plus shellcheck on Linux and is the authority. On a multi-core Linux
-  machine, `bash tests/run.sh --parallel` is faster; on Windows run the
-  suites sequentially (the default), or use WSL. A change to the test
-  helpers must leave the suites' assertion counts unchanged.
+- **Run the suites on Linux**: natively, or in WSL on Windows. Git Bash
+  runs them many times slower (a full run took over an hour there; CI's
+  Linux job takes about a minute). While iterating, run only the suites you
+  touched (`bash tests/run.sh ci-gates tests-locked`). Before opening the
+  pull request, run the full `bash tests/run.sh --parallel` and
+  `shellcheck` on the scripts. Without a Linux environment, don't run the
+  suites locally: push the branch and let CI run them. CI runs the full set
+  and shellcheck on Linux, plus the macOS and Windows jobs, and is the
+  authority either way. A test writer confirms its new tests fail the same
+  way, in Linux or on CI. A change to the test helpers must leave the
+  suites' assertion counts unchanged.
 - A change users will notice gets a `CHANGELOG.md` entry; a breaking change
   to a command's contract, a template field, or a required file bumps the
   major version in `VERSION`.
