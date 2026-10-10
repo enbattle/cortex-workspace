@@ -428,6 +428,201 @@ case_F2_prettierignore_listed() {
   assert_file_contains "$d/.prettierignore" "cortex/" "the project's file is not edited (D4)"
 }
 
+# ---- spec 3.1.0 G1 (criterion 3): .prettierignore lines are not references ----------
+#
+# docs/specs/2026-10-09-v3.1-pilot-followups.md, G1: with the entry recorded,
+# step 2 lists no .prettierignore line that is, without a carriage return and
+# surrounding spaces and tabs, cortex, /cortex, cortex/ or /cortex/.
+
+# g1_seeded PRETTIERIGNORE -> cortex_seeded with a .prettierignore, its entry
+# recorded, and the file then holding PRETTIERIGNORE (printf %b), committed
+g1_seeded() {
+  local d
+  d="$(seeded_repo)" || return 1
+  printf 'node_modules/\n' > "$d/.prettierignore"
+  commit_all "$d" "the project's .prettierignore"
+  install_adapt_github "$d" || return 1
+  merge_entries "$d"
+  printf '%b' "$1" > "$d/.prettierignore"
+  commit_all "$d" "install cortex"
+  printf '%s\n' "$d"
+}
+
+case_G1_prettierignore_forms_not_references() {
+  local d
+  d="$(g1_seeded 'node_modules/\r\ncortex\r\n/cortex\r\n  cortex/ \t\r\n\t/cortex/\r\ncortex/\r\n')" || return 0
+  assert_true "fixture: the .prettierignore entry is recorded" has_record "$d" entry .prettierignore "cortex/"
+  remove_in "$d" --hosting-done --delete-records
+  assert_exit 0 "$CODE" "remove.sh exits 0"
+  assert_not_contains "$OUT" "reference .prettierignore" "no .prettierignore line listed as a reference"
+  assert_not_contains "$OUT" "These project lines name paths under cortex/" "no references at all"
+  assert_file_absent "$d/cortex" "removal went ahead: cortex/ deleted"
+}
+
+case_G1_prettierignore_other_path_is_reference() {
+  # src/cortex/x is not one of the four forms: listed like any other line
+  local d refs
+  d="$(g1_seeded 'node_modules/\ncortex/\nsrc/cortex/x\n')" || return 0
+  remove_in "$d" --hosting-done --delete-records
+  assert_exit 0 "$CODE" "the stop for confirmation exits 0"
+  assert_line "$OUT" "reference .prettierignore:3: src/cortex/x" "src/cortex/x is listed"
+  refs="$(grep '^reference ' <<<"$OUT" || true)"
+  assert_true "only that line is listed" test "$(grep -c . <<<"$refs" || true)" = 1
+  assert_file_exists "$d/cortex/version" "nothing removed without --references-ok"
+}
+
+# ---- spec 3.1.0 G7 (criterion 12): references point at the kept records ------------
+#
+# G7: a reference naming a path the records step keeps (under cortex/changes/
+# or cortex/knowledge/, or cortex/constitution.md) gets a second line,
+# "  kept as <records-dir>/<rest>"; none with --delete-records.
+
+# g7_seeded -> cortex_seeded with notes/refs.md naming kept and unkept paths
+g7_seeded() {
+  local d
+  d="$(cortex_seeded)" || return 1
+  mkdir -p "$d/notes"
+  printf '%s\n' \
+    'See cortex/changes/x/proposal.md for the design.' \
+    'Run bash cortex/bin/gates.sh before review.' \
+    'Terms live in cortex/knowledge/glossary.md now.' \
+    'The rules are in cortex/constitution.md for all.' > "$d/notes/refs.md"
+  commit_all "$d" "the project's notes name cortex paths"
+  printf '%s\n' "$d"
+}
+
+# line_after TEXT LINE -> the line of TEXT right after LINE (empty if none)
+line_after() { grep -A1 -xF -- "$2" <<<"$1" | sed -n 2p || true; }
+
+R_CHANGE="reference notes/refs.md:1: See cortex/changes/x/proposal.md for the design."
+R_BIN="reference notes/refs.md:2: Run bash cortex/bin/gates.sh before review."
+R_KNOW="reference notes/refs.md:3: Terms live in cortex/knowledge/glossary.md now."
+R_CONST="reference notes/refs.md:4: The rules are in cortex/constitution.md for all."
+
+g7_expect() { # RECORDS-DIR : each kept path's reference is followed by its kept line
+  local r="$1"
+  assert_exit 0 "$CODE" "the stop for confirmation exits 0"
+  assert_line "$OUT" "$R_CHANGE" "the change folder reference is listed"
+  assert_true "  kept as $r/changes/x/proposal.md follows it" \
+    test "$(line_after "$OUT" "$R_CHANGE")" = "  kept as $r/changes/x/proposal.md"
+  assert_true "  kept as $r/knowledge/glossary.md follows the knowledge reference" \
+    test "$(line_after "$OUT" "$R_KNOW")" = "  kept as $r/knowledge/glossary.md"
+  assert_true "  kept as $r/constitution.md follows the constitution reference" \
+    test "$(line_after "$OUT" "$R_CONST")" = "  kept as $r/constitution.md"
+  assert_line "$OUT" "$R_BIN" "the cortex/bin reference is listed"
+  assert_not_contains "$(line_after "$OUT" "$R_BIN")" "kept as" "nothing kept for cortex/bin/gates.sh"
+  assert_true "three kept lines in all" test "$(grep -c '^  kept as ' <<<"$OUT" || true)" = 3
+}
+
+case_G7_kept_default_records() {
+  local d; d="$(g7_seeded)" || return 0
+  remove_in "$d" --hosting-done
+  g7_expect docs/cortex-records
+}
+
+case_G7_kept_keep_records_dir() {
+  local d; d="$(g7_seeded)" || return 0
+  remove_in "$d" --hosting-done --keep-records kept/recs
+  g7_expect kept/recs
+  assert_not_contains "$OUT" "docs/cortex-records" "the default directory is not named"
+}
+
+case_G7_kept_delete_records() {
+  local d; d="$(g7_seeded)" || return 0
+  remove_in "$d" --hosting-done --delete-records
+  assert_exit 0 "$CODE" "the stop for confirmation exits 0"
+  assert_line "$OUT" "$R_CHANGE" "the change folder reference is listed"
+  assert_line "$OUT" "$R_BIN" "the cortex/bin reference is listed"
+  assert_not_contains "$OUT" "kept as" "no kept line with --delete-records"
+}
+
+# ---- spec 3.1.0 As built (criterion 17): G7's kept paths -----------------------------
+#
+# docs/specs/2026-10-09-v3.1-pilot-followups.md, As built: a cortex/ preceded
+# by "/" (docs/cortex/changes/x.md) is a project path, so it gets no kept
+# line; a #fragment or ?query after a kept path is dropped from the kept line.
+
+R17_PROJ="reference notes/c17.md:1: Old notes are in docs/cortex/changes/old.md now."
+R17_FRAG="reference notes/c17.md:2: Principles: cortex/constitution.md#project explains."
+R17_QUERY="reference notes/c17.md:3: Source: cortex/changes/x/proposal.md?plain=1 on the host."
+
+case_C17_kept_paths() {
+  local d
+  d="$(cortex_seeded)" || return 0
+  mkdir -p "$d/notes"
+  printf '%s\n' \
+    'Old notes are in docs/cortex/changes/old.md now.' \
+    'Principles: cortex/constitution.md#project explains.' \
+    'Source: cortex/changes/x/proposal.md?plain=1 on the host.' > "$d/notes/c17.md"
+  commit_all "$d" "the project's notes name cortex paths"
+  remove_in "$d" --hosting-done
+  assert_exit 0 "$CODE" "the stop for confirmation exits 0"
+  assert_not_contains "$(line_after "$OUT" "$R17_PROJ")" "kept as" "no kept line for docs/cortex/changes/old.md"
+  assert_not_contains "$OUT" "kept as docs/cortex-records/changes/old.md" "docs/cortex/changes/old.md is not kept"
+  assert_line "$OUT" "$R17_FRAG" "the constitution#fragment reference is listed"
+  assert_true "  kept as docs/cortex-records/constitution.md follows it, fragment dropped" \
+    test "$(line_after "$OUT" "$R17_FRAG")" = "  kept as docs/cortex-records/constitution.md"
+  assert_line "$OUT" "$R17_QUERY" "the proposal?query reference is listed"
+  assert_true "  kept as docs/cortex-records/changes/x/proposal.md follows it, query dropped" \
+    test "$(line_after "$OUT" "$R17_QUERY")" = "  kept as docs/cortex-records/changes/x/proposal.md"
+  assert_true "two kept lines in all" test "$(grep -c '^  kept as ' <<<"$OUT" || true)" = 2
+}
+
+# ---- spec 3.1.0 G8 (criterion 13): a block record without nb ------------------------
+#
+# G8: block_unedited's fallback for a record without the sixth field (nb)
+# goes: such a block is unedited only if its sha matches. The codeowners
+# block in .github/CODEOWNERS is used: its content has several lines and no
+# blank ones, so the old fallback (nb taken to be the sha) would call a
+# block that only gained blank lines between them unedited.
+
+CO=.github/CODEOWNERS
+
+# drop_nb DIR : the codeowners block record loses its sixth field, committed
+drop_nb() {
+  filter_file "$1/cortex/footprint" awk -F'\t' -v OFS='\t' -v p="$CO" '
+    $1 == "block" && $2 == p && $3 == "codeowners" { print $1, $2, $3, $4, $5; next } { print }'
+  commit_all "$1" "a block record from before nb"
+}
+
+no_nb_record() { # DIR : the record has exactly five fields
+  footprint_records "$1" | awk -F'\t' -v p="$CO" '$1 == "block" && $2 == p && $3 == "codeowners" { n = NF } END { exit n == 5 ? 0 : 1 }'
+}
+
+EDITED_NOTE="note: the codeowners block in $CO was edited after install; its content was:"
+
+case_G8_no_nb_blank_lines_edited() {
+  local d before
+  d="$(cortex_seeded)" || return 0
+  drop_nb "$d"
+  assert_true "fixture: the record has no nb" no_nb_record "$d"
+  before="$(block_body "$d/$CO" codeowners)"
+  assert_true "fixture: the block has several lines" test "$(grep -c . <<<"$before")" -gt 1
+  assert_true "fixture: the block has no blank line" test "$(grep -c '^$' <<<"$before" || true)" = 0
+  space_block "$d/$CO" codeowners
+  assert_true "fixture: only blank lines differ" test "$(block_body "$d/$CO" codeowners | grep -v '^$' || true)" = "$before"
+  assert_true "fixture: the block's lines differ from what cortex wrote" test "$(block_body "$d/$CO" codeowners)" != "$before"
+  commit_all "$d" "blank lines inside the block"
+  remove_in "$d" --hosting-done --delete-records
+  assert_exit 0 "$CODE" "remove.sh exits 0"
+  assert_line "$OUT" "$EDITED_NOTE" "a block without nb changed in blank lines is shown as edited"
+  assert_contains "$OUT" "  | /cortex/bin/" "its content is shown"
+}
+
+case_G8_no_nb_unchanged_removed() {
+  local d
+  d="$(cortex_seeded)" || return 0
+  drop_nb "$d"
+  assert_true "fixture: the record has no nb" no_nb_record "$d"
+  remove_in "$d" --hosting-done --delete-records
+  assert_exit 0 "$CODE" "remove.sh exits 0"
+  assert_not_contains "$OUT" "$EDITED_NOTE" "an unchanged block is not shown as edited"
+  assert_line "$OUT" "removed block $CO codeowners" "the block is removed"
+  git -C "$d" show "$(git -C "$d" rev-list --max-parents=0 HEAD):$CO" > "$TEST_TMP/codeowners.seeded"
+  assert_same_file "$TEST_TMP/codeowners.seeded" "$d/$CO" "$CO is the project's again, byte for byte"
+}
+
+
 run_case "criterion 12: round trip with --delete-records" case_round_trip_delete_records
 run_case "criterion 13: round trip with --keep-records <dir>" case_round_trip_keep_records
 run_case "criterion 14: records kept in docs/cortex-records/ by default" case_default_records
@@ -447,4 +642,12 @@ run_case "criterion 20: a dirty work tree refused" case_dirty_tree_refused
 run_case "criterion 32: unknown footprint format refused by remove" case_unknown_footprint_format
 run_case "F1: a block with a formatter's blank lines is not edited" case_F1_blank_lines_not_edited
 run_case "F2: the .prettierignore entry is listed" case_F2_prettierignore_listed
+run_case "G1 criterion 3: .prettierignore lines in the four forms are not references" case_G1_prettierignore_forms_not_references
+run_case "G1 criterion 3: a .prettierignore line src/cortex/x is a reference" case_G1_prettierignore_other_path_is_reference
+run_case "G7 criterion 12: kept as docs/cortex-records/..." case_G7_kept_default_records
+run_case "G7 criterion 12: kept as <dir>/... with --keep-records" case_G7_kept_keep_records_dir
+run_case "G7 criterion 12: no kept line with --delete-records" case_G7_kept_delete_records
+run_case "G8 criterion 13: no nb, blank lines changed: shown as edited" case_G8_no_nb_blank_lines_edited
+run_case "G8 criterion 13: no nb, unchanged: removed" case_G8_no_nb_unchanged_removed
+run_case "As built criterion 17: kept lines name only kept paths, without #fragment or ?query" case_C17_kept_paths
 summary

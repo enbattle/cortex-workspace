@@ -250,6 +250,7 @@ trap 'rm -rf "$work"' EXIT
 replaced=0
 merged=0
 conflicts=0
+placeholder_kept=0   # set by merge3 (G2)
 scripts=()
 exec_list="$(executables)"
 
@@ -286,19 +287,75 @@ table="$(awk -F'\t' '
           print p "\t" (p in b ? b[p] : "-") "\t" (p in n ? n[p] : "-") "\t" (p in u ? u[p] : "-") }' \
   "$work/base" "$work/new" "$work/user" | LC_ALL=C sort)"
 
+# placeholder_merge USER BASE NEW LABEL -> the three-way merge with the
+# user's side taken in every conflicting hunk, if every one is a placeholder
+# hunk: the installed and the new version's text are both only HTML comments
+# and blank lines (G2). Fails, printing nothing, if any hunk isn't.
+placeholder_merge() {
+  local rc
+  set +e
+  git merge-file -p --diff3 -L "$4 (yours)" -L "$4 (cortex $installed)" -L "$4 (cortex $version)" "$1" "$2" "$3" > "$work/merge.diff3" 2>/dev/null
+  rc=$?
+  set -e
+  [ "$rc" -gt 0 ] && [ "$rc" -lt 128 ] || return 1
+  # Only this merge's own labelled markers delimit a hunk; any other line,
+  # one that looks like a marker included, is content. A hunk opened inside
+  # another, or left open, fails the whole placeholder merge.
+  PH_OURS="<<<<<<< $4 (yours)" PH_BASE="||||||| $4 (cortex $installed)" \
+    PH_THEIRS=">>>>>>> $4 (cortex $version)" awk '
+    # only HTML comments and blank lines, at least one comment
+    function placeholder(s,   n, e) {
+      n = 0
+      while (1) {
+        sub(/^[ \t\n]+/, "", s)
+        if (s == "") return n > 0
+        if (substr(s, 1, 4) != "<!--") return 0
+        e = index(s, "-->")
+        if (e == 0) return 0
+        s = substr(s, e + 3); n++
+      }
+    }
+    $0 == ENVIRON["PH_OURS"] {
+      if (part != "") exit 1
+      part = "ours"; ours = base = theirs = ""; next
+    }
+    part == "ours" && $0 == ENVIRON["PH_BASE"] { part = "base"; next }
+    part == "base" && $0 == "=======" { part = "theirs"; next }
+    part == "theirs" && $0 == ENVIRON["PH_THEIRS"] {
+      if (!placeholder(base) || !placeholder(theirs)) exit 1
+      printf "%s", ours; part = ""; hunks++; next
+    }
+    part == "ours" { ours = ours $0 "\n"; next }
+    part == "base" { base = base $0 "\n"; next }
+    part == "theirs" { theirs = theirs $0 "\n"; next }
+    { print }
+    # merge-file reported conflicts, so finding none means a marker went unread
+    END { if (part != "" || hunks == 0) exit 1 }' "$work/merge.diff3"
+}
+
 # merge3 USER BASE NEW LABEL : git merge-file into USER; 0 clean, 1 conflicts.
 # A CRLF user file (a checkout's line endings) is merged as LF and restored.
+# Conflicts that are all placeholder hunks resolve to the user's side, and set
+# placeholder_kept (G2).
 merge3() {
   local u="$1" b="$2" n="$3" label="$4" crlf=0 rc
+  placeholder_kept=0
   if grep -qU "$CR$" "$u" && ! grep -qU "$CR$" "$n"; then
     crlf=1
     tr -d '\r' < "$u" > "$work/u.lf"
     cp "$work/u.lf" "$u"
   fi
+  cp "$u" "$work/merge.user"
   set +e
   git merge-file -L "$label (yours)" -L "$label (cortex $installed)" -L "$label (cortex $version)" "$u" "$b" "$n" >/dev/null 2>&1
   rc=$?
   set -e
+  if [ "$rc" -gt 0 ] && [ "$rc" -lt 128 ] &&
+    placeholder_merge "$work/merge.user" "$b" "$n" "$label" > "$work/merge.ph"; then
+    cp "$work/merge.ph" "$u"
+    placeholder_kept=1
+    rc=0
+  fi
   if [ "$crlf" = 1 ]; then
     awk -v BINMODE=3 '{ print $0 "\r" }' "$u" > "$work/u.crlf"
     cp "$work/u.crlf" "$u"
@@ -306,6 +363,9 @@ merge3() {
   [ "$rc" -eq 0 ] && return 0
   return 1
 }
+
+# ph_note -> the merged line's note when merge3 kept the user's text (G2)
+ph_note() { [ "$placeholder_kept" = 1 ] && printf ' (kept your text where cortex changed a placeholder)' || true; }
 
 # upgrade_one DEST BASE-SHA NEW-FILE USER-SHA NEW-SHA BASE-READER... : one
 # file's three-way upgrade (install step 3; an empty sha is a missing side);
@@ -325,7 +385,7 @@ upgrade_one() {
     else
       "$@" > "$work/merge.base"
       if merge3 "$dest" "$work/merge.base" "$nfile" "$dest"; then
-        echo "merged $dest"; merged=$((merged + 1))
+        echo "merged $dest$(ph_note)"; merged=$((merged + 1))
       else
         echo "conflict $dest"; conflicts=$((conflicts + 1))
       fi
@@ -385,6 +445,7 @@ else
   # Compared blank lines aside, merged without the framing (F1): a block that
   # differs from a version only in a formatter's blank lines is that version.
   block_body AGENTS.md agents | tr -d '\r' > "$work/block.user"
+  placeholder_kept=0
   same() { [ "$(nonblank_sha < "$1")" = "$(nonblank_sha < "$2")" ]; }
   if same "$work/block.user" "$BLOCK_SRC"; then
     echo "unchanged AGENTS.md"
@@ -399,11 +460,13 @@ else
       cp "$work/block.user" "$work/block.result"
       if merge3 "$work/block.result" "$work/block.base" "$BLOCK_SRC" "AGENTS.md"; then block_ok=0; else block_ok=1; fi
     fi
-    if cmp -s "$work/block.user" "$work/block.result"; then
+    if [ "$placeholder_kept" = 0 ] && cmp -s "$work/block.user" "$work/block.result"; then
       echo "kept AGENTS.md (edited)"
     else
-      block_set AGENTS.md agents "$work/block.result"
-      if [ "$block_ok" = 0 ]; then
+      cmp -s "$work/block.user" "$work/block.result" || block_set AGENTS.md agents "$work/block.result"
+      if [ "$placeholder_kept" = 1 ]; then
+        echo "merged AGENTS.md$(ph_note)"; merged=$((merged + 1))
+      elif [ "$block_ok" = 0 ]; then
         echo "block AGENTS.md agents"
       else
         echo "conflict AGENTS.md"; conflicts=$((conflicts + 1))

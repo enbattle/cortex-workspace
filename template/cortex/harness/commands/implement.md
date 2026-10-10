@@ -15,14 +15,17 @@ R12, in `cortex/design-rules.md`), separate from the test writer and the reviewe
 - `bash cortex/bin/tests-locked.sh <change-folder>` passes before you start.
 - You are on the change branch.
 - Load `cortex/constitution.md`, the repository's `AGENTS.md` files (the root one,
-  `cortex/AGENTS.md`, and a package's own), the "Design
+  `cortex/AGENTS.md`, and a package's own), the project's own agent
+  instructions that `cortex/AGENTS.md` names (outside cortex's blocks), the
+  "Design
   and simplicity" and "Performance and resources" sections of
   `cortex/harness/policies/review-checklist.md`, and only the knowledge files the
   change folder names.
 
 ## Procedure
 
-1. If `review-findings.md` exists in the folder with open findings, triage
+1. If `review-findings.md`'s last round requested changes and its findings
+   aren't triaged yet (open findings), triage
    each against the current code before any work, with evidence: does the
    input occur, does it reproduce, is it reachable. Under that round, record
    one outcome per finding with a one-line reason, and commit the file:
@@ -75,10 +78,11 @@ R12, in `cortex/design-rules.md`), separate from the test writer and the reviewe
    the user the exact command and the output to expect; record what they
    report, and never hand off to `review` with it unrun. Then, before
    handing off, run `bash cortex/bin/gates.sh <change-folder>` (the
-   test lock, the build, test and lint commands from `cortex/config`, and
-   the harness check) and paste its output under `## Gate output` in
+   test lock, no open task, the build, test and lint commands from
+   `cortex/config`, and the harness check) and paste its output under `## Gate output` in
    `tasks.md`, then commit `tasks.md`: `review` requires a clean tree. It
-   must end with `gates: ok`.
+   must end with `gates: ok`; its tasks gate fails on any task left
+   unticked (step 3).
 
 Budget: 3 attempts per task at passing its done-check. On the third failure,
 or when the same failure recurs on two consecutive attempts, stop, record

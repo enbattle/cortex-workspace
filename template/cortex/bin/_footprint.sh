@@ -18,8 +18,7 @@
 # markdown formatter leaves it alone; the framing is not part of its sha, and
 # nb is the sha of its non-blank lines alone, so a block that differs from
 # what cortex wrote only in blank lines (a formatter's) is not edited
-# (Amendment 3 F1). A record written before nb existed has none; its content
-# had no blank lines, so its sha stands in for nb.
+# (Amendment 3 F1).
 
 FP_FORMAT="# cortex footprint 1"
 FP_FILE=cortex/footprint
@@ -29,6 +28,9 @@ FP_REMOVED=0       # counts kept by fp_remove_block and fp_remove_created
 FP_KEPT=0
 TAB="$(printf '\t')"
 CR="$(printf '\r')"
+# a .prettierignore line that leaves cortex/ alone: cortex, /cortex, cortex/
+# or /cortex/, blanks around it aside (G1)
+PRETTIERIGNORE_LINE='[[:blank:]]*/?cortex/?[[:blank:]]*'
 
 # fp_load : read cortex/footprint into FP_RECORDS; returns 1 (FP_BAD_FORMAT
 # set) when its first line is not FP_FORMAT. An absent footprint is empty.
@@ -126,8 +128,14 @@ block_unedited() {
   local sha nb
   sha="$(fp_field "$3" 4)"
   nb="$(fp_field "$3" 6)"
-  [ -n "$nb" ] || nb="$sha"
-  [ "$(block_sha "$1" "$2")" = "$sha" ] || [ "$(block_content "$1" "$2" | nonblank_sha)" = "$nb" ]
+  [ "$(block_sha "$1" "$2")" = "$sha" ] && return 0
+  [ -n "$nb" ] && [ "$(block_content "$1" "$2" | nonblank_sha)" = "$nb" ]
+}
+
+# prettierignore_has FILE : FILE has a PRETTIERIGNORE_LINE, carriage
+# returns aside (G1)
+prettierignore_has() {
+  [ -f "$1" ] && tr -d '\r' < "$1" | grep -qxE -- "$PRETTIERIGNORE_LINE"
 }
 
 # fp_add_block PATH ID SEP : (re)record PATH's ID block as it is now

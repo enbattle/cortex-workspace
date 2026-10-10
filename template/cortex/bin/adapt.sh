@@ -15,8 +15,9 @@
 #   - .claude/settings.json, which can't carry a block: created when absent;
 #     otherwise the rules it lacks are printed for a person or agent to merge
 #     and recorded as entries (Q1). The JSON is never edited here;
-#   - a root .prettierignore without a cortex/ line: that line, printed and
-#     recorded as an entry the same way (Amendment 3 F2).
+#   - a root .prettierignore without a line leaving cortex/ alone (cortex,
+#     /cortex, cortex/ or /cortex/): cortex/, printed and recorded as an
+#     entry the same way (Amendment 3 F2, G1).
 # A block is output, not source: a re-run rewrites it, reporting an edit it
 # overwrote. A cortex-named file cortex didn't record is the project's, so
 # this script refuses to touch it (D11). Files for a tool dropped from TOOLS
@@ -267,7 +268,7 @@ esac
 # to leave cortex/ alone, by a line a person merges (the file is the project's).
 if [ -f .prettierignore ]; then
   want .prettierignore
-  if ! tr -d '\r' < .prettierignore | grep -qxE '/?cortex/?'; then
+  if ! prettierignore_has .prettierignore; then
     echo "merge this line into .prettierignore:"
     [ -n "$(fp_match entry .prettierignore cortex/)" ] || fp_add entry .prettierignore cortex/
     echo "entry .prettierignore cortex/"

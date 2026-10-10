@@ -43,13 +43,6 @@ guide) first: much of what follows may already be written there, and
 cortex reads those files too, so it doesn't need a copy. Then ask, in one
 batch where you can:
 
-0. If the repository already has a development process of its own (agent
-   instruction files beyond cortex's blocks, a contributing guide, an
-   existing spec, test-lock or review workflow), which one governs
-   nontrivial changes: cortex's commands, or the project's with cortex's
-   checks alongside. Write the answer as the first line of
-   `cortex/AGENTS.md`'s Conventions section. Either way, where the
-   project's rules and cortex's differ, the stricter one applies.
 1. One sentence on what the repository is.
 2. The build, test and lint commands. Detect candidates first (`package.json`
    scripts, a `Makefile`, `pyproject.toml`, `Cargo.toml`, CI workflows) and
@@ -84,9 +77,16 @@ batch where you can:
 8. How to start the software, check it's healthy, and stop it (for
    `cortex/knowledge/verification.md`), if there is something to run. Its
    feature rows are filled in later, as changes touch each feature.
-9. Conventions: the style guide the lint command enforces, and, for an
-   existing codebase, which patterns shouldn't be copied and what replaces
-   each. Those the root `AGENTS.md` already states stay there; write only the
+9. Conventions, for `cortex/AGENTS.md`'s Conventions section. First, if the
+   repository already has a development process of its own (agent
+   instruction files beyond cortex's blocks, a contributing guide, an
+   existing spec, test-lock or review workflow), which one governs
+   nontrivial changes: cortex's commands, or the project's with cortex's
+   checks alongside; the answer is the section's first line. Either way,
+   where the project's rules and cortex's differ, the stricter one applies.
+   Then the style guide the lint command enforces, and, for an existing
+   codebase, which patterns shouldn't be copied and what replaces each.
+   Those the root `AGENTS.md` already states stay there; write only the
    rest.
 
 Then fill in, all under `cortex/`: `cortex/config` (`BUILD_CMD`, `TEST_CMD`,
@@ -126,7 +126,8 @@ files follow cortex's style, not the project's.
 
 Then run `LINT_CMD` once. If another formatter or linter flags files under
 `cortex/`, add `cortex/` to its ignore file with the user's approval (that
-line is the project's; removal doesn't list it). cortex's blocks in
+line is the project's, not recorded; removal lists it as a reference to
+remove). cortex's blocks in
 `AGENTS.md` and `CLAUDE.md` are written in the form markdown formatters
 produce, and a formatter's blank lines in them are not an edit.
 
@@ -229,7 +230,10 @@ It merges three versions of every cortex file: the one installed, the new
 one, and this repository's. Files the project didn't edit are replaced;
 edits are kept; where both changed, `git merge-file` merges them, and an
 overlap leaves conflict markers and a `conflict <path>` line (exit 1).
-`cortex/config` is never changed: a key the new version added is printed as
+Where every overlap is cortex rewording a placeholder comment the project
+replaced, the project's text is kept and the line reads `merged <path>
+(kept your text where cortex changed a placeholder)`; check the release
+notes for what the new placeholder asks. `cortex/config` is never changed: a key the new version added is printed as
 `config KEY=default`, to add if wanted. It also prints each release's notes
 for installed repositories. Merge any `entry .claude/settings.json` or
 `entry .prettierignore` lines it prints, as in step 4. Resolve every conflict (C14 fails until they're
@@ -256,8 +260,10 @@ It stops twice before changing anything, and you relay both to the user:
    while its check is required blocks every pull request. Once the user has
    done both, re-run with `--hosting-done`.
 2. Project lines that name paths under `cortex/` (a script calling
-   `cortex/bin/gates.sh`, a link to `cortex/knowledge/`). Fix them with the
-   user and commit, or re-run with `--references-ok`.
+   `cortex/bin/gates.sh`, a link to `cortex/knowledge/`). A line naming a
+   record that is kept is followed by `kept as <records-dir>/...`, its new
+   path. Fix them with the user and commit, or re-run with
+   `--references-ok`.
 
 The records (change folders, knowledge, the constitution's Project section,
 the conventions) are kept in `docs/cortex-records/` unless the user names

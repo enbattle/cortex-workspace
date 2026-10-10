@@ -281,7 +281,9 @@ case_same_version_other_commit() {
 }
 
 # lock_base D : D's install committed as origin/main with tests, then branch
-# "feature" with cortex/changes/x locked (lock_tests, lib.sh)
+# "feature" with cortex/changes/x locked (lock_tests, lib.sh). The change
+# folder has a tasks.md with every task ticked: spec 3.1.0 G3's tasks gate
+# fails one without it (was: no tasks.md written)
 lock_base() {
   local d="$1"
   mkdir -p "$d/tests"
@@ -290,6 +292,8 @@ lock_base() {
   git -C "$d" update-ref refs/remotes/origin/main HEAD
   git -C "$d" checkout -q -b feature
   printf 'echo b\n' > "$d/tests/b.test.sh"
+  mkdir -p "$d/cortex/changes/x"
+  printf '# Tasks: x\n\n- [x] the change -- done when: its test passes\n' > "$d/cortex/changes/x/tasks.md"
   lock_tests "$d" cortex/changes/x tests/b.test.sh
 }
 
@@ -384,6 +388,236 @@ case_F1_blank_lines_unedited() {
     test "$rec" = "$(git hash-object --no-filters "$c/template/blocks/AGENTS.md")"
 }
 
+# ---- spec 3.1.0 G2 (criteria 4-7): a reworded placeholder -----------------------------
+#
+# docs/specs/2026-10-09-v3.1-pilot-followups.md, G2: a conflicting hunk where
+# both the installed version's text and the new version's are only HTML
+# comments and blank lines is a placeholder hunk. When every conflicting hunk
+# is one, the file takes the user's side of each and the upgrade prints
+# "merged <path> (kept your text where cortex changed a placeholder)";
+# otherwise the output is 3.0.0's: every hunk with git merge-file's markers.
+
+PH_NOTE="(kept your text where cortex changed a placeholder)"
+PH_OLD="<!-- List the project's conventions here, one line each. -->"
+PH_NEW="<!-- Write the project's conventions here:\n     one line each, the style guide first. -->"
+PH_USER="- zz-user-convention: tabs, not spaces\n- zz-user-convention: one change per pull request"
+
+# ph_doc CONVENTIONS N4 N8 -> a document with a Conventions section holding
+# CONVENTIONS (printf %b), and Notes lines n1-n8 with n4 and n8 as given
+ph_doc() {
+  printf '# Guide\n\n## Conventions\n\n%b\n\n## Notes\n\nn1\nn2\nn3\n%s\nn5\nn6\nn7\n%s\n' "$1" "$2" "$3"
+}
+
+# g2_run NAME... -> the upgraded repository. For each NAME, $G2/NAME.base is
+# 3.0.0's template/$FX/NAME, the user commits $G2/NAME.user over the
+# install, and 3.1.0's is $G2/NAME.new. A $G2/block.base, .user and .new
+# (when present) do the same for the root agents block. The upgrade's output
+# and exit status are saved in $G2/out and $G2/code.
+g2_run() {
+  local c d n
+  c="$(cortex_clone 3.0.0)" || return 1
+  printf '# Changelog\n' > "$c/CHANGELOG.md"
+  mkdir -p "$c/template/$FX"
+  for n in "$@"; do cp "$G2/$n.base" "$c/template/$FX/$n"; done
+  [ ! -f "$G2/block.base" ] || cp "$G2/block.base" "$c/template/blocks/AGENTS.md"
+  release "$c" 3.0.0
+  d="$(installed_from "$c")" || return 1
+  for n in "$@"; do cp "$G2/$n.user" "$d/$FX/$n"; done
+  [ ! -f "$G2/block.user" ] || set_block "$d/AGENTS.md" agents "$(cat "$G2/block.user")"
+  commit_all "$d" "the user's text"
+  for n in "$@"; do cp "$G2/$n.new" "$c/template/$FX/$n"; done
+  [ ! -f "$G2/block.new" ] || cp "$G2/block.new" "$c/template/blocks/AGENTS.md"
+  release "$c" 3.1.0
+  upgrade_from "$c" "$d"
+  printf '%s\n' "$OUT" > "$G2/out"
+  printf '%s\n' "$CODE" > "$G2/code"
+  printf '%s\n' "$d"
+}
+
+g2_result() { OUT="$(cat "$G2/out")"; CODE="$(cat "$G2/code")"; }
+
+# merge_expected D LABEL USER BASE NEW -> 3.0.0's result: git merge-file's
+# output with the upgrade's labels (3.0.0 -> 3.1.0), run in D
+merge_expected() {
+  git -C "$1" merge-file -p -L "$2 (yours)" -L "$2 (cortex 3.0.0)" -L "$2 (cortex 3.1.0)" "$3" "$4" "$5" || true
+}
+
+# g2_summary_re MERGED CONFLICTS -> the upgrade summary's pattern
+g2_summary_re() { printf '^upgrade 3\\.0\\.0 -> 3\\.1\\.0: [0-9]+ replaced, %s merged, %s conflicts$' "$1" "$2"; }
+
+case_G2_placeholder_reworded() {
+  # criterion 4: the user replaced the placeholder; 3.1.0 rewords it (a
+  # multi-line comment) and changes n8, which merges cleanly
+  local d p="$FX/ph.md"
+  G2="$(mktemp -d "$TEST_TMP/g2.XXXXXX")"
+  ph_doc "$PH_OLD" n4 n8 > "$G2/ph.md.base"
+  ph_doc "$PH_USER" n4 n8 > "$G2/ph.md.user"
+  ph_doc "$PH_NEW" n4 n8-up > "$G2/ph.md.new"
+  assert_true "fixture: 3.0.0 merges these with a conflict" \
+    bash -c '! git -C "$1" merge-file -p "$2" "$3" "$4" >/dev/null' _ "$TEST_TMP" "$G2/ph.md.user" "$G2/ph.md.base" "$G2/ph.md.new"
+  d="$(g2_run ph.md)" || return 0; g2_result
+  assert_exit 0 "$CODE" "a placeholder-only conflict exits 0"
+  assert_line "$OUT" "merged $p $PH_NOTE" "the merged line says the user's text was kept"
+  assert_not_contains "$OUT" "conflict $p" "not reported as a conflict"
+  ph_doc "$PH_USER" n4 n8-up > "$G2/expected"
+  assert_same_file "$G2/expected" "$d/$p" "the user's text, cortex's other change merged, no markers"
+  assert_file_not_contains "$d/$p" "<<<<<<<" "no conflict markers"
+  assert_true "counted as merged, not as a conflict" grep -qE "$(g2_summary_re 1 0)" <<<"$(last_line "$OUT")"
+}
+
+case_G2_placeholder_and_real_conflict() {
+  # criterion 5: the same file with a second, real conflicting hunk (n4):
+  # 3.0.0's output, both hunks with markers
+  local d p="$FX/ph.md"
+  G2="$(mktemp -d "$TEST_TMP/g2.XXXXXX")"
+  ph_doc "$PH_OLD" n4 n8 > "$G2/ph.md.base"
+  ph_doc "$PH_USER" n4-user n8 > "$G2/ph.md.user"
+  ph_doc "$PH_NEW" n4-up n8 > "$G2/ph.md.new"
+  d="$(g2_run ph.md)" || return 0; g2_result
+  merge_expected "$d" "$p" "$G2/ph.md.user" "$G2/ph.md.base" "$G2/ph.md.new" > "$G2/expected"
+  assert_true "fixture: git merge-file leaves two conflicts" test "$(grep -c '^<<<<<<< ' "$G2/expected" || true)" = 2
+  assert_exit 1 "$CODE" "a real conflict exits 1"
+  assert_line "$OUT" "conflict $p" "reported as a conflict"
+  assert_not_contains "$OUT" "$PH_NOTE" "no kept-your-text line"
+  assert_same_file "$G2/expected" "$d/$p" "the file is 3.0.0's merge: both hunks with markers, same format"
+  assert_true "counted as a conflict" grep -qE "$(g2_summary_re 0 1)" <<<"$(last_line "$OUT")"
+}
+
+case_G2_one_side_placeholder() {
+  # criterion 6: only one side of the conflicting hunk is a placeholder:
+  # cortex replaced its comment with text (new.md), or turned its text into
+  # a comment (old.md); either is a real conflict
+  local d n
+  G2="$(mktemp -d "$TEST_TMP/g2.XXXXXX")"
+  ph_doc "$PH_OLD" n4 n8 > "$G2/new.md.base"
+  ph_doc "$PH_USER" n4 n8 > "$G2/new.md.user"
+  ph_doc "- zz-cortex-default-convention" n4 n8 > "$G2/new.md.new"
+  ph_doc "- zz-cortex-old-convention" n4 n8 > "$G2/old.md.base"
+  ph_doc "$PH_USER" n4 n8 > "$G2/old.md.user"
+  ph_doc "$PH_NEW" n4 n8 > "$G2/old.md.new"
+  d="$(g2_run new.md old.md)" || return 0; g2_result
+  assert_exit 1 "$CODE" "real conflicts exit 1"
+  for n in new.md old.md; do
+    merge_expected "$d" "$FX/$n" "$G2/$n.user" "$G2/$n.base" "$G2/$n.new" > "$G2/$n.expected"
+    assert_true "fixture: git merge-file leaves a conflict in $n" grep -q '^<<<<<<< ' "$G2/$n.expected"
+    assert_line "$OUT" "conflict $FX/$n" "$n: reported as a conflict"
+    assert_not_contains "$OUT" "merged $FX/$n" "$n: not reported merged"
+    assert_same_file "$G2/$n.expected" "$d/$FX/$n" "$n: 3.0.0's merge, with markers"
+  done
+}
+
+# block_doc CONVENTIONS FIRST -> the root block's source: this checkout's
+# block with its first line replaced by FIRST and a placeholder section
+# holding CONVENTIONS (printf %b) appended
+block_doc() {
+  awk -v f="$2" 'NR == 1 { print f; next } { print }' "$ROOT/template/blocks/AGENTS.md"
+  printf '\n%b\n' "$1"
+}
+
+case_G2_block_placeholder_reworded() {
+  # criterion 7, as criterion 4: the root agents block
+  local d
+  G2="$(mktemp -d "$TEST_TMP/g2.XXXXXX")"
+  block_doc "<!-- zz project rules go here. -->" "## cortex" > "$G2/block.base"
+  block_doc "- zz-user-rule: run make test" "## cortex" > "$G2/block.user"
+  block_doc "<!-- zz project rules go here:\n     one line each. -->" "## cortex" > "$G2/block.new"
+  d="$(g2_run)" || return 0; g2_result
+  assert_exit 0 "$CODE" "a placeholder-only conflict in the block exits 0"
+  assert_line "$OUT" "merged AGENTS.md $PH_NOTE" "the merged line says the user's text was kept"
+  assert_not_contains "$OUT" "conflict AGENTS.md" "not reported as a conflict"
+  block_body "$d/AGENTS.md" agents > "$G2/block.result"
+  assert_same_file "$G2/block.user" "$G2/block.result" "the block is the user's text, no markers"
+  assert_true "one agents block" test "$(block_count "$d/AGENTS.md" agents)" = 1
+}
+
+case_G2_block_placeholder_and_real_conflict() {
+  # criterion 7, as criterion 5: the block with a second, real conflicting
+  # hunk (its first line)
+  local d
+  G2="$(mktemp -d "$TEST_TMP/g2.XXXXXX")"
+  block_doc "<!-- zz project rules go here. -->" "## cortex" > "$G2/block.base"
+  block_doc "- zz-user-rule: run make test" "## cortex (ours)" > "$G2/block.user"
+  block_doc "<!-- zz project rules go here:\n     one line each. -->" "## cortex (upstream)" > "$G2/block.new"
+  d="$(g2_run)" || return 0; g2_result
+  merge_expected "$d" AGENTS.md "$G2/block.user" "$G2/block.base" "$G2/block.new" > "$G2/expected"
+  assert_true "fixture: git merge-file leaves two conflicts" test "$(grep -c '^<<<<<<< ' "$G2/expected" || true)" = 2
+  assert_exit 1 "$CODE" "a real conflict in the block exits 1"
+  assert_line "$OUT" "conflict AGENTS.md" "reported as a conflict"
+  assert_not_contains "$OUT" "$PH_NOTE" "no kept-your-text line"
+  block_body "$d/AGENTS.md" agents > "$G2/block.result"
+  assert_same_file "$G2/expected" "$G2/block.result" "the block is 3.0.0's merge: both hunks with markers"
+}
+
+# ---- spec 3.1.0 As built (criterion 16): G2's parser reads only its own markers -------
+#
+# docs/specs/2026-10-09-v3.1-pilot-followups.md, As built: the placeholder
+# merge recognizes only the merge's own labelled markers ("<<<<<<< <path>
+# (yours)", "||||||| <path> (cortex <installed>)", "=======", ">>>>>>> <path>
+# (cortex <new>)"); any other line, "<<<<<<< HEAD" included, is content. A
+# conflict still open at the end of the file means the placeholder merge
+# fails, so 3.0.0's output stands. Criterion 16: a user line "<<<<<<< HEAD",
+# above or below a placeholder hunk, is kept intact, the file is reported
+# merged, and C14 still flags it.
+
+# c16_doc CONVENTIONS TOP BOTTOM -> ph_doc's document with a preamble; TOP
+# (when non-empty) is a line in the preamble, BOTTOM one after n6; each is
+# several unchanged lines away from the Conventions section and n8
+c16_doc() {
+  printf '# Guide\n\n'
+  [ -z "$2" ] || printf '%s\n' "$2"
+  printf 'i1\ni2\ni3\ni4\n\n## Conventions\n\n%b\n\n## Notes\n\nn1\nn2\nn3\nn4\nn5\nn6\n' "$1"
+  [ -z "$3" ] || printf '%s\n' "$3"
+  printf 'n7\nn8\nn9\nn10\n'
+}
+
+# c16_case TOP BOTTOM : the user filled the placeholder and has TOP/BOTTOM
+# as their own lines; 3.1.0 only rewords the placeholder
+c16_case() {
+  local d p="$FX/ph.md" top="$1" bottom="$2"
+  G2="$(mktemp -d "$TEST_TMP/g2.XXXXXX")"
+  c16_doc "$PH_OLD" "" "" > "$G2/ph.md.base"
+  c16_doc "$PH_USER" "$top" "$bottom" > "$G2/ph.md.user"
+  c16_doc "$PH_NEW" "" "" > "$G2/ph.md.new"
+  assert_true "fixture: git merge-file leaves one labelled conflict" test "$(
+    git -C "$TEST_TMP" merge-file -p -L "$p (yours)" -L "$p (cortex 3.0.0)" -L "$p (cortex 3.1.0)" \
+      "$G2/ph.md.user" "$G2/ph.md.base" "$G2/ph.md.new" | grep -c "^<<<<<<< $p (yours)$" || true)" = 1
+  d="$(g2_run ph.md)" || return 0; g2_result
+  assert_exit 0 "$CODE" "a placeholder-only conflict exits 0"
+  assert_line "$OUT" "merged $p $PH_NOTE" "reported merged, the user's text kept"
+  assert_not_contains "$OUT" "conflict $p" "not reported as a conflict"
+  assert_true "counted as merged, not as a conflict" grep -qE "$(g2_summary_re 1 0)" <<<"$(last_line "$OUT")"
+  assert_same_file "$G2/ph.md.user" "$d/$p" "the file is the user's text, <<<<<<< HEAD intact, every line kept"
+  assert_file_contains "$d/$p" "<<<<<<< HEAD" "the user's <<<<<<< HEAD line is kept"
+  assert_file_not_contains "$d/$p" "(yours)" "no (yours) marker left"
+  assert_file_not_contains "$d/$p" "(cortex " "no (cortex ...) marker left"
+  run bash -c 'cd "$1" && bash cortex/bin/check.sh' _ "$d"
+  assert_contains "$OUT" "FAIL [C14] $p" "C14 still flags the user's <<<<<<< HEAD line"
+}
+
+case_C16_head_below_placeholder() { c16_case "" "<<<<<<< HEAD"; }
+case_C16_head_above_placeholder() { c16_case "<<<<<<< HEAD" ""; }
+
+case_C16_unclosed_labelled_conflict() {
+  # a leftover opening marker of the merge's own form (from an earlier
+  # upgrade, half resolved), below the placeholder hunk: that conflict is
+  # still open at the end of the file, so the placeholder merge fails and
+  # 3.0.0's output stands
+  local d p="$FX/ph.md"
+  G2="$(mktemp -d "$TEST_TMP/g2.XXXXXX")"
+  c16_doc "$PH_OLD" "" "" > "$G2/ph.md.base"
+  c16_doc "$PH_USER" "" "<<<<<<< $p (yours)" > "$G2/ph.md.user"
+  c16_doc "$PH_NEW" "" "" > "$G2/ph.md.new"
+  d="$(g2_run ph.md)" || return 0; g2_result
+  merge_expected "$d" "$p" "$G2/ph.md.user" "$G2/ph.md.base" "$G2/ph.md.new" > "$G2/expected"
+  assert_true "fixture: git merge-file leaves one conflict" \
+    test "$(grep -c '^>>>>>>> ' "$G2/expected" || true)" = 1
+  assert_exit 1 "$CODE" "an unclosed conflict exits 1"
+  assert_line "$OUT" "conflict $p" "reported as a conflict"
+  assert_not_contains "$OUT" "$PH_NOTE" "no kept-your-text line"
+  assert_same_file "$G2/expected" "$d/$p" "the file is 3.0.0's merge, every user line kept"
+  assert_true "counted as a conflict" grep -qE "$(g2_summary_re 0 1)" <<<"$(last_line "$OUT")"
+}
+
 run_case "criterion 21: an unedited file is replaced; cortex/version updated" case_unedited_replaced
 run_case "criterion 22: a user-edited file is kept" case_edited_kept
 run_case "criterion 23: non-overlapping edits merge" case_both_merged
@@ -399,4 +633,12 @@ run_case "criterion 31: a minor upgrade keeps a 3.0.0 lock valid" case_minor_kee
 run_case "criterion 31: a major upgrade refuses an open lock" case_major_refuses_open_lock
 run_case "criterion 33: reverting an upgrade leaves a consistent install" case_revert_consistent
 run_case "F1: a root block differing only in blank lines upgrades as unedited" case_F1_blank_lines_unedited
+run_case "G2 criterion 4: a reworded placeholder keeps the user's text" case_G2_placeholder_reworded
+run_case "G2 criterion 5: plus a real conflicting hunk: 3.0.0's output" case_G2_placeholder_and_real_conflict
+run_case "G2 criterion 6: only one side a placeholder is a real conflict" case_G2_one_side_placeholder
+run_case "G2 criterion 7: the root block, as criterion 4" case_G2_block_placeholder_reworded
+run_case "G2 criterion 7: the root block, as criterion 5" case_G2_block_placeholder_and_real_conflict
+run_case "As built criterion 16: a user <<<<<<< HEAD below a placeholder hunk is kept" case_C16_head_below_placeholder
+run_case "As built criterion 16: a user <<<<<<< HEAD above a placeholder hunk is kept" case_C16_head_above_placeholder
+run_case "As built criterion 16: an unclosed labelled conflict: 3.0.0's output" case_C16_unclosed_labelled_conflict
 summary
