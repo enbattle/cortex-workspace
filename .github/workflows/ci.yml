@@ -64,7 +64,8 @@ jobs:
         # Side by side, temporary files on D: (faster than C: here); 2026-10-12
         # spec, Amendment 2 W3
         run: |
-          # as a POSIX path: D:_temp's backslashes would be escapes to awk -v
+          # as a POSIX path (/d/a/_temp): a Windows path's backslashes would
+          # be escapes to the suites' awk -v
           t="$(cygpath -u "$RUNNER_TEMP")"
           export TMPDIR="$t" TMP="$t" TEMP="$t"
           bash tests/run.sh --parallel install upgrade remove
