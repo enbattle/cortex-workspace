@@ -17,12 +17,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: shellcheck
         run: |
-          # The shipped scripts at info, which includes quoting (SC2086);
-          # the tests at warning (2026-10-12 spec, V11).
-          shellcheck --severity=info bin/*.sh template/cortex/bin/*.sh
+          # The shipped scripts at info, which includes quoting (SC2086), and
+          # the tests at warning (2026-10-12 spec, V11). Excluded, measured on
+          # its first run: SC2015, whose every hit is `A && B || continue` (or
+          # `|| true`) on purpose, and SC2094, which reads a call that takes
+          # only the file's name as reading the file.
+          shellcheck --severity=info --exclude=SC2015,SC2094 bin/*.sh template/cortex/bin/*.sh
           shellcheck --severity=warning tests/*.sh evals/golden/*/refresh.sh
       - name: test suites
         run: bash tests/run.sh --parallel
@@ -34,7 +37,7 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: bash is /bin/bash 3.2
@@ -54,7 +57,7 @@ jobs:
       run:
         shell: bash
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
       - name: install, upgrade and remove suites (Git Bash)
