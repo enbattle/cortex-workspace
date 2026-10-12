@@ -91,7 +91,7 @@ R14's four checks:
 - **D4. The Claude Code review skill.** When D3 applies, it spawns the
   split reviewers with their file lists, records each list in the round,
   and merges their returns as D3 says (an adapter carries out the
-  canonical procedure: R8).
+  canonical procedure: R8). It stays within C9's 25 lines (16 today).
 - **D5. This repository's `AGENTS.md`.** A review or audit of cortex too
   large for one agent is split by area (R13). When its findings come from
   agents that lacked the decisions, a fresh verifier given the design
@@ -105,6 +105,19 @@ R14's four checks:
   leaves `docs/02-extensions.md` (adopted) for a pointer to R13 and
   `review`; its pitfalls are the ones D3 now states. The template's
   `deferred-practices.md` has no entry for it.
+
+- **D7. What else names a single reviewer.**
+  - `.claude/agents/cortex-reviewer.md`: besides the change folder, it may
+    be given the file list of its part, and it answers for that part
+    (D3); one clause, the procedure staying in `review.md` (R8).
+  - `README.md`'s workflow table: `review` runs in "one or more fresh,
+    read-only agents" (split when the change is more than one can read).
+  - Checked and unchanged: `security-review.md` (it runs once, D3), the
+    security reviewer's agent, `retro` (a split round is one round),
+    `docs/04-operator-feedback-loop.md`, INSTALL, the suites (only
+    `golden-fixture.test.sh` reads these files, through the refresh), and
+    the template's "Parallel or orchestrated agents" entry (a different
+    practice: independent tasks, not one role).
 
 ## Non-goals
 
