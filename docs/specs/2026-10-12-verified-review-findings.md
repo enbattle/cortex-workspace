@@ -345,3 +345,25 @@ A process costs 20-60 ms on Windows, so a user there waits as long.
   locally: 26.4 s before, 7.0 s after. The first try set `TMPDIR` to
   `$RUNNER_TEMP` as given (`D:\a\_temp`), whose backslashes the suites'
   `awk -v` read as escapes; the job uses the POSIX form (`cygpath -u`).
+
+## Amendment 3 (2026-10-12): no reader stops before its writer
+
+Found by CI (run 38290459754): `remove.sh` aborted halfway with `tr: write
+error: Broken pipe`. Its `section` helper runs `tr -d '\r' < FILE | awk
+'... exit'`: `awk` stops at the next heading while `tr`, writing a file
+over its 4 KB chunk (the template's `cortex/AGENTS.md` is 4,327 bytes), is
+still writing, and under `set -o pipefail` the pipeline fails. The same
+shape is in `gates.sh`'s tasks gate, `config_value`, and wherever `grep -q`
+reads a pipe. It depends on timing, so it showed only once the W1 tests'
+shims slowed the writers down.
+
+- **P1.** In the shipped scripts, no command reading a pipe stops before
+  its input ends: an `awk` that has what it needs stops acting, not
+  reading (a flag instead of `exit`), and a `grep -q` on a pipe becomes
+  `grep ... >/dev/null`. Output and exit codes are otherwise unchanged.
+- **P2.** Planted tests, each with about 1 MB after the part read, so the
+  writer is still writing when the reader would have stopped: `remove.sh`
+  keeps the records of a `cortex/AGENTS.md` whose Conventions section is
+  followed by 1 MB; the `tasks` gate passes a `tasks.md` whose ticked
+  tasks are followed by a `##` section of 1 MB; `config_value` reads a key
+  followed by 1 MB of comment lines.
