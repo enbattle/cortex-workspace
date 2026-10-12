@@ -883,6 +883,43 @@ case_W1_entries() {
   assert_true "every recorded entry listed (D4)" test "$(listed_entries "$OUT" | grep -c . || true)" = "$((n + 10))"
 }
 
+# ---- 2026-10-12 spec Amendment 3, P2: no reader stops before its writer --------------
+#
+# remove.sh keeps cortex/AGENTS.md's Conventions section (step 5). Here a
+# "## " section of about 1 MB follows it, so whatever feeds the reader is
+# still writing when the Conventions section has ended; under pipefail a
+# reader that stops there fails the removal halfway.
+
+case_P2_conventions_before_1mb() {
+  local d f filler="$TEST_TMP/p2.filler" expected
+  d="$(cortex_seeded)" || return 0
+  f="$d/cortex/AGENTS.md"
+  insert_after "$f" "## Conventions" "- zz-convention" || return 0
+  filler_mb > "$filler"
+  # the filler section right after Conventions: before the next "## ", or last
+  filter_file "$f" awk -v t="$filler" '
+    function filler() { print "## zz-filler"; while ((getline x < t) > 0) print x; done = 1 }
+    conv && !done && /^## / { filler() }
+    { print }
+    $0 == "## Conventions" { conv = 1 }
+    END { if (!done) filler() }'
+  commit_all "$d" "a 1 MB section after Conventions"
+  # what the kept section is: its heading through the line before the next "## "
+  expected="$(awk '$0 == "## Conventions" { inside = 1; print; next }
+    inside && /^## / { inside = 0 } inside { print }' "$f")"
+  assert_true "fixture: the Conventions section holds zz-convention" grep -qxF -- "- zz-convention" <<<"$expected"
+  assert_true "fixture: cortex/AGENTS.md is over 1 MB" test "$(wc -c < "$f")" -gt 1000000
+  assert_true "fixture: the filler section follows Conventions" \
+    test "$(awk '$0 == "## Conventions" { c = 1; next } c && /^## / { print; exit }' "$f")" = "## zz-filler"
+  remove_in "$d" --hosting-done --references-ok
+  assert_exit 0 "$CODE" "remove.sh exits 0 with 1 MB after the Conventions section"
+  assert_not_contains "$ALL" "Broken pipe" "no writer fails on a closed pipe"
+  assert_file_absent "$d/cortex" "cortex/ deleted"
+  assert_line "$OUT" "records docs/cortex-records" "records kept in the default directory"
+  assert_true "conventions.md is the Conventions section, heading through the line before the next ##" \
+    test "$(cat "$d/docs/cortex-records/conventions.md" 2>/dev/null)" = "$expected"
+  assert_file_not_contains "$d/docs/cortex-records/conventions.md" "zz-filler" "the next section is not kept"
+}
 
 run_case "criterion 12: round trip with --delete-records" case_round_trip_delete_records
 run_case "criterion 13: round trip with --keep-records <dir>" case_round_trip_keep_records
@@ -925,4 +962,5 @@ run_case "A2 --keep-records .github/../keep refused: no .." case_A2_dotdot_outsi
 run_case "A2 --keep-records docs/../keep refused: no .." case_A2_dotdot_missing_dir
 run_case "W1 40 more referencing project lines start no more processes" case_W1_reference_lines
 run_case "W1 10 more recorded entries start no more processes" case_W1_entries
+run_case "P2 the Conventions section kept with 1 MB after it" case_P2_conventions_before_1mb
 summary

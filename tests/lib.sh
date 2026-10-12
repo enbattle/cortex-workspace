@@ -571,6 +571,14 @@ unclose_block() {
   printf 'zz-project-line-after\n' >> "$1"
 }
 
+# filler_mb [PREFIX] -> about 1 MB of lines, each starting with PREFIX
+# (2026-10-12 spec, Amendment 3, P2): placed after the part a script reads,
+# so the command writing into its pipe is still writing when the reader has
+# what it needs. One awk, not a shell loop: Windows starts processes slowly.
+filler_mb() {
+  awk -v p="${1-}" 'BEGIN { for (i = 0; i < 20000; i++) print p "filler line " i " ........................................" }'
+}
+
 # has_cr FILE : FILE holds a carriage return (counted with tr: Git Bash's grep
 # and awk drop a CR before a newline when reading)
 has_cr() { [ "$(tr -cd '\r' < "$1" | wc -c | tr -d ' ')" -gt 0 ]; }

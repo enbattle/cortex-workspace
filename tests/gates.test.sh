@@ -546,6 +546,37 @@ case_A1_no_summary_fails() {
   done
 }
 
+# ---- 2026-10-12 spec Amendment 3, P2: no reader stops before its writer --------------
+#
+# About 1 MB after the part read, so whatever feeds the reader is still
+# writing when the reader has what it needs; under pipefail a reader that
+# stops there fails the pipeline.
+
+case_P2_ticked_tasks_before_1mb() {
+  # the tasks gate reads tasks.md up to its first "## "; 1 MB follows it
+  local d f; d="$(gated_repo)"
+  f="$d/cortex/changes/x/tasks.md"
+  write_tasks "$d" '# Tasks: x\n\n- [x] zz-done-one\n- [X] zz-done-two\n\n## zz-filler\n\n'
+  filler_mb >> "$f"
+  assert_true "fixture: tasks.md is over 1 MB" test "$(wc -c < "$f")" -gt 1000000
+  gates "$d" cortex/changes/x
+  expect_tasks_ok "ticked tasks, then a 1 MB section"
+  assert_not_contains "$OUT" "Broken pipe" "no writer fails on a closed pipe"
+}
+
+case_P2_config_value_before_1mb() {
+  # config_value (sourced, as the scripts do) reads a key followed by 1 MB
+  # of comment lines
+  local c="$TEST_TMP/p2.config"
+  { printf 'BUILD_CMD = zz-real-build\n'; filler_mb '# '; } > "$c"
+  assert_true "fixture: the config is over 1 MB" test "$(wc -c < "$c")" -gt 1000000
+  run bash -c 'set -euo pipefail; . "$1"; config_value BUILD_CMD < "$2"; printf "\nzz-after\n"' \
+    _ "$ROOT/template/cortex/bin/_config.sh" "$c"
+  assert_exit 0 "$CODE" "config_value exits 0 with 1 MB after the key"
+  assert_true "config_value prints the value (got: $OUT)" test "$OUT" = $'zz-real-build\nzz-after'
+  assert_not_contains "$ERR" "Broken pipe" "no writer fails on a closed pipe"
+}
+
 run_case "gates.sh shipped and installed executable" case_installed_executable
 run_case "usage error -> exit 2" case_usage_error
 run_case "all gates pass -> gates: ok" case_all_pass
@@ -575,6 +606,8 @@ run_case "G3 criterion 8: tasks ticked with x and X pass" case_G3_ticked_tasks_p
 run_case "G3 criterion 8: open tasks under a later heading pass" case_G3_open_under_later_heading_passes
 run_case "G3 criterion 8: every other gate still runs" case_G3_other_gates_still_run
 run_case "G3 criterion 9: the gate order" case_G3_gate_order
+run_case "P2 the tasks gate passes ticked tasks with 1 MB after them" case_P2_ticked_tasks_before_1mb
+run_case "P2 config_value reads a key with 1 MB of comments after it" case_P2_config_value_before_1mb
 run_case "V4 lock only: a clean locked change runs no project command" case_V4_lock_only_clean
 run_case "V4 lock only: a weakened locked test fails, no project command runs" case_V4_lock_only_weakened_test
 run_case "V4 unset: every command runs, nothing skipped" case_V4_unset_runs_commands

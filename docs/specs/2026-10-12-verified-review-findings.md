@@ -367,3 +367,8 @@ shims slowed the writers down.
   followed by 1 MB; the `tasks` gate passes a `tasks.md` whose ticked
   tasks are followed by a `##` section of 1 MB; `config_value` reads a key
   followed by 1 MB of comment lines.
+- *Observed once, not fixed:* in the same run, on macOS, `install.sh`'s
+  fresh copy (`tar -cf - cortex | tar -xf -`) failed with `tar: Write
+  error` in two suites, with no error from the reading `tar`; the re-run of
+  the failed jobs passed. No mechanism is known, so nothing changes (R14);
+  a recurrence goes in the next audit with its log.
