@@ -19,13 +19,17 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
       - name: shellcheck
-        run: shellcheck --severity=warning bin/*.sh template/cortex/bin/*.sh tests/*.sh evals/golden/*/refresh.sh
+        run: |
+          # The shipped scripts at info, which includes quoting (SC2086);
+          # the tests at warning (2026-10-12 spec, V11).
+          shellcheck --severity=info bin/*.sh template/cortex/bin/*.sh
+          shellcheck --severity=warning tests/*.sh evals/golden/*/refresh.sh
       - name: test suites
         run: bash tests/run.sh --parallel
 
-  # The scripts must run on macOS's /bin/bash 3.2 and on Git Bash (3.0.0
-  # spec D15): install, upgrade and remove, on both, with every bash call
-  # resolved to that bash.
+  # The scripts must run on macOS's /bin/bash 3.2 and on Git Bash (R7): every
+  # suite on macOS (2026-10-12 spec, V11), install, upgrade and remove on
+  # Windows (3.0.0 spec D15), with every bash call resolved to that bash.
   macos:
     runs-on: macos-latest
     timeout-minutes: 30
@@ -38,10 +42,10 @@ jobs:
           mkdir -p "$RUNNER_TEMP/bash32"
           ln -s /bin/bash "$RUNNER_TEMP/bash32/bash"
           echo "$RUNNER_TEMP/bash32" >> "$GITHUB_PATH"
-      - name: install, upgrade and remove suites
+      - name: every suite
         run: |
           bash --version | head -n 1 | grep -q 'version 3\.2' || { bash --version; exit 1; }
-          bash tests/run.sh install upgrade remove
+          bash tests/run.sh --parallel
 
   windows:
     runs-on: windows-latest

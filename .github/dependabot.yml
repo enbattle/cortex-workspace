@@ -1,0 +1,9 @@
+# Keeps the pinned action SHAs current (2026-10-12 spec, V11). The template's
+# copy of the checkout pin (template/cortex/ci/github/cortex.yml) isn't under
+# .github/workflows/, so it is kept equal to ci.yml's by hand.
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
