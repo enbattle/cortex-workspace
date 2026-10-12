@@ -69,6 +69,9 @@ for i in "${!suites[@]}"; do
   fi
   echo "=== $name"
   cat "$logs/$name.log"
+  # a suite that stopped before its summary line checked nothing, whatever its
+  # exit code (2026-10-12 spec, Amendment 1 A1)
+  grep -qE "^$name: [0-9]+ passed, [0-9]+ failed\$" "$logs/$name.log" || { [ "$rc" -ne 0 ] || rc=1; }
   if [ "$rc" -eq 0 ]; then
     echo "=== PASS $name"
   else

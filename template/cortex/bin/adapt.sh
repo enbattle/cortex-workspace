@@ -80,9 +80,11 @@ if active claude && [ -d "$ADAPTERS" ]; then
     wholes="$wholes$rel$TAB$ADAPTERS/$rel"$'\n'
   done <<<"$(cd "$ADAPTERS" && find . -type f | sed 's|^\./||' | LC_ALL=C sort)"
 fi
+tmp="$(mktemp -d)"
+trap 'rm -rf "$tmp"' EXIT # set before any refusal, so none leaves it behind
 cursor_src=""
 if active cursor; then
-  cursor_src="$(mktemp)"
+  cursor_src="$tmp/cursor.mdc"
   printf -- '---\ndescription: Canonical agent context for this repository\nalwaysApply: true\n---\n%s\n' "$POINTER" > "$cursor_src"
   wholes="$wholes.cursor/rules/cortex.mdc$TAB$cursor_src"$'\n'
 fi
@@ -100,20 +102,19 @@ done <<<"$wholes"
 
 # V1 (2026-10-12 spec): a block with no end marker, recorded or one this run
 # would write into, is refused before anything is written, never truncated
-blocks="$(fp_match block | cut -f 2,3)"
+unclosed=0
+fp_unclosed_refusals || unclosed=1
+blocks=""
 if active claude; then blocks="$blocks"$'\n'"CLAUDE.md${TAB}claude"; fi
 if active copilot; then blocks="$blocks"$'\n'".github/copilot-instructions.md${TAB}copilot"; fi
 if active gemini; then blocks="$blocks"$'\n'"GEMINI.md${TAB}gemini"; fi
 if [ "$ci" = github ] && [ -n "$owners" ]; then blocks="$blocks"$'\n'"$codeowners${TAB}codeowners"; fi
-unclosed=0
 while IFS="$TAB" read -r p id; do
-  [ -n "$p" ] || continue
+  [ -n "$p" ] && [ -z "$(fp_match block "$p" "$id")" ] || continue # recorded: above
   ! unclosed_refusal "$p" "$id" || unclosed=1
-done <<<"$(printf '%s\n' "$blocks" | LC_ALL=C sort -u)"
+done <<<"$blocks"
 [ "$unclosed" = 0 ] || exit 2
 
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp" ${cursor_src:+"$cursor_src"}' EXIT
 desired=""   # every path this run keeps, one per line
 want() { desired="$desired$1"$'\n'; }
 

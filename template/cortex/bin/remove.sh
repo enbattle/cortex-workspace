@@ -51,15 +51,26 @@ usage() {
 }
 refuse() { echo "refused $1: $2"; exit 2; }
 
-# inside_cortex PATH : PATH is cortex/ or inside it, however it is spelled:
-# its deepest existing directory, resolved physically (links followed), or
-# one above that, is cortex/ (-ef: the same file, so case and links don't
-# matter; 2026-10-12 spec V3)
-inside_cortex() {
-  local d="$1" p
+# existing_ancestor PATH -> the deepest part of PATH that exists (PATH
+# itself, if it does), or .
+existing_ancestor() {
+  local d="$1"
   while [ ! -e "$d" ]; do
     case "$d" in */*) d="${d%/*}"; [ -n "$d" ] || d=/ ;; *) d=. ;; esac
   done
+  printf '%s' "$d"
+}
+
+# inside_cortex PATH : PATH is cortex/ or inside it, however it is spelled:
+# its deepest existing directory (above a file, its parent), resolved
+# physically (links followed), or one above that, is cortex/ (-ef: the same
+# file, so case and links don't matter; 2026-10-12 spec V3, Amendment 1 A2)
+inside_cortex() {
+  local d p
+  d="$(existing_ancestor "$1")"
+  if [ ! -d "$d" ]; then
+    case "$d" in */*) d="${d%/*}"; [ -n "$d" ] || d=/ ;; *) d=. ;; esac
+  fi
   p="$(cd "$d" 2>/dev/null && pwd -P)" || return 1
   while :; do
     [ "$p" -ef cortex ] && return 0
@@ -182,8 +193,16 @@ if [ -z "$records" ]; then
 fi
 if [ "$records" != delete ]; then
   records="${records%/}"
+  # ".." first: the walk below can't see through a part that doesn't exist yet
+  case "/$records/" in
+    */../*) refuse "$records" 'name the directory without ".."' ;;
+  esac
   if inside_cortex "$records"; then
     refuse "$records" "is inside cortex/, which is deleted; name another directory"
+  fi
+  ancestor="$(existing_ancestor "$records")"
+  if [ ! -d "$ancestor" ]; then
+    refuse "$records" "$ancestor is not a directory; name another directory"
   fi
   if [ -e "$records" ] && [ -n "$(ls -A "$records" 2>/dev/null)" ]; then
     refuse "$records" "exists and isn't empty; name another directory with --keep-records <dir>"

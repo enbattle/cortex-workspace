@@ -172,11 +172,13 @@ block_count() {
 }
 
 # block_closed PATH ID : the file's first begin marker for ID has an end
-# marker for ID after it (2026-10-12 spec V1). A file without the begin
-# marker isn't a block to close; callers check block_count first.
+# marker for ID after it, before any other begin marker for ID (2026-10-12
+# spec V1, Amendment 1 A3). A file without the begin marker isn't a block to
+# close; callers check block_count first.
 block_closed() {
   awk -v BINMODE=3 -v b="$(marker_begin "$1" "$2")" -v e="$(marker_end "$1" "$2")" '
     { l = $0; sub(/\r$/, "", l) }
+    inb && l == b { exit }
     !inb && l == b { inb = 1; next }
     inb && l == e { closed = 1; exit }
     END { exit !closed }' "$1"
