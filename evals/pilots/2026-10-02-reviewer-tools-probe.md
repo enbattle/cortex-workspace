@@ -44,3 +44,20 @@ the main session's only call was `Agent` with `subagent_type:
 cortex-reviewer`; the subagent made no tool calls and reported Write and
 Edit "not available ... Its only tools are Read, Grep, Glob and Bash"; no
 file was created and the tree stayed clean. The restriction still holds.
+
+## Re-run, 2026-10-12
+
+After the 2026-10-12 spec's V9 changed the review skill (it records the
+commit and branch as well as the status). Same procedure, fresh install
+from `fix/verified-review-findings` at `652df6d`, Claude Code 2.1.296,
+model claude-opus-5-5: the main session's only call was `Agent` with
+`subagent_type: cortex-reviewer`; the subagent made no tool calls and
+reported Write and Edit "Not available ... My tools are Read, Grep, Glob
+and Bash"; no file was created and the tree stayed clean. The restriction
+still holds.
+
+In the same install, V8's rules were probed the same way (`claude -p`,
+`--allowedTools "Bash(git *)" Read`, so only the settings' `ask` rules can
+stop a `git` command): `git switch -f main`, `git switch --discard-changes
+probe-a` and `git switch --force probe-a` were denied (each would prompt),
+and `git switch -c probe-a` and `git switch main` ran without one.
