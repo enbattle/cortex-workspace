@@ -1,10 +1,12 @@
 # Changelog
 
-## 3.3.0 — unreleased
+## 3.3.0 — 2026-10-12
 
-**Before release:** the golden cycle and the reviewer-tools probe
-(`review.md`, `implement.md` and the review skill changed); the
-completeness audit and its findings; the full suites and CI on Linux,
+**Before release** (all done): the golden cycle, twice over (before and
+after the audit's fixes; `evals/golden/review-maxlength/results/2026-10-12-3.3.0.md`)
+and the reviewer-tools probe (`review.md`, `implement.md` and the review
+skill changed); the completeness audit and its findings
+(`evals/audits/2026-10-12-3.3.0.md`); the full suites and CI on Linux,
 macOS and Windows; `VERSION` 3.3.0 and the fixture refreshed; README's
 status and install tag; a date here, and the tag.
 
