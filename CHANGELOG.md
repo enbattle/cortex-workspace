@@ -32,7 +32,8 @@ tag.
   and the CODEOWNERS block). `CI=none` still removes them.
 - **Records are never kept inside `cortex/`:** `--keep-records` resolves the
   path, so `./cortex/x`, an absolute path or a link into `cortex/` is
-  refused instead of deleted with it.
+  refused instead of deleted with it, and so is a path with `..` or one
+  under a file.
 - **Claude Code asks before `git switch -f`, `--force` or
   `--discard-changes`**, which discard uncommitted work.
 - **Review's integrity check records the commit and branch** as well as the
