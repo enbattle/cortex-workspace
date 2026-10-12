@@ -203,10 +203,16 @@ go-ahead."
 - **Dependabot keeps the action pins current.** `.github/dependabot.yml`,
   the `github-actions` ecosystem, monthly, as the shipped workflow tells
   users to do. The template's checkout pin is kept equal to `ci.yml`'s by
-  hand.
+  hand. Both move to `actions/checkout` v7.0.1 now: v4.4.0 runs on Node
+  20, which GitHub has deprecated (a warning on every run), and v7's one
+  breaking change is for `pull_request_target`, which neither workflow
+  uses.
 - **shellcheck checks quoting in the shipped scripts.** CI runs
   `--severity=info` on `bin/*.sh` and `template/cortex/bin/*.sh` (the tests
   stay at `warning`). Each finding is fixed or annotated with its reason.
+  *Measured on the first run:* no SC2086; nine SC2015 (`A && B || continue`
+  or `|| true`, each on purpose) and one SC2094 (a call that reads only the
+  file's name), both excluded by code with that reason in `ci.yml`.
 
 ## Known limitations recorded, not fixed
 

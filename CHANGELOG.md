@@ -1,5 +1,50 @@
 # Changelog
 
+## 3.2.0 — unreleased
+
+**Before release:** the golden cycle and the reviewer-tools probe (review.md
+and the review skill changed); the completeness audit and its findings; the
+full suites and CI on Linux, macOS and Windows; `VERSION` 3.2.0 and the
+fixture refreshed; README's status and install tag; a date here, and the
+tag.
+
+**Changed: the 2026-10-12 review's verified findings**
+(`docs/specs/2026-10-12-verified-review-findings.md`).
+
+- **An unclosed block is refused, not truncated.** A cortex block whose end
+  marker is gone used to lose every line after its begin marker on the next
+  `adapt.sh` or upgrade. Now `adapt.sh`, an upgrade and `remove.sh` refuse
+  (exit 2, nothing changed) with `refused <path>: its cortex <id> block has
+  no end marker; restore it, then run again`, and C13 fails it.
+- **The test lock is judged before any project code runs.** The workflow
+  runs the lock alone first (`CORTEX_GATES_LOCK_ONLY=1`, which `gates.sh`
+  honors by skipping the config's commands), then the setup, then every
+  gate: code run by `TEST_CMD` could rewrite the running gate script and
+  pass a broken lock. It also re-runs when a pull request's base branch
+  changes, checks out with `persist-credentials: false`, and pins
+  `actions/checkout` v7.0.1 (v4 runs on the deprecated Node 20).
+- **CODEOWNERS owns what the lock locks.** A `TEST_GLOBS` entry with one
+  lone `*` also gets that `*` as `*/**/*` (in a pathspec `*` crosses
+  directories; in CODEOWNERS it doesn't), with a note for an entry it can't
+  translate. The block also owns `CLAUDE.md`, cortex's `.claude/` agents and
+  skills, and `cortex/adapters/`.
+- **An unknown `CI` value removes nothing** (it used to delete the workflow
+  and the CODEOWNERS block). `CI=none` still removes them.
+- **Records are never kept inside `cortex/`:** `--keep-records` resolves the
+  path, so `./cortex/x`, an absolute path or a link into `cortex/` is
+  refused instead of deleted with it.
+- **Claude Code asks before `git switch -f`, `--force` or
+  `--discard-changes`**, which discard uncommitted work.
+- **Review's integrity check records the commit and branch** as well as the
+  status, so a reviewer that commits or switches branch is caught.
+- **Removed:** `permissions.md`'s unused `HUMAN-GATE:` marker.
+
+**For installed repositories:** after upgrading, move any setup steps in
+`cortex/ci/github/cortex.yml` below the new "Test lock" step (where the
+setup comment is), re-run `adapt.sh` for the workflow and the new CODEOWNERS
+lines, and merge any `entry .claude/settings.json` lines it prints (C13
+fails until they are in).
+
 ## 3.1.0 — 2026-10-10
 
 **Before release** (all done): the golden cycle (review.md changed); the
