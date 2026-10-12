@@ -60,6 +60,8 @@ repositories. Route yourself with the table below.
   nominates at least one thing to delete or merge, or says why nothing
   qualifies; the maintainer decides. Too large for one agent, it is split
   and its findings verified as below. Record it in `evals/audits/<date>.md`.
+  On 2026-09-24 it found a flow-breaking bug and stale docs that every
+  per-change review had passed.
 - **A review or audit of cortex too large for one agent is split by area**
   (R13). When its findings come from agents that lacked the decisions, a
   fresh verifier given the design rules, the mental traps, the extensions
@@ -70,8 +72,6 @@ repositories. Route yourself with the table below.
   attachment to their own findings, and blindness to decisions they never
   read. The 2026-10-12 review is the worked example
   (`docs/specs/2026-10-12-verified-review-findings.md`).
-  On 2026-09-24 it found a flow-breaking bug and stale docs that every
-  per-change review had passed.
 - A release needs the "Before release" list in `CHANGELOG.md` done, a date
   on its CHANGELOG entry, and a tag.
 - Never push, merge, or tag a release without the maintainer's go-ahead.

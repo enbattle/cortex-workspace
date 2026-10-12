@@ -32,14 +32,17 @@ against the change before approving it.
     change folder) and answers for its own part;
   - one reviewer also owns the gates and verification (step 3) and the
     checklist's items that span the change;
-  - the security pass (step 7) runs once, over the external-surface files
-    and their tests.
+  - if any reviewer reports an external surface, the security pass (step 7)
+    runs once, over the whole change.
 
-  The round lists each reviewer's findings as returned, collapses only
-  identical ones (same file, line and defect), and its verdict is request
-  changes if any reviewer's is. It counts as one round for the budget.
-  The session that merges the returns judges none of them: findings are
-  triaged in `implement`.
+  The round lists each reviewer's findings, and the security pass's, as
+  returned, collapsing only findings whose text is identical; its verdict
+  is request changes if any of them requests changes. It counts as one
+  round for the budget. The session that merges the returns judges none of
+  them: findings are triaged in `implement`. In a tool without subagents,
+  each part is its own fresh chat. A reviewer given the whole change that
+  finds it more than it can read in full stops and tells the user to split
+  it.
 
 ## Procedure
 

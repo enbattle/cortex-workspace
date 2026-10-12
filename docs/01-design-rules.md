@@ -47,7 +47,8 @@ are the diff, the change folder, the constitution, the review checklist, the
 repository's `AGENTS.md` files (the root one, `cortex/AGENTS.md` and a
 package's own: the conventions review checks against), the project's own
 agent instructions the router names, and knowledge files the change folder
-names. It never sees the implementation
+names; a review split across reviewers (R13) also gives each the file list
+of its part. It never sees the implementation
 conversation. A skill or command invoked for review runs inside the calling
 session unless it explicitly delegates, so invoking one is not isolation. How
 isolation is enforced is tool-specific and lives in the adapter (R8).
@@ -182,7 +183,8 @@ task right. Concretely:
   recorded for that work, by a context that has them: an agent that saw
   only part of the project can't know what it decided. A finding whose
   fix would contradict a recorded decision is disputed and stops for the
-  user, who revisits the decision or records the finding. A below-bar or
+  user, who revisits the decision or records the finding (a High can't
+  become a known limitation: `implement`). A below-bar or
   theoretical finding is recorded as a known limitation by default, not
   turned into a test or a rule. The exception is a cheap test for a severe class
   (security, data loss, money), which `review` already refuses to
