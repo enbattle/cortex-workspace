@@ -176,8 +176,8 @@ can get around them. The boundary is the pull request. With `CI=github` and
   `bash cortex/bin/adapt.sh` again: the source is cortex's file, so an
   upgrade merges your steps with cortex's changes, and removal deletes the
   workflow cleanly. (An edit to the generated workflow itself is kept by
-  both, never updated, and left behind by removal.) It runs the test lock only for change
-  folders whose `lock.md` the pull request adds or changes. To bring a
+  both, never updated, and left behind by removal.) Both steps gate only the
+  change folders whose `lock.md` the pull request adds or changes. To bring a
   locked branch up to date, merge the base into it, and if that changed
   locked files, re-lock with the user's sign-off (`test-first` step 7,
   naming the merge commit); don't rebase.
