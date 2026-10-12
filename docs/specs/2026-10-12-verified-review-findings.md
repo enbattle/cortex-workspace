@@ -299,4 +299,6 @@ for the items above.
 - **A4.** `adapt.sh`'s refusals don't leave its Cursor temporary file
   behind, and its V1 pre-pass calls `fp_unclosed_refusals` for the recorded
   blocks (one source) and `unclosed_refusal` for the blocks it would write
-  that aren't recorded.
+  that aren't recorded. Where `mktemp` ignores `TMPDIR` (macOS's BSD `mktemp`
+  without a template), the temporary-file check can't be observed and is
+  skipped with a note; it runs on Linux and Git Bash.

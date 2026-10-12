@@ -721,19 +721,20 @@ adapt_tmpdir() {
 }
 
 # empty_tmpdir NAME -> a new empty directory; mktemp there is shown to honor
-# TMPDIR (else the check below would prove nothing)
+# TMPDIR; returns 2, recording nothing, where mktemp ignores TMPDIR (BSD
+# mktemp without a template): the caller skips the check with a note (A4)
 empty_tmpdir() {
   local t="$TEST_TMP/a4.$1" probe
   mkdir -p "$t"
   probe="$(TMPDIR="$t" mktemp)" || { fail "fixture: mktemp failed"; return 1; }
-  case "$probe" in "$t"/*) rm -f "$probe" ;; *) rm -f "$probe"; fail "fixture: mktemp ignores TMPDIR ($probe)"; return 1 ;; esac
+  case "$probe" in "$t"/*) rm -f "$probe" ;; *) rm -f "$probe"; return 2 ;; esac
   [ -z "$(ls -A "$t")" ] || { fail "fixture: $t not empty"; return 1; }
   printf '%s\n' "$t"
 }
 
 case_A4_d11_refusal_no_tmp_left() {
   local d t; d="$(tools_install claude,cursor)"
-  t="$(empty_tmpdir d11)" || return 0
+  t="$(empty_tmpdir d11)" || { [ $? = 2 ] && echo "  note: skipped the temporary-file check: mktemp ignores TMPDIR here (A4)"; return 0; }
   mkdir -p "$d/.cursor/rules"
   printf 'hand-written\n' > "$d/.cursor/rules/cortex.mdc"
   adapt_tmpdir "$d" "$t"
@@ -744,7 +745,7 @@ case_A4_d11_refusal_no_tmp_left() {
 
 case_A4_v1_refusal_no_tmp_left() {
   local d t; d="$(tools_install claude,cursor,gemini)"
-  t="$(empty_tmpdir v1)" || return 0
+  t="$(empty_tmpdir v1)" || { [ $? = 2 ] && echo "  note: skipped the temporary-file check: mktemp ignores TMPDIR here (A4)"; return 0; }
   printf '# my gemini notes\n<!-- cortex:begin gemini -->\nold pointer\n# more of my notes\n' > "$d/GEMINI.md"
   adapt_tmpdir "$d" "$t"
   assert_exit 2 "$CODE" "fixture: an unclosed gemini block is refused (V1)"
