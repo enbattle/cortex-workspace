@@ -513,6 +513,39 @@ case_V11_no_assertion_fails() {
   assert_true "a suite whose only case asserts nothing exits nonzero (got $CODE)" test "$CODE" -ne 0
 }
 
+# ---- 2026-10-12 spec Amendment 1, A1: a suite that dies before its summary fails ---
+#
+# run.sh fails a suite whose output has no `<suite>.test.sh: <n> passed, <m>
+# failed` line, whatever its exit code. Planted: a scratch copy of run.sh and
+# lib.sh (run.sh finds its suites as *.test.sh beside itself), with a suite
+# that passes normally and one that exits 0 before its summary.
+
+case_A1_no_summary_fails() {
+  local t="$TEST_TMP/a1/tests" mode
+  mkdir -p "$t"
+  cp "$ROOT/tests/run.sh" "$ROOT/tests/lib.sh" "$t/"
+  printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' '. "$(cd "$(dirname "$0")" && pwd)/lib.sh"' \
+    'c() { assert_true "planted" true; }' 'run_case "one assertion" c' 'summary' > "$t/good.test.sh"
+  printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' '. "$(cd "$(dirname "$0")" && pwd)/lib.sh"' \
+    'c() { assert_true "planted" true; }' 'run_case "one assertion" c' \
+    'echo "stopped before the summary"' 'exit 0' 'summary' > "$t/dies.test.sh"
+  run bash "$t/dies.test.sh"
+  assert_exit 0 "$CODE" "fixture: the planted suite exits 0"
+  assert_not_contains "$OUT" "dies.test.sh: " "fixture: the planted suite prints no summary line"
+  for mode in "" --parallel; do
+    run bash "$t/run.sh" $mode good
+    assert_exit 0 "$CODE" "run.sh ${mode:-(sequential)} good: a normal passing suite passes"
+    assert_line "$OUT" "=== PASS good.test.sh" "run.sh ${mode:-(sequential)}: good.test.sh reported PASS"
+    run bash "$t/run.sh" $mode dies
+    assert_true "run.sh ${mode:-(sequential)} dies: a suite without its summary line exits nonzero (got $CODE)" test "$CODE" -ne 0
+    assert_contains "$OUT" "=== FAIL dies.test.sh" "run.sh ${mode:-(sequential)}: dies.test.sh reported FAIL (A1)"
+    assert_not_contains "$OUT" "=== PASS dies.test.sh" "run.sh ${mode:-(sequential)}: dies.test.sh not reported PASS (A1)"
+    run bash "$t/run.sh" $mode
+    assert_exit 1 "$CODE" "run.sh ${mode:-(sequential)}, every suite: exit 1"
+    assert_line "$OUT" "suites: 1 passed, 1 failed (of 2)" "run.sh ${mode:-(sequential)}: one passed, one failed"
+  done
+}
+
 run_case "gates.sh shipped and installed executable" case_installed_executable
 run_case "usage error -> exit 2" case_usage_error
 run_case "all gates pass -> gates: ok" case_all_pass
@@ -546,4 +579,5 @@ run_case "V4 lock only: a clean locked change runs no project command" case_V4_l
 run_case "V4 lock only: a weakened locked test fails, no project command runs" case_V4_lock_only_weakened_test
 run_case "V4 unset: every command runs, nothing skipped" case_V4_unset_runs_commands
 run_case "V11 a suite in which no assertion runs exits nonzero" case_V11_no_assertion_fails
+run_case "A1 run.sh fails a suite that prints no summary line" case_A1_no_summary_fails
 summary

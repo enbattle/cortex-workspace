@@ -266,3 +266,37 @@ the new CODEOWNERS lines.
 5. The full suites and shellcheck on CI; the completeness audit in
    `evals/audits/2026-10-12.md`.
 6. One pull request; merged on green CI with the maintainer's go-ahead.
+
+## Amendment 1 (2026-10-12): the completeness audit's findings
+
+The audit (`evals/audits/2026-10-12.md`) found these; tests come first, as
+for the items above.
+
+- **A1. A suite that dies before its summary fails.** On macOS's bash 3.2,
+  `tests/golden-fixture.test.sh` stopped on a parse error (a `case` pattern
+  inside `$( )`) and printed no summary, and `tests/run.sh` reported it as
+  passing. `run.sh` fails a suite whose output has no
+  `<suite>.test.sh: <n> passed, <m> failed` line, whatever its exit code,
+  and `golden-fixture.test.sh` writes its `case` patterns inside `$( )` in
+  the `(pattern)` form bash 3.2 parses. Every suite's assertion count is
+  unchanged.
+- **A2. V3's guard, two spellings.**
+  - When the records path's deepest existing ancestor is not a directory,
+    the guard walks from its parent, so `cortex/config/x` is refused as
+    inside `cortex/` (as it was before V3).
+  - Then a records path whose deepest existing ancestor is not a
+    directory is refused: `refused <path>: <ancestor> is not a directory;
+    name another directory` (exit 2, nothing changed), since it could
+    never be created.
+  - A records path with a `..` component is refused: `refused <path>: name
+    the directory without ".."` (exit 2, nothing changed). Lexically
+    resolving it can't account for links, and `nonexist/../cortex/x` got
+    past the walk.
+- **A3. V1's `block_closed`:** the end marker must come before the next
+  begin marker for the same ID; a begin marker followed by another begin
+  marker for ID, with no end between them, is unclosed. C13 checks this
+  whenever the file has the block, also when it reports more than one.
+- **A4.** `adapt.sh`'s refusals don't leave its Cursor temporary file
+  behind, and its V1 pre-pass calls `fp_unclosed_refusals` for the recorded
+  blocks (one source) and `unclosed_refusal` for the blocks it would write
+  that aren't recorded.

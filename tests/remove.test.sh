@@ -740,6 +740,43 @@ v3_accepted() { # SPEC : --keep-records SPEC keeps the records there
 case_V3_docs_cortex_accepted() { v3_accepted docs/cortex; }
 case_V3_cortexrecords_accepted() { v3_accepted cortexrecords; }
 
+# ---- 2026-10-12 spec Amendment 1, A2: V3's guard, two spellings ----------------------
+#
+# A2: a records path whose deepest existing ancestor is not a directory is
+# walked from that ancestor's parent (so cortex/config/x is inside cortex/),
+# and otherwise refused as not a directory; a records path with a ..
+# component is refused. Each: exit 2, nothing changed. One fixture per
+# spelling, so each refusal is shown on its own.
+
+# a2_refused SPEC MESSAGE : --keep-records SPEC is refused with exactly
+# "refused SPEC: MESSAGE", exit 2, nothing changed
+a2_refused() {
+  local d before head
+  d="$(cortex_seeded)" || return 0
+  add_records "$d" || return 0
+  before="$(tree_snapshot "$d")"; head="$(git -C "$d" rev-parse HEAD)"
+  remove_in "$d" --hosting-done --references-ok --keep-records "$1"
+  assert_exit 2 "$CODE" "--keep-records $1: exit 2 (A2)"
+  assert_line "$ALL" "refused $1: $2" "--keep-records $1: the refusal (A2)"
+  assert_not_contains "$ALL" "removed " "--keep-records $1: nothing reported removed"
+  assert_true "--keep-records $1: nothing changed" test "$(tree_snapshot "$d")" = "$before"
+  assert_true "--keep-records $1: the work tree is clean" test -z "$(git -C "$d" status --porcelain)"
+  assert_true "--keep-records $1: no commit made" test "$(git -C "$d" rev-parse HEAD)" = "$head"
+}
+
+NOT_DIR_MSG="is not a directory; name another directory"
+DOTDOT_MSG='name the directory without ".."'
+
+case_A2_inside_cortex_file_ancestor() {
+  # cortex/config is a file: the walk starts at cortex/, so this is inside it
+  a2_refused cortex/config/x "$INSIDE_MSG"
+}
+case_A2_tracked_file_ancestor() { a2_refused README.md/x "README.md $NOT_DIR_MSG"; }
+case_A2_nested_file_ancestor() { a2_refused README.md/x/y "README.md $NOT_DIR_MSG"; }
+case_A2_dotdot_into_cortex() { a2_refused nonexist/../cortex/x "$DOTDOT_MSG"; }
+case_A2_dotdot_outside_cortex() { a2_refused .github/../keep "$DOTDOT_MSG"; }
+case_A2_dotdot_missing_dir() { a2_refused docs/../keep "$DOTDOT_MSG"; }
+
 
 run_case "criterion 12: round trip with --delete-records" case_round_trip_delete_records
 run_case "criterion 13: round trip with --keep-records <dir>" case_round_trip_keep_records
@@ -774,4 +811,10 @@ run_case "V1 a CRLF AGENTS.md block without its end marker refused" case_V1_uncl
 run_case "V3 --keep-records inside cortex/ by any spelling refused, nothing changed" case_V3_inside_cortex_refused
 run_case "V3 --keep-records docs/cortex accepted" case_V3_docs_cortex_accepted
 run_case "V3 --keep-records cortexrecords accepted" case_V3_cortexrecords_accepted
+run_case "A2 --keep-records cortex/config/x refused as inside cortex/" case_A2_inside_cortex_file_ancestor
+run_case "A2 --keep-records README.md/x refused: not a directory" case_A2_tracked_file_ancestor
+run_case "A2 --keep-records README.md/x/y refused: not a directory" case_A2_nested_file_ancestor
+run_case "A2 --keep-records nonexist/../cortex/x refused: no .." case_A2_dotdot_into_cortex
+run_case "A2 --keep-records .github/../keep refused: no .." case_A2_dotdot_outside_cortex
+run_case "A2 --keep-records docs/../keep refused: no .." case_A2_dotdot_missing_dir
 summary

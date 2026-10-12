@@ -1111,6 +1111,22 @@ case_C13_end_before_begin() {
   expect_unclosed "$d" .github/CODEOWNERS codeowners "C13"
 }
 
+case_C13_unclosed_then_second_block() {
+  # Amendment 1, A3: begin, no end, the project's lines, then a second
+  # complete block: the first is unclosed (the end marker must come before
+  # the next begin marker); the duplicate-block line may fire too, as C13
+  local d f; d="$(github_install)"; baseline_ok "$d"
+  f="$d/.github/CODEOWNERS"
+  drop_end_marker "$f" codeowners
+  append "$f" "/docs/ @writers"
+  block_begin "$f" codeowners >> "$f"
+  printf '/second/ @t\n' >> "$f"
+  block_end "$f" codeowners >> "$f"
+  planted "two begin markers, one end marker, on the last line" \
+    test "$(block_count "$f" codeowners)/$(end_markers "$f" codeowners)/$(tail -n 1 "$f")" = "2/1/$(block_end "$f" codeowners)"
+  expect_unclosed "$d" .github/CODEOWNERS codeowners "C13"
+}
+
 run_case "token absent from template" case_token_absent_from_template
 run_case "AC4 baseline check: ok" case_baseline_ok
 run_case "repo-root argument" case_root_argument
@@ -1190,4 +1206,5 @@ run_case "V1: C13 an unclosed codeowners block" case_C13_unclosed_codeowners
 run_case "V1: C13 an unclosed claude block" case_C13_unclosed_claude
 run_case "V1: C13 an unclosed block in a CRLF file" case_C13_unclosed_crlf
 run_case "V1: C13 an end marker only before the begin marker" case_C13_end_before_begin
+run_case "A3: C13 begin, no end, then a second complete block" case_C13_unclosed_then_second_block
 summary

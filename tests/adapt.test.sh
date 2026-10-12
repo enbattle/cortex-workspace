@@ -691,6 +691,69 @@ case_v1_unclosed_unrecorded_target() {
   expect_unclosed_refused "$d" GEMINI.md gemini
 }
 
+case_A3_unclosed_then_second_block() {
+  # Amendment 1, A3: the end marker must come before the next begin marker
+  # for the same ID: begin, no end, the project's lines, then a second
+  # complete block is unclosed, and refused as V1
+  local d f; d="$(github_adapted)" || return 0
+  f="$d/CLAUDE.md"
+  drop_end_marker "$f" claude
+  append "$f" "# Project notes after the block"
+  append "$f" "Prefer small diffs."
+  block_begin "$f" claude >> "$f"
+  printf 'a second block\n' >> "$f"
+  block_end "$f" claude >> "$f"
+  if [ "$(block_count "$f" claude)" != 2 ] || [ "$(grep -cxF -- "$(block_end "$f" claude)" "$f")" != 1 ] ||
+    [ "$(grep -nxF -- "$(block_end "$f" claude)" "$f" | cut -d: -f1)" != "$(line_count "$f")" ]; then
+    fail "fixture: two begin markers, one end marker, on the last line"; return 0
+  fi
+  expect_unclosed_refused "$d" CLAUDE.md claude
+}
+
+# ---- Amendment 1, A4: refusals leave no Cursor temporary file -------------------------
+#
+# adapt.sh's refusals (D11 and V1) with cursor in TOOLS leave nothing in the
+# temporary directory. Each run gets an empty TMPDIR of its own.
+
+# adapt_tmpdir DIR TMP : run DIR's adapt.sh with TMPDIR=TMP
+adapt_tmpdir() {
+  run env TMPDIR="$2" bash -c 'cd "$1" && ./cortex/bin/adapt.sh' _ "$1"
+}
+
+# empty_tmpdir NAME -> a new empty directory; mktemp there is shown to honor
+# TMPDIR (else the check below would prove nothing)
+empty_tmpdir() {
+  local t="$TEST_TMP/a4.$1" probe
+  mkdir -p "$t"
+  probe="$(TMPDIR="$t" mktemp)" || { fail "fixture: mktemp failed"; return 1; }
+  case "$probe" in "$t"/*) rm -f "$probe" ;; *) rm -f "$probe"; fail "fixture: mktemp ignores TMPDIR ($probe)"; return 1 ;; esac
+  [ -z "$(ls -A "$t")" ] || { fail "fixture: $t not empty"; return 1; }
+  printf '%s\n' "$t"
+}
+
+case_A4_d11_refusal_no_tmp_left() {
+  local d t; d="$(tools_install claude,cursor)"
+  t="$(empty_tmpdir d11)" || return 0
+  mkdir -p "$d/.cursor/rules"
+  printf 'hand-written\n' > "$d/.cursor/rules/cortex.mdc"
+  adapt_tmpdir "$d" "$t"
+  assert_exit 2 "$CODE" "fixture: an unrecorded .cursor/rules/cortex.mdc is refused (D11)"
+  assert_true "D11 refusal: the temporary directory is empty afterwards (A4; holds: $(ls -A "$t" | tr '\n' ' '))" \
+    test -z "$(ls -A "$t")"
+}
+
+case_A4_v1_refusal_no_tmp_left() {
+  local d t; d="$(tools_install claude,cursor,gemini)"
+  t="$(empty_tmpdir v1)" || return 0
+  printf '# my gemini notes\n<!-- cortex:begin gemini -->\nold pointer\n# more of my notes\n' > "$d/GEMINI.md"
+  adapt_tmpdir "$d" "$t"
+  assert_exit 2 "$CODE" "fixture: an unclosed gemini block is refused (V1)"
+  assert_line "$ALL" "refused GEMINI.md: its cortex gemini block has no end marker; restore it, then run again" \
+    "fixture: the V1 refusal"
+  assert_true "V1 refusal: the temporary directory is empty afterwards (A4; holds: $(ls -A "$t" | tr '\n' ' '))" \
+    test -z "$(ls -A "$t")"
+}
+
 # v2_unknown_ci VALUE : with the workflow and the codeowners block recorded,
 # CI=VALUE warns and removes nothing (V2)
 v2_unknown_ci() {
@@ -871,6 +934,9 @@ run_case "V1: an unclosed claude block in CLAUDE.md is refused, nothing written"
 run_case "V1: an unclosed codeowners block is refused, nothing written" case_v1_unclosed_codeowners_block
 run_case "V1: CRLF: a closed block passes, an unclosed one is refused" case_v1_unclosed_crlf
 run_case "V1: an unclosed begin marker in a file to get a block is refused" case_v1_unclosed_unrecorded_target
+run_case "A3: begin, no end, then a second complete block is refused, nothing written" case_A3_unclosed_then_second_block
+run_case "A4: a D11 refusal with cursor leaves no temporary file" case_A4_d11_refusal_no_tmp_left
+run_case "A4: a V1 refusal with cursor leaves no temporary file" case_A4_v1_refusal_no_tmp_left
 run_case "V2: CI=GitHub removes nothing, warns" case_v2_ci_wrong_case
 run_case "V2: CI=gihub removes nothing, warns" case_v2_ci_typo
 run_case "V2: CI=none still removes the workflow and codeowners block" case_v2_ci_none_removes
