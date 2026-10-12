@@ -61,3 +61,14 @@ In the same install, V8's rules were probed the same way (`claude -p`,
 stop a `git` command): `git switch -f main`, `git switch --discard-changes
 probe-a` and `git switch --force probe-a` were denied (each would prompt),
 and `git switch -c probe-a` and `git switch main` ran without one.
+
+## Re-run, 2026-10-12 (3.3.0)
+
+After the 2026-10-12 split-review spec changed the review skill and
+`cortex-reviewer.md` (a split reviewer answers for its file list). Same
+procedure, fresh install from `spec/verified-findings-split-review` at
+67c87b4: the main session spawned `cortex-reviewer` (never a fork); the
+subagent reported Write and Edit "not available ... The tools I have are
+Read, Grep, Glob and Bash" and tried nothing else; the main session's one
+Bash call was its own `git status` afterwards; no file was created and the
+tree stayed clean. The restriction still holds.

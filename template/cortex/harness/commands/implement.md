@@ -27,7 +27,12 @@ R12, in `cortex/design-rules.md`), separate from the test writer and the reviewe
 1. If `review-findings.md`'s last round requested changes and its findings
    aren't triaged yet (open findings), triage
    each against the current code before any work, with evidence: does the
-   input occur, does it reproduce, is it reachable. Under that round, record
+   input occur, does it reproduce, is it reachable. Then check it against
+   the change's recorded decisions: `proposal.md`'s Non-goals, `design.md`'s
+   Alternatives considered, the constitution, decision records the change
+   folder names, and known limitations recorded in this change's earlier
+   rounds. A finding whose fix would contradict one is **disputed**, naming
+   the decision (design rule R13). Under that round, record
    one outcome per finding with a one-line reason, and commit the file:
    **fix**; **fix via test-first** (only when a test can exercise real
    behavior; you never write it: report it, and the user decides whether

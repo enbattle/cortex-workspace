@@ -58,9 +58,20 @@ repositories. Route yourself with the table below.
   branch diff maps every planned item to evidence (implemented, deliberately
   changed, partial, missing) and checks the docs against the code. It also
   nominates at least one thing to delete or merge, or says why nothing
-  qualifies; the maintainer decides. Record it in `evals/audits/<date>.md`.
+  qualifies; the maintainer decides. Too large for one agent, it is split
+  and its findings verified as below. Record it in `evals/audits/<date>.md`.
   On 2026-09-24 it found a flow-breaking bug and stale docs that every
   per-change review had passed.
+- **A review or audit of cortex too large for one agent is split by area**
+  (R13). When its findings come from agents that lacked the decisions, a
+  fresh verifier given the design rules, the mental traps, the extensions
+  catalog, the relevant specs and the earlier audits classifies each (real
+  and to fix, real but already decided, not real) and checks that its fix
+  fits, before it becomes work; the maintainer decides. The bias it
+  prevents (R12): a partial-context reviewer's, and the orchestrator's,
+  attachment to their own findings, and blindness to decisions they never
+  read. The 2026-10-12 review is the worked example
+  (`docs/specs/2026-10-12-verified-review-findings.md`).
 - A release needs the "Before release" list in `CHANGELOG.md` done, a date
   on its CHANGELOG entry, and a tag.
 - Never push, merge, or tag a release without the maintainer's go-ahead.
