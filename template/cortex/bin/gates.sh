@@ -78,7 +78,8 @@ open_tasks() {
     return 1
   fi
   tr -d '\r' < "$f" | awk -v f="$f" '
-    /^## / { exit }
+    stop { next }
+    /^## / { stop = 1; next }
     /^[[:blank:]]*[-*] \[ \]/ { print f ":" NR ": " $0; open = 1 }
     END { exit open }'
 }

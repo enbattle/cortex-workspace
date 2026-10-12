@@ -250,7 +250,7 @@ report_each C14 "has merge-conflict markers; resolve them (the upgrade left both
 if [ -n "$FP_RECORDS" ]; then
   while IFS="$TAB" read -r kind path f3 _; do
     [ "$kind" = block ] || continue
-    if block_content "$path" "$f3" | grep -qE '^(<<<<<<<|>>>>>>>)( |$)'; then
+    if block_content "$path" "$f3" | grep -E '^(<<<<<<<|>>>>>>>)( |$)' >/dev/null; then
       report C14 "$path" "the cortex $f3 block has merge-conflict markers; resolve them"
     fi
   done <<<"$FP_RECORDS"

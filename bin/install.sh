@@ -84,7 +84,7 @@ vercmp() { awk -v a="$1" -v b="$2" "$VERCMP_AWK"' BEGIN { print vcmp(a, b) }'; }
 major() { printf '%s\n' "${1%%.*}"; }
 
 echo "cortex $version from $commit"
-if ! git -C "$CORTEX_ROOT" tag --points-at HEAD 2>/dev/null | grep -qxF "v$version"; then
+if ! git -C "$CORTEX_ROOT" tag --points-at HEAD 2>/dev/null | grep -xF "v$version" >/dev/null; then
   echo "unreleased: $commit"
 fi
 

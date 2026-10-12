@@ -171,7 +171,7 @@ block_unedited() {
 # prettierignore_has FILE : FILE has a PRETTIERIGNORE_LINE, carriage
 # returns aside (G1)
 prettierignore_has() {
-  [ -f "$1" ] && tr -d '\r' < "$1" | grep -qxE -- "$PRETTIERIGNORE_LINE"
+  [ -f "$1" ] && tr -d '\r' < "$1" | grep -xE -- "$PRETTIERIGNORE_LINE" >/dev/null
 }
 
 # entry_rule FIELD -> an entry record's quoted rule ("Bash(git add *)"), or
@@ -259,7 +259,7 @@ framed() { case "${1##*/}" in CODEOWNERS) echo 0 ;; *) echo 1 ;; esac; }
 # (the file uses CRLF, and a block in it does too, D15), else nothing
 file_cr() {
   [ -s "$1" ] || return 0
-  if head -n 1 "$1" | grep -qU "$CR$"; then printf '%s' "$CR"; fi
+  if head -n 1 "$1" | grep -U "$CR$" >/dev/null; then printf '%s' "$CR"; fi
 }
 
 # block_insert PATH ID SOURCE -> prints sep : append ID's block, holding

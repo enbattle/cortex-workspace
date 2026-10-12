@@ -268,8 +268,9 @@ fi
 section() {
   [ -f "$1" ] || return 0
   tr -d '\r' < "$1" | awk -v h="## $2" '
+    stop { next }
     $0 == h { inside = 1; print; next }
-    inside && /^## / { exit }
+    inside && /^## / { stop = 1; next }
     inside { print }'
 }
 if [ "$records" = delete ]; then

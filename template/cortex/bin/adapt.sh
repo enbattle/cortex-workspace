@@ -62,7 +62,7 @@ active() { case ",$tools," in *",$1,"*) return 0 ;; esac; return 1; }
 
 # The CODEOWNERS file GitHub reads is the first of these that exists; a
 # second one elsewhere would be ignored, or would hide the project's.
-codeowners="$(fp_match block | awk -F'\t' '$3 == "codeowners" { print $2; exit }')"
+codeowners="$(fp_match block | awk -F'\t' '!found && $3 == "codeowners" { print $2; found = 1 }')"
 if [ -z "$codeowners" ]; then
   codeowners=.github/CODEOWNERS
   for p in .github/CODEOWNERS CODEOWNERS docs/CODEOWNERS; do
@@ -191,7 +191,7 @@ emit_entries() {
         list="$(printf '%s\n' "$line" | sed -n 's/^[[:space:]]*"\([a-z]*\)".*/\1/p')"
         continue ;;
     esac
-    printf '%s\n' "$line" | grep -qE '^[[:space:]]*"[^"]*",?[[:space:]]*$' || continue
+    printf '%s\n' "$line" | grep -E '^[[:space:]]*"[^"]*",?[[:space:]]*$' >/dev/null || continue
     rule="$(printf '%s\n' "$line" | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p')"
     if grep -qF -- "$rule" "$f"; then
       continue # merged already (a recorded entry stays recorded), or the project's own

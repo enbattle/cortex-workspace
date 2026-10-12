@@ -10,11 +10,11 @@
 config_value() {
   local value
   value="$(tr -d '\r' | awk -v k="$1" '
-    /^[[:space:]]*#/ { next }
+    found || /^[[:space:]]*#/ { next }
     { eq = index($0, "="); if (eq == 0) next
       key = substr($0, 1, eq - 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", key)
       if (key != k) next
-      val = substr($0, eq + 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", val); print val; exit }')"
+      val = substr($0, eq + 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", val); print val; found = 1 }')"
   case "$value" in "<"*">") value="" ;; esac
   printf '%s' "$value"
 }
