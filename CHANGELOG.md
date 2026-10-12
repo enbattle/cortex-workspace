@@ -41,6 +41,10 @@ tag.
 - **Removal is faster on Windows:** the footprint lookups start no process,
   and `remove.sh` no longer starts processes for each project line that
   names `cortex/` (one removal: 26 s to 7 s in Git Bash). Output unchanged.
+- **No more random failures on files over 4 KB:** a reader that stopped
+  early (`awk ... exit`, `grep -q`) could fail its writer with a broken
+  pipe, which aborted a removal halfway or failed the `tasks` gate on a
+  long `tasks.md`, depending on timing. Every reader now reads to the end.
 - **Removed:** `permissions.md`'s unused `HUMAN-GATE:` marker.
 
 **For installed repositories:** after upgrading, move any setup steps in
