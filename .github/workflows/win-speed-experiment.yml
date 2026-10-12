@@ -1,0 +1,62 @@
+# Throwaway: measures where the Windows job's time goes. Not for merging.
+name: win-speed-experiment
+on:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  measure:
+    strategy:
+      fail-fast: false
+      matrix:
+        tmp: [c, d]
+        defender: [on, off]
+        mode: [steps, parallel]
+    name: tmp-${{ matrix.tmp }} defender-${{ matrix.defender }} ${{ matrix.mode }}
+    runs-on: windows-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: environment
+        shell: pwsh
+        run: |
+          nproc 2>$null; [Environment]::ProcessorCount
+          Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled, AMRunningMode | Format-List
+          Get-PSDrive C, D | Format-Table Name, Used, Free
+          "TEMP=$env:TEMP RUNNER_TEMP=$env:RUNNER_TEMP"
+      - name: defender off
+        if: matrix.defender == 'off'
+        shell: pwsh
+        run: |
+          Set-MpPreference -DisableRealtimeMonitoring $true
+          Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled | Format-List
+      - name: temp on D
+        if: matrix.tmp == 'd'
+        run: |
+          echo "TMPDIR=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "TMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+          echo "TEMP=$RUNNER_TEMP" >> "$GITHUB_ENV"
+      - name: probe
+        run: |
+          echo "TMPDIR=${TMPDIR:-unset} mktemp -> $(mktemp -d)"
+          time (for i in $(seq 50); do git --version >/dev/null; done)
+          time (for i in $(seq 50); do grep -q x /dev/null; done)
+          d="$(mktemp -d)"; time (for i in $(seq 50); do echo $i > "$d/f$i"; git -C "$d" init -q "r$i"; done)
+      - name: install
+        if: matrix.mode == 'steps'
+        run: bash tests/run.sh install
+      - name: upgrade
+        if: matrix.mode == 'steps'
+        run: bash tests/run.sh upgrade
+      - name: remove
+        if: matrix.mode == 'steps'
+        run: bash tests/run.sh remove
+      - name: all three in parallel
+        if: matrix.mode == 'parallel'
+        run: bash tests/run.sh --parallel install upgrade remove
