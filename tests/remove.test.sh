@@ -622,6 +622,124 @@ case_G8_no_nb_unchanged_removed() {
   assert_same_file "$TEST_TMP/codeowners.seeded" "$d/$CO" "$CO is the project's again, byte for byte"
 }
 
+# ---- 2026-10-12 spec V1: an unclosed block is refused --------------------------------
+#
+# docs/specs/2026-10-12-verified-review-findings.md, V1: remove.sh checks
+# every recorded block with its other refusals, before step 1: a begin marker
+# with no end marker after it is refused with exit 2, nothing changed.
+
+# unclosed_msg PATH ID -> V1's refusal line
+unclosed_msg() { printf 'refused %s: its cortex %s block has no end marker; restore it, then run again\n' "$1" "$2"; }
+
+# expect_unclosed_refused DIR PATH ID BEFORE HEAD [ARGS...] : remove.sh with
+# ARGS is refused for PATH's ID block, and nothing changed
+expect_unclosed_refused() {
+  local d="$1" p="$2" id="$3" before="$4" head="$5"; shift 5
+  remove_in "$d" "$@"
+  assert_exit 2 "$CODE" "an unclosed $id block in $p: exit 2 ($*)"
+  assert_line "$ALL" "$(unclosed_msg "$p" "$id")" "the refusal names $p and the $id block"
+  assert_not_contains "$ALL" "removed block" "no removed block line"
+  assert_true "nothing changed ($*)" test "$(tree_snapshot "$d")" = "$before"
+  assert_true "the work tree is clean ($*)" test -z "$(git -C "$d" status --porcelain)"
+  assert_true "no commit made ($*)" test "$(git -C "$d" rev-parse HEAD)" = "$head"
+}
+
+v1_case() { # PATH ID : a seeded install whose PATH ID block lost its end marker
+  local d before head
+  d="$(cortex_seeded)" || return 0
+  unclose_block "$d/$1" "$2" || return 0
+  commit_all "$d" "the $2 block's end marker deleted"
+  before="$(tree_snapshot "$d")"; head="$(git -C "$d" rev-parse HEAD)"
+  expect_unclosed_refused "$d" "$1" "$2" "$before" "$head" --hosting-done --references-ok --delete-records
+  assert_file_contains "$d/$1" "zz-project-line-after" "the project's line after the block is kept"
+  expect_unclosed_refused "$d" "$1" "$2" "$before" "$head"
+}
+
+case_V1_unclosed_agents_block() { v1_case AGENTS.md agents; }
+case_V1_unclosed_codeowners_block() { v1_case .github/CODEOWNERS codeowners; }
+
+case_V1_unclosed_crlf_block() {
+  # a CRLF AGENTS.md (criterion 43's fixture), its end marker deleted
+  local d before head
+  d="$(new_git_repo)"
+  printf '# Mine\r\n\r\nRun make test.\r\n' > "$d/AGENTS.md"
+  commit_all "$d" "the project"
+  "$CORTEX_INSTALL" "$d" >/dev/null 2>&1 || { fail "fixture: install failed"; return 0; }
+  unclose_block "$d/AGENTS.md" agents || return 0
+  commit_all "$d" "install, then the end marker deleted"
+  before="$(tree_snapshot "$d")"; head="$(git -C "$d" rev-parse HEAD)"
+  expect_unclosed_refused "$d" AGENTS.md agents "$before" "$head" --hosting-done --references-ok --delete-records
+}
+
+# ---- 2026-10-12 spec V3: records can't be kept inside cortex/ by any spelling -------
+#
+# V3: the guard refuses (exit 2, the current message, nothing changed) when an
+# existing ancestor of the records path, the path itself included, is the same
+# file as cortex (resolved physically): ./cortex/x, cortex/./x, an absolute path,
+# a symlink to cortex/ or into it (zz-sublink -> cortex/changes), and Cortex/x on
+# a case-insensitive file system. docs/cortex and cortexrecords are still
+# accepted.
+
+INSIDE_MSG="is inside cortex/, which is deleted; name another directory"
+
+case_V3_inside_cortex_refused() {
+  local d before head spec specs
+  d="$(cortex_seeded)" || return 0
+  add_records "$d" || return 0
+  specs="./cortex/x
+cortex/./x
+$d/cortex/x"
+  # a symlink to cortex/ and one to a directory inside it, committed, where
+  # symlinks can be made (Git Bash's ln -s may copy instead: then these
+  # spellings are skipped)
+  if ln -s cortex "$d/zz-link" 2>/dev/null && [ -L "$d/zz-link" ] &&
+    ln -s cortex/changes "$d/zz-sublink" 2>/dev/null && [ -L "$d/zz-sublink" ] &&
+    commit_all "$d" "links into cortex/" && [ -z "$(git -C "$d" status --porcelain)" ]; then
+    specs="$specs
+zz-link/x
+zz-sublink/x"
+  elif [ -L "$d/zz-link" ] || [ -L "$d/zz-sublink" ]; then
+    fail "fixture: the links could not be made and committed cleanly"; return 0
+  else
+    rm -rf "$d/zz-link" "$d/zz-sublink"
+    echo "  (skipped: symlinks can't be made here)"
+  fi
+  # Cortex/x where the file system ignores case
+  if [ -e "$d/Cortex" ]; then
+    specs="$specs
+Cortex/x"
+  else
+    echo "  (skipped Cortex/x: the file system is case-sensitive)"
+  fi
+  before="$(tree_snapshot "$d")"; head="$(git -C "$d" rev-parse HEAD)"
+  while IFS= read -r spec; do
+    remove_in "$d" --hosting-done --references-ok --keep-records "$spec"
+    assert_exit 2 "$CODE" "--keep-records $spec: exit 2"
+    assert_line "$ALL" "refused $spec: $INSIDE_MSG" "--keep-records $spec: the inside-cortex/ refusal"
+    if [ "$(tree_snapshot "$d")" = "$before" ] && [ -z "$(git -C "$d" status --porcelain)" ] &&
+      [ "$(git -C "$d" rev-parse HEAD)" = "$head" ]; then pass
+    else
+      fail "--keep-records $spec: nothing changed (the tree changed; later spellings not tried)"
+      return 0
+    fi
+  done <<<"$specs"
+}
+
+v3_accepted() { # SPEC : --keep-records SPEC keeps the records there
+  local d
+  d="$(cortex_seeded)" || return 0
+  add_records "$d" || return 0
+  remove_in "$d" --hosting-done --references-ok --keep-records "$1"
+  assert_exit 0 "$CODE" "--keep-records $1: exit 0"
+  assert_line "$OUT" "records $1" "A1: records $1"
+  assert_file_absent "$d/cortex" "cortex/ deleted"
+  assert_file_contains "$d/$1/knowledge/glossary.md" "zz-term" "the records are kept in $1"
+  assert_file_contains "$d/$1/changes/2026-10-08-demo/proposal.md" "A change the project made." "the change folder is kept in $1"
+}
+
+case_V3_docs_cortex_accepted() { v3_accepted docs/cortex; }
+case_V3_cortexrecords_accepted() { v3_accepted cortexrecords; }
+
 
 run_case "criterion 12: round trip with --delete-records" case_round_trip_delete_records
 run_case "criterion 13: round trip with --keep-records <dir>" case_round_trip_keep_records
@@ -650,4 +768,10 @@ run_case "G7 criterion 12: no kept line with --delete-records" case_G7_kept_dele
 run_case "G8 criterion 13: no nb, blank lines changed: shown as edited" case_G8_no_nb_blank_lines_edited
 run_case "G8 criterion 13: no nb, unchanged: removed" case_G8_no_nb_unchanged_removed
 run_case "As built criterion 17: kept lines name only kept paths, without #fragment or ?query" case_C17_kept_paths
+run_case "V1 an AGENTS.md agents block without its end marker refused, nothing changed" case_V1_unclosed_agents_block
+run_case "V1 a CODEOWNERS block (# markers) without its end marker refused" case_V1_unclosed_codeowners_block
+run_case "V1 a CRLF AGENTS.md block without its end marker refused" case_V1_unclosed_crlf_block
+run_case "V3 --keep-records inside cortex/ by any spelling refused, nothing changed" case_V3_inside_cortex_refused
+run_case "V3 --keep-records docs/cortex accepted" case_V3_docs_cortex_accepted
+run_case "V3 --keep-records cortexrecords accepted" case_V3_cortexrecords_accepted
 summary
