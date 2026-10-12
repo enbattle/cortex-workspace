@@ -405,6 +405,178 @@ case_G3_gate_order() {
   assert_line "$OUT" "gates: 4 failed" "four failures counted"
 }
 
+# ---- 2026-10-12 spec V4: CORTEX_GATES_LOCK_ONLY=1 ------------------------------------
+#
+# docs/specs/2026-10-12-verified-review-findings.md, V4: with
+# CORTEX_GATES_LOCK_ONLY=1, gates.sh runs tests-locked, tasks and check, and
+# prints "gate build: skipped (lock only)" (and the same for test and lint)
+# without running them. Its exit code and final line are as today. Unset, its
+# output is unchanged.
+
+SKIPPED_GATES="build test lint"
+
+# marker_gated_repo -> gated_repo whose BUILD/TEST/LINT_CMD each create a
+# marker file in the repository root (set before the lock: the config is locked)
+marker_gated_repo() {
+  gated_repo "BUILD_CMD=touch zz-build-ran" "TEST_CMD=touch zz-test-ran" "LINT_CMD=touch zz-lint-ran"
+}
+
+lock_only_gates() { # dir [change-folder...] -> gates() with CORTEX_GATES_LOCK_ONLY=1
+  local d="$1"; shift
+  run env CORTEX_GATES_LOCK_ONLY=1 bash -c 'd="$1"; shift; cd "$d" && ./cortex/bin/gates.sh "$@"' _ "$d" "$@"
+}
+
+last_out_line() { printf '%s\n' "$OUT" | sed -n '$p'; }
+
+# expect_skipped DIR : build, test and lint are reported skipped, none of
+# them reported ok or FAIL, and none of their commands ran
+expect_skipped() {
+  local d="$1" g
+  for g in $SKIPPED_GATES; do
+    assert_line "$OUT" "gate $g: skipped (lock only)" "gate $g: skipped (lock only)"
+    assert_true "gate $g not reported ok or FAIL" \
+      test "$(grep -cE "^gate $g: (ok|FAIL)" <<<"$OUT" || true)" = 0
+    assert_file_absent "$d/zz-$g-ran" "the $g command did not run"
+  done
+  # each skipped line where that gate's line is today: the order is unchanged
+  assert_true "the gate lines are exactly tests-locked, tasks, build, test, lint, check, in that order" \
+    test "$(grep -E '^gate [a-z-]+: ' <<<"$OUT" | sed 's/^gate \([a-z-]*\):.*/\1/' | tr '\n' ' ')" = "tests-locked tasks build test lint check "
+}
+
+case_V4_lock_only_clean() {
+  local d; d="$(marker_gated_repo)"
+  lock_only_gates "$d" cortex/changes/x
+  assert_exit 0 "$CODE" "lock only, clean locked change -> exit 0"
+  assert_line "$OUT" "gate tests-locked: ok" "tests-locked runs"
+  assert_line "$OUT" "gate tasks: ok" "tasks runs"
+  assert_line "$OUT" "gate check: ok" "check runs"
+  expect_skipped "$d"
+  assert_true "gates: ok is the last line, as today" test "$(last_out_line)" = "gates: ok"
+}
+
+case_V4_lock_only_weakened_test() {
+  local d; d="$(marker_gated_repo)"
+  printf 'echo weakened\n' > "$d/tests/a.test.sh"
+  lock_only_gates "$d" cortex/changes/x
+  assert_exit 1 "$CODE" "lock only, weakened locked test -> exit 1"
+  assert_line "$OUT" "gate tests-locked: FAIL (exit 1)" "the lock fails"
+  assert_contains "$OUT$ERR" "LOCK modified: tests/a.test.sh" "tests-locked output is shown"
+  assert_line "$OUT" "gate tasks: ok" "tasks still runs"
+  assert_line "$OUT" "gate check: ok" "check still runs"
+  expect_skipped "$d"
+  assert_true "gates: 1 failed is the last line, as today" test "$(last_out_line)" = "gates: 1 failed"
+}
+
+case_V4_unset_runs_commands() {
+  # unset, the output is unchanged: every command runs, nothing is skipped
+  local d g; d="$(marker_gated_repo)"
+  run env -u CORTEX_GATES_LOCK_ONLY bash -c 'cd "$1" && ./cortex/bin/gates.sh cortex/changes/x' _ "$d"
+  assert_exit 0 "$CODE" "unset: all gates pass -> exit 0"
+  for g in $GATE_NAMES; do
+    assert_line "$OUT" "gate $g: ok" "unset: gate $g: ok"
+  done
+  for g in $SKIPPED_GATES; do
+    assert_file_exists "$d/zz-$g-ran" "unset: the $g command ran"
+  done
+  assert_not_contains "$OUT" "skipped" "unset: nothing skipped"
+  expect_order "$OUT"
+  assert_true "unset: gates: ok is the last line" test "$(last_out_line)" = "gates: ok"
+}
+
+# ---- 2026-10-12 spec V11: a suite with no assertions fails -------------------------
+#
+# summary (lib.sh) fails when no assertion ran. Planted: suites sourcing this
+# checkout's lib.sh, written to a temporary directory and run on their own.
+
+# planted_suite NAME BODY -> path of a suite sourcing lib.sh, then BODY, then summary
+planted_suite() {
+  local f="$TEST_TMP/v11/$1.test.sh"
+  mkdir -p "$TEST_TMP/v11"
+  {
+    printf '#!/usr/bin/env bash\nset -euo pipefail\n. %q\n' "$ROOT/tests/lib.sh"
+    printf '%s\n' "$2"
+    printf 'summary\n'
+  } > "$f"
+  printf '%s\n' "$f"
+}
+
+case_V11_no_assertion_fails() {
+  local f
+  f="$(planted_suite one-pass 'c() { assert_true "planted" true; }; run_case "one assertion" c')"
+  run bash "$f"
+  assert_exit 0 "$CODE" "fixture: a planted suite with one passing assertion exits 0"
+  f="$(planted_suite no-case '')"
+  run bash "$f"
+  assert_true "a suite that runs no case exits nonzero (got $CODE)" test "$CODE" -ne 0
+  f="$(planted_suite empty-case 'c() { :; }; run_case "no assertion" c')"
+  run bash "$f"
+  assert_true "a suite whose only case asserts nothing exits nonzero (got $CODE)" test "$CODE" -ne 0
+}
+
+# ---- 2026-10-12 spec Amendment 1, A1: a suite that dies before its summary fails ---
+#
+# run.sh fails a suite whose output has no `<suite>.test.sh: <n> passed, <m>
+# failed` line, whatever its exit code. Planted: a scratch copy of run.sh and
+# lib.sh (run.sh finds its suites as *.test.sh beside itself), with a suite
+# that passes normally and one that exits 0 before its summary.
+
+case_A1_no_summary_fails() {
+  local t="$TEST_TMP/a1/tests" mode
+  mkdir -p "$t"
+  cp "$ROOT/tests/run.sh" "$ROOT/tests/lib.sh" "$t/"
+  printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' '. "$(cd "$(dirname "$0")" && pwd)/lib.sh"' \
+    'c() { assert_true "planted" true; }' 'run_case "one assertion" c' 'summary' > "$t/good.test.sh"
+  printf '%s\n' '#!/usr/bin/env bash' 'set -euo pipefail' '. "$(cd "$(dirname "$0")" && pwd)/lib.sh"' \
+    'c() { assert_true "planted" true; }' 'run_case "one assertion" c' \
+    'echo "stopped before the summary"' 'exit 0' 'summary' > "$t/dies.test.sh"
+  run bash "$t/dies.test.sh"
+  assert_exit 0 "$CODE" "fixture: the planted suite exits 0"
+  assert_not_contains "$OUT" "dies.test.sh: " "fixture: the planted suite prints no summary line"
+  for mode in "" --parallel; do
+    run bash "$t/run.sh" $mode good
+    assert_exit 0 "$CODE" "run.sh ${mode:-(sequential)} good: a normal passing suite passes"
+    assert_line "$OUT" "=== PASS good.test.sh" "run.sh ${mode:-(sequential)}: good.test.sh reported PASS"
+    run bash "$t/run.sh" $mode dies
+    assert_true "run.sh ${mode:-(sequential)} dies: a suite without its summary line exits nonzero (got $CODE)" test "$CODE" -ne 0
+    assert_contains "$OUT" "=== FAIL dies.test.sh" "run.sh ${mode:-(sequential)}: dies.test.sh reported FAIL (A1)"
+    assert_not_contains "$OUT" "=== PASS dies.test.sh" "run.sh ${mode:-(sequential)}: dies.test.sh not reported PASS (A1)"
+    run bash "$t/run.sh" $mode
+    assert_exit 1 "$CODE" "run.sh ${mode:-(sequential)}, every suite: exit 1"
+    assert_line "$OUT" "suites: 1 passed, 1 failed (of 2)" "run.sh ${mode:-(sequential)}: one passed, one failed"
+  done
+}
+
+# ---- 2026-10-12 spec Amendment 3, P2: no reader stops before its writer --------------
+#
+# About 1 MB after the part read, so whatever feeds the reader is still
+# writing when the reader has what it needs; under pipefail a reader that
+# stops there fails the pipeline.
+
+case_P2_ticked_tasks_before_1mb() {
+  # the tasks gate reads tasks.md up to its first "## "; 1 MB follows it
+  local d f; d="$(gated_repo)"
+  f="$d/cortex/changes/x/tasks.md"
+  write_tasks "$d" '# Tasks: x\n\n- [x] zz-done-one\n- [X] zz-done-two\n\n## zz-filler\n\n'
+  filler_mb >> "$f"
+  assert_true "fixture: tasks.md is over 1 MB" test "$(wc -c < "$f")" -gt 1000000
+  gates "$d" cortex/changes/x
+  expect_tasks_ok "ticked tasks, then a 1 MB section"
+  assert_not_contains "$OUT" "Broken pipe" "no writer fails on a closed pipe"
+}
+
+case_P2_config_value_before_1mb() {
+  # config_value (sourced, as the scripts do) reads a key followed by 1 MB
+  # of comment lines
+  local c="$TEST_TMP/p2.config"
+  { printf 'BUILD_CMD = zz-real-build\n'; filler_mb '# '; } > "$c"
+  assert_true "fixture: the config is over 1 MB" test "$(wc -c < "$c")" -gt 1000000
+  run bash -c 'set -euo pipefail; . "$1"; config_value BUILD_CMD < "$2"; printf "\nzz-after\n"' \
+    _ "$ROOT/template/cortex/bin/_config.sh" "$c"
+  assert_exit 0 "$CODE" "config_value exits 0 with 1 MB after the key"
+  assert_true "config_value prints the value (got: $OUT)" test "$OUT" = $'zz-real-build\nzz-after'
+  assert_not_contains "$ERR" "Broken pipe" "no writer fails on a closed pipe"
+}
+
 run_case "gates.sh shipped and installed executable" case_installed_executable
 run_case "usage error -> exit 2" case_usage_error
 run_case "all gates pass -> gates: ok" case_all_pass
@@ -434,4 +606,11 @@ run_case "G3 criterion 8: tasks ticked with x and X pass" case_G3_ticked_tasks_p
 run_case "G3 criterion 8: open tasks under a later heading pass" case_G3_open_under_later_heading_passes
 run_case "G3 criterion 8: every other gate still runs" case_G3_other_gates_still_run
 run_case "G3 criterion 9: the gate order" case_G3_gate_order
+run_case "P2 the tasks gate passes ticked tasks with 1 MB after them" case_P2_ticked_tasks_before_1mb
+run_case "P2 config_value reads a key with 1 MB of comments after it" case_P2_config_value_before_1mb
+run_case "V4 lock only: a clean locked change runs no project command" case_V4_lock_only_clean
+run_case "V4 lock only: a weakened locked test fails, no project command runs" case_V4_lock_only_weakened_test
+run_case "V4 unset: every command runs, nothing skipped" case_V4_unset_runs_commands
+run_case "V11 a suite in which no assertion runs exits nonzero" case_V11_no_assertion_fails
+run_case "A1 run.sh fails a suite that prints no summary line" case_A1_no_summary_fails
 summary

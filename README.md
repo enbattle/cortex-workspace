@@ -115,7 +115,7 @@ Set `TOOLS` in `cortex/config`, then run `bash cortex/bin/adapt.sh`.
 
 | Tool | Generated | Isolation for test-first / implement / review |
 | --- | --- | --- |
-| Claude Code | a block in `CLAUDE.md` (`@AGENTS.md`), `.claude/skills/cortex-*`, `.claude/agents/cortex-*`, `.claude/settings.json` if absent (otherwise the rules to merge are listed) | separate subagents (enforced); reviewers have no Edit/Write tools, but have Bash, so the real check is the before/after `git status` the skill runs |
+| Claude Code | a block in `CLAUDE.md` (`@AGENTS.md`), `.claude/skills/cortex-*`, `.claude/agents/cortex-*`, `.claude/settings.json` if absent (otherwise the rules to merge are listed) | separate subagents (enforced); reviewers have no Edit/Write tools, but have Bash, so the real check is the before/after `git status`, commit and branch the skill records |
 | Cursor | `.cursor/rules/cortex.mdc` | by instruction: start a new chat for each role |
 | GitHub Copilot | a block in `.github/copilot-instructions.md` | by instruction |
 | Gemini CLI | a block in `GEMINI.md` | by instruction |

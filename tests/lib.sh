@@ -107,7 +107,8 @@ summary() {
   p=$(grep -c '^P$' "$RESULTS" || true)
   f=$(grep -c '^F$' "$RESULTS" || true)
   echo "$(basename "$0"): $p passed, $f failed"
-  [ "$f" -eq 0 ]
+  # a suite in which no assertion ran passed nothing (2026-10-12 spec V11)
+  [ "$f" -eq 0 ] && [ "$p" -gt 0 ]
 }
 
 # ---- fixtures -------------------------------------------------------------------
@@ -550,3 +551,34 @@ entry_count() {
 has_line_starting() {
   printf '%s\n' "$1" | HL_P="$2" awk 'index($0, ENVIRON["HL_P"]) == 1 { f = 1 } END { exit f ? 0 : 1 }'
 }
+
+# ---- unclosed blocks (2026-10-12 spec V1) -------------------------------------------
+
+# drop_end_marker FILE ID : delete ID's end marker line (a trailing CR
+# ignored); BINMODE=3 keeps every other line's CR on Git Bash, whose awk
+# drops a CR before a newline when reading otherwise
+drop_end_marker() {
+  filter_file "$1" awk -v BINMODE=3 -v e="$(block_end "$1" "$2")" '
+    { l = $0; sub(/\r$/, "", l) } l == e { next } { print }'
+}
+
+# unclose_block FILE ID : drop_end_marker, then a project line
+# (zz-project-line-after) where the block ended. Returns 1 (and records a
+# failure) if the end marker is still there.
+unclose_block() {
+  drop_end_marker "$1" "$2"
+  if grep -qF -- "$(block_end "$1" "$2")" "$1"; then fail "fixture: end marker still in $1"; return 1; fi
+  printf 'zz-project-line-after\n' >> "$1"
+}
+
+# filler_mb [PREFIX] -> about 1 MB of lines, each starting with PREFIX
+# (2026-10-12 spec, Amendment 3, P2): placed after the part a script reads,
+# so the command writing into its pipe is still writing when the reader has
+# what it needs. One awk, not a shell loop: Windows starts processes slowly.
+filler_mb() {
+  awk -v p="${1-}" 'BEGIN { for (i = 0; i < 20000; i++) print p "filler line " i " ........................................" }'
+}
+
+# has_cr FILE : FILE holds a carriage return (counted with tr: Git Bash's grep
+# and awk drop a CR before a newline when reading)
+has_cr() { [ "$(tr -cd '\r' < "$1" | wc -c | tr -d ' ')" -gt 0 ]; }

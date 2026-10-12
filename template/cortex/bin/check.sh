@@ -214,8 +214,9 @@ else
         n="$(block_count "$path" "$f3")"
         if [ "$n" -eq 0 ]; then
           report C13 "$path" "its recorded cortex $f3 block is missing"
-        elif [ "$n" -gt 1 ]; then
-          report C13 "$path" "has $n cortex $f3 blocks; keep one"
+        else
+          [ "$n" -eq 1 ] || report C13 "$path" "has $n cortex $f3 blocks; keep one"
+          block_closed "$path" "$f3" || report C13 "$path" "cortex $f3 block has no end marker"
         fi ;;
       entry)
         if [ ! -f "$path" ] || ! entry_present "$path" "$f3" "$(cat "$path")"; then
@@ -249,7 +250,7 @@ report_each C14 "has merge-conflict markers; resolve them (the upgrade left both
 if [ -n "$FP_RECORDS" ]; then
   while IFS="$TAB" read -r kind path f3 _; do
     [ "$kind" = block ] || continue
-    if block_content "$path" "$f3" | grep -qE '^(<<<<<<<|>>>>>>>)( |$)'; then
+    if block_content "$path" "$f3" | grep -E '^(<<<<<<<|>>>>>>>)( |$)' >/dev/null; then
       report C14 "$path" "the cortex $f3 block has merge-conflict markers; resolve them"
     fi
   done <<<"$FP_RECORDS"

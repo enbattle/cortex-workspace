@@ -618,6 +618,69 @@ case_C16_unclosed_labelled_conflict() {
   assert_true "counted as a conflict" grep -qE "$(g2_summary_re 0 1)" <<<"$(last_line "$OUT")"
 }
 
+# ---- 2026-10-12 spec V1: an unclosed block is refused, not truncated ----------------
+#
+# docs/specs/2026-10-12-verified-review-findings.md, V1: an upgrade checks the
+# root agents block before any file is merged; a begin marker with no end
+# marker after it (a trailing CR ignored) is refused with exit 2, nothing
+# changed.
+
+V1_MSG="refused AGENTS.md: its cortex agents block has no end marker; restore it, then run again"
+
+# expect_v1_refused C D : C's upgrade of D is refused for the unclosed block,
+# and nothing in D changed
+expect_v1_refused() {
+  local c="$1" d="$2" before head
+  before="$(tree_snapshot "$d")"; head="$(git -C "$d" rev-parse HEAD)"
+  upgrade_from "$c" "$d"
+  assert_exit 2 "$CODE" "an unclosed agents block: exit 2"
+  assert_line "$ALL" "$V1_MSG" "the refusal names AGENTS.md and the agents block"
+  assert_true "nothing changed: the tree is byte-identical" test "$(tree_snapshot "$d")" = "$before"
+  assert_true "the work tree is clean" test -z "$(git -C "$d" status --porcelain)"
+  assert_true "no commit made" test "$(git -C "$d" rev-parse HEAD)" = "$head"
+  assert_file_contains "$d/AGENTS.md" "zz-project-line-after" "the project's line after the block is kept"
+}
+
+# v1_release C : 3.1.0 changes a template file and the root block's source
+v1_release() {
+  fx "$1" unedited.md 'a2\n'
+  append "$1/template/blocks/AGENTS.md" "- zz-upstream-rule"
+  release "$1" 3.1.0
+}
+
+case_V1_unclosed_block_refused() {
+  local c d
+  c="$(clone_v1)" || return 0; d="$(installed_from "$c")" || return 0
+  unclose_block "$d/AGENTS.md" agents || return 0
+  commit_all "$d" "the agents block's end marker deleted"
+  v1_release "$c"
+  expect_v1_refused "$c" "$d"
+}
+
+case_V1_unclosed_crlf_block_refused() {
+  # a CRLF AGENTS.md: with its end marker the upgrade goes ahead (the CR is
+  # ignored); without it, refused
+  local c d closed
+  c="$(clone_v1)" || return 0
+  d="$(new_git_repo)"
+  printf '# Mine\r\n\r\nProject text before the block.\r\n' > "$d/AGENTS.md"
+  "$c/bin/install.sh" "$d" >/dev/null 2>&1 || { fail "fixture: install.sh failed"; return 0; }
+  fill_install "$d" || return 0
+  commit_all "$d" "install cortex 3.0.0 into a CRLF AGENTS.md"
+  # awk with BINMODE=3, not grep: Git Bash drops a line's CR otherwise
+  assert_true "fixture: the end marker line ends in CR" \
+    awk -v BINMODE=3 -v e="$(block_end "$d/AGENTS.md" agents)" '$0 == e "\r" { f = 1 } END { exit f ? 0 : 1 }' "$d/AGENTS.md"
+  closed="$(mktemp -d "$TEST_TMP/closed.XXXXXX")"
+  cp -Rp "$d/." "$closed/"
+  unclose_block "$d/AGENTS.md" agents || return 0
+  commit_all "$d" "the agents block's end marker deleted"
+  v1_release "$c"
+  upgrade_from "$c" "$closed"
+  assert_not_contains "$ALL" "has no end marker" "a CRLF block with its end marker is not refused"
+  assert_true "a CRLF block with its end marker: not exit 2 (got $CODE)" test "$CODE" != 2
+  expect_v1_refused "$c" "$d"
+}
+
 run_case "criterion 21: an unedited file is replaced; cortex/version updated" case_unedited_replaced
 run_case "criterion 22: a user-edited file is kept" case_edited_kept
 run_case "criterion 23: non-overlapping edits merge" case_both_merged
@@ -641,4 +704,6 @@ run_case "G2 criterion 7: the root block, as criterion 5" case_G2_block_placehol
 run_case "As built criterion 16: a user <<<<<<< HEAD below a placeholder hunk is kept" case_C16_head_below_placeholder
 run_case "As built criterion 16: a user <<<<<<< HEAD above a placeholder hunk is kept" case_C16_head_above_placeholder
 run_case "As built criterion 16: an unclosed labelled conflict: 3.0.0's output" case_C16_unclosed_labelled_conflict
+run_case "V1 an upgrade refuses an agents block without its end marker, nothing changed" case_V1_unclosed_block_refused
+run_case "V1 a CRLF agents block: refused without its end marker, not with it" case_V1_unclosed_crlf_block_refused
 summary

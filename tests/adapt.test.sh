@@ -594,6 +594,303 @@ case_G1_other_path_asks() {
   assert_true "src/cortex/x: the entry is recorded" has_record "$d" entry .prettierignore "cortex/"
 }
 
+# ---- spec 3.2.0 (docs/specs/2026-10-12-verified-review-findings.md) -----------------
+
+# github_adapted [TEST_GLOBS] -> a filled install (TOOLS=claude) with CI=github,
+# CODE_OWNERS=@t (and TEST_GLOBS, if given), after adapt.sh: a recorded
+# workflow, a recorded claude block in CLAUDE.md and a recorded codeowners
+# block in a created .github/CODEOWNERS
+github_adapted() {
+  local d
+  d="$(filled_install)" || return 1
+  set_config "$d/cortex/config" CI github
+  set_config "$d/cortex/config" CODE_OWNERS "@t"
+  [ -z "${1:-}" ] || set_config "$d/cortex/config" TEST_GLOBS "$1"
+  adapt_quiet "$d" || { fail "github_adapted: adapt.sh failed in $d"; return 1; }
+  printf '%s\n' "$d"
+}
+
+# to_crlf FILE : every line ends in CRLF
+to_crlf() {
+  filter_file "$1" awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }'
+}
+
+# has_end_marker FILE ID : FILE has ID's end marker line (a trailing CR ignored)
+has_end_marker() {
+  [ -f "$1" ] && awk -v e="$(block_end "$1" "$2")" '
+    { l = $0; sub(/\r$/, "", l) } l == e { f = 1 } END { exit f ? 0 : 1 }' "$1"
+}
+
+# expect_unclosed_refused DIR PATH ID : adapt.sh exits 2 with V1's refusal
+# for PATH's ID block and writes nothing: the tree outside .git/, the
+# footprint included, byte for byte as before
+expect_unclosed_refused() {
+  local d="$1" p="$2" id="$3" before
+  before="$(tree_snapshot "$d")"
+  cp "$d/$p" "$TEST_TMP/v1.file.orig"
+  cp "$d/cortex/footprint" "$TEST_TMP/v1.footprint.orig"
+  adapt "$d"
+  assert_exit 2 "$CODE" "$p: an unclosed $id block is refused with exit 2 (V1)"
+  assert_line "$ALL" "refused $p: its cortex $id block has no end marker; restore it, then run again" \
+    "$p: the refusal names the file and the block (V1)"
+  assert_same_file "$TEST_TMP/v1.file.orig" "$d/$p" "$p byte-identical, nothing after the begin marker dropped (V1)"
+  assert_same_file "$TEST_TMP/v1.footprint.orig" "$d/cortex/footprint" "cortex/footprint byte-identical (V1)"
+  assert_true "$p: nothing else written, the tree byte for byte as before (V1)" \
+    test "$(tree_snapshot "$d")" = "$before"
+}
+
+case_v1_unclosed_claude_block() {
+  # V1: CLAUDE.md's recorded claude block (<!-- --> markers) without its end
+  # marker, the project's lines after it
+  local d; d="$(github_adapted)" || return 0
+  drop_end_marker "$d/CLAUDE.md" claude
+  append "$d/CLAUDE.md" "# Project notes after the block"
+  append "$d/CLAUDE.md" "Prefer small diffs."
+  if [ "$(block_count "$d/CLAUDE.md" claude)" != 1 ] || has_end_marker "$d/CLAUDE.md" claude; then
+    fail "fixture: CLAUDE.md should hold the begin marker and no end marker"; return 0
+  fi
+  expect_unclosed_refused "$d" CLAUDE.md claude
+}
+
+case_v1_unclosed_codeowners_block() {
+  # V1: the recorded codeowners block (# markers) without its end marker
+  local d; d="$(github_adapted)" || return 0
+  drop_end_marker "$d/.github/CODEOWNERS" codeowners
+  append "$d/.github/CODEOWNERS" "/docs/ @writers"
+  if [ "$(block_count "$d/.github/CODEOWNERS" codeowners)" != 1 ] || has_end_marker "$d/.github/CODEOWNERS" codeowners; then
+    fail "fixture: CODEOWNERS should hold the begin marker and no end marker"; return 0
+  fi
+  expect_unclosed_refused "$d" .github/CODEOWNERS codeowners
+}
+
+case_v1_unclosed_crlf() {
+  # V1: line endings as in block_set: a CRLF CLAUDE.md whose block is closed
+  # is not refused; without its end marker it is
+  local d
+  d="$(github_adapted)" || return 0
+  to_crlf "$d/CLAUDE.md"
+  adapt "$d"
+  assert_exit 0 "$CODE" "a closed claude block in a CRLF CLAUDE.md is not refused (V1)"
+  assert_not_contains "$ALL" "has no end marker" "a CRLF end marker counts (V1)"
+  d="$(github_adapted)" || return 0
+  to_crlf "$d/CLAUDE.md"
+  drop_end_marker "$d/CLAUDE.md" claude
+  printf '# Project notes after the block\r\n' >> "$d/CLAUDE.md"
+  if has_end_marker "$d/CLAUDE.md" claude || ! has_cr "$d/CLAUDE.md"; then
+    fail "fixture: a CRLF CLAUDE.md without the end marker"; return 0
+  fi
+  expect_unclosed_refused "$d" CLAUDE.md claude
+}
+
+case_v1_unclosed_unrecorded_target() {
+  # V1: a file adapt.sh would write a block into, holding a begin marker for
+  # that block and no end marker, though nothing is recorded for it yet
+  local d; d="$(tools_install claude,gemini)"
+  printf '# my gemini notes\n<!-- cortex:begin gemini -->\nold pointer\n# more of my notes\nBe brief.\n' > "$d/GEMINI.md"
+  if has_record "$d" block GEMINI.md gemini; then fail "fixture: the gemini block is recorded"; return 0; fi
+  expect_unclosed_refused "$d" GEMINI.md gemini
+}
+
+case_A3_unclosed_then_second_block() {
+  # Amendment 1, A3: the end marker must come before the next begin marker
+  # for the same ID: begin, no end, the project's lines, then a second
+  # complete block is unclosed, and refused as V1
+  local d f; d="$(github_adapted)" || return 0
+  f="$d/CLAUDE.md"
+  drop_end_marker "$f" claude
+  append "$f" "# Project notes after the block"
+  append "$f" "Prefer small diffs."
+  block_begin "$f" claude >> "$f"
+  printf 'a second block\n' >> "$f"
+  block_end "$f" claude >> "$f"
+  if [ "$(block_count "$f" claude)" != 2 ] || [ "$(grep -cxF -- "$(block_end "$f" claude)" "$f")" != 1 ] ||
+    [ "$(grep -nxF -- "$(block_end "$f" claude)" "$f" | cut -d: -f1)" != "$(line_count "$f")" ]; then
+    fail "fixture: two begin markers, one end marker, on the last line"; return 0
+  fi
+  expect_unclosed_refused "$d" CLAUDE.md claude
+}
+
+# ---- Amendment 1, A4: refusals leave no Cursor temporary file -------------------------
+#
+# adapt.sh's refusals (D11 and V1) with cursor in TOOLS leave nothing in the
+# temporary directory. Each run gets an empty TMPDIR of its own.
+
+# adapt_tmpdir DIR TMP : run DIR's adapt.sh with TMPDIR=TMP
+adapt_tmpdir() {
+  run env TMPDIR="$2" bash -c 'cd "$1" && ./cortex/bin/adapt.sh' _ "$1"
+}
+
+# empty_tmpdir NAME -> a new empty directory; mktemp there is shown to honor
+# TMPDIR; returns 2, recording nothing, where mktemp ignores TMPDIR (BSD
+# mktemp without a template): the caller skips the check with a note (A4)
+empty_tmpdir() {
+  local t="$TEST_TMP/a4.$1" probe
+  mkdir -p "$t"
+  probe="$(TMPDIR="$t" mktemp)" || { fail "fixture: mktemp failed"; return 1; }
+  case "$probe" in "$t"/*) rm -f "$probe" ;; *) rm -f "$probe"; return 2 ;; esac
+  [ -z "$(ls -A "$t")" ] || { fail "fixture: $t not empty"; return 1; }
+  printf '%s\n' "$t"
+}
+
+case_A4_d11_refusal_no_tmp_left() {
+  local d t; d="$(tools_install claude,cursor)"
+  t="$(empty_tmpdir d11)" || { [ $? = 2 ] && echo "  note: skipped the temporary-file check: mktemp ignores TMPDIR here (A4)"; return 0; }
+  mkdir -p "$d/.cursor/rules"
+  printf 'hand-written\n' > "$d/.cursor/rules/cortex.mdc"
+  adapt_tmpdir "$d" "$t"
+  assert_exit 2 "$CODE" "fixture: an unrecorded .cursor/rules/cortex.mdc is refused (D11)"
+  assert_true "D11 refusal: the temporary directory is empty afterwards (A4; holds: $(ls -A "$t" | tr '\n' ' '))" \
+    test -z "$(ls -A "$t")"
+}
+
+case_A4_v1_refusal_no_tmp_left() {
+  local d t; d="$(tools_install claude,cursor,gemini)"
+  t="$(empty_tmpdir v1)" || { [ $? = 2 ] && echo "  note: skipped the temporary-file check: mktemp ignores TMPDIR here (A4)"; return 0; }
+  printf '# my gemini notes\n<!-- cortex:begin gemini -->\nold pointer\n# more of my notes\n' > "$d/GEMINI.md"
+  adapt_tmpdir "$d" "$t"
+  assert_exit 2 "$CODE" "fixture: an unclosed gemini block is refused (V1)"
+  assert_line "$ALL" "refused GEMINI.md: its cortex gemini block has no end marker; restore it, then run again" \
+    "fixture: the V1 refusal"
+  assert_true "V1 refusal: the temporary directory is empty afterwards (A4; holds: $(ls -A "$t" | tr '\n' ' '))" \
+    test -z "$(ls -A "$t")"
+}
+
+# v2_unknown_ci VALUE : with the workflow and the codeowners block recorded,
+# CI=VALUE warns and removes nothing (V2)
+v2_unknown_ci() {
+  local v="$1" d before
+  d="$(github_adapted)" || return 0
+  if ! has_record "$d" created .github/workflows/cortex.yml || ! has_record "$d" block .github/CODEOWNERS codeowners; then
+    fail "fixture: the workflow and the codeowners block are recorded"; return 0
+  fi
+  set_config "$d/cortex/config" CI "$v"
+  cp "$d/.github/workflows/cortex.yml" "$TEST_TMP/v2.workflow.orig"
+  cp "$d/.github/CODEOWNERS" "$TEST_TMP/v2.codeowners.orig"
+  cp "$d/cortex/footprint" "$TEST_TMP/v2.footprint.orig"
+  before="$(tree_snapshot "$d")"
+  adapt "$d"
+  assert_exit 0 "$CODE" "CI=$v: adapt exits 0"
+  assert_contains "$ALL" "warning: unknown CI value $v" "CI=$v: the warning stays (V2)"
+  assert_same_file "$TEST_TMP/v2.workflow.orig" "$d/.github/workflows/cortex.yml" "CI=$v: the workflow is kept as it was (V2)"
+  assert_same_file "$TEST_TMP/v2.codeowners.orig" "$d/.github/CODEOWNERS" "CI=$v: CODEOWNERS and its block kept as they were (V2)"
+  assert_same_file "$TEST_TMP/v2.footprint.orig" "$d/cortex/footprint" "CI=$v: the footprint is unchanged (V2)"
+  assert_not_contains "$OUT" "removed" "CI=$v: nothing reported removed (V2)"
+  assert_true "CI=$v: the tree byte for byte as before (V2)" test "$(tree_snapshot "$d")" = "$before"
+}
+
+case_v2_ci_wrong_case() { v2_unknown_ci GitHub; }
+case_v2_ci_typo() { v2_unknown_ci gihub; }
+
+case_v2_ci_none_removes() {
+  # V2: CI=none still removes the workflow and the codeowners block (on purpose)
+  local d; d="$(github_adapted)" || return 0
+  set_config "$d/cortex/config" CI none
+  adapt "$d"
+  assert_exit 0 "$CODE" "CI=none: adapt exits 0"
+  assert_file_absent "$d/.github/workflows/cortex.yml" "CI=none: the workflow is removed (V2)"
+  assert_true "CI=none: the codeowners block is removed (V2)" test "$(block_count "$d/.github/CODEOWNERS" codeowners)" = 0
+  assert_true "CI=none: the workflow's record is dropped (V2)" eval '! has_record "$d" created .github/workflows/cortex.yml'
+  assert_true "CI=none: the block's record is dropped (V2)" eval '! has_record "$d" block .github/CODEOWNERS codeowners'
+}
+
+# codeowners_globs DIR -> the patterns of the codeowners block's lines that
+# don't come from the template's list (every template pattern starts with /),
+# in order: the lines written for TEST_GLOBS
+codeowners_globs() {
+  block_content "$1/.github/CODEOWNERS" codeowners | awk '
+    { sub(/\r$/, "") } /^#/ || NF == 0 { next } $1 !~ /^\// { print $1 }'
+}
+
+# owned_by DIR PATTERN OWNER : the codeowners block has a line of exactly
+# PATTERN followed by OWNER (the padding between them aside)
+owned_by() {
+  block_content "$1/.github/CODEOWNERS" codeowners | OB_P="$2" OB_O="$3" awk '
+    { sub(/\r$/, "") }
+    NF == 2 && $1 == ENVIRON["OB_P"] && $2 == ENVIRON["OB_O"] { f = 1 }
+    END { exit f ? 0 : 1 }'
+}
+
+# all_globs_owned DIR OWNER : every TEST_GLOBS line in the block names OWNER
+all_globs_owned() {
+  block_content "$1/.github/CODEOWNERS" codeowners | OB_O="$2" awk '
+    { sub(/\r$/, "") } /^#/ || NF == 0 || $1 ~ /^\// { next }
+    NF != 2 || $2 != ENVIRON["OB_O"] { bad = 1 } END { exit bad ? 1 : 0 }'
+}
+
+case_v6_codeowners_globs() {
+  # V6: an entry with one lone * (unless it has no / and starts with it) is
+  # written as itself, then with that * replaced by */**/*; the rest as today
+  local d expected p
+  # (a plain pathspec's ** is two *s, so **/test_*.py has one lone * too)
+  d="$(github_adapted 'tests/* src/*.test.ts test_*.py *.test.js tests/** **/test_*.py')" || return 0
+  assert_file_contains "$d/cortex/config" 'TEST_GLOBS=tests/* src/*.test.ts test_*.py *.test.js tests/** **/test_*.py' "fixture: TEST_GLOBS set"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0"
+  expected="$(printf '%s\n' 'tests/*' 'tests/*/**/*' 'src/*.test.ts' 'src/*/**/*.test.ts' \
+    'test_*.py' 'test_*/**/*.py' '*.test.js' 'tests/**' '**/test_*.py' '**/test_*/**/*.py')"
+  if [ "$(codeowners_globs "$d")" = "$expected" ]; then pass; else
+    fail "the TEST_GLOBS lines are each entry, then its */**/* form where V6 adds one (V6); got: $(codeowners_globs "$d" | tr '\n' ' ')"
+  fi
+  for p in 'tests/*' 'tests/*/**/*' 'src/*.test.ts' 'src/*/**/*.test.ts' 'test_*.py' 'test_*/**/*.py' '*.test.js' 'tests/**' \
+    '**/test_*.py' '**/test_*/**/*.py'; do
+    assert_true "$p is owned by @t (V6)" owned_by "$d" "$p" "@t"
+  done
+  assert_true "every TEST_GLOBS line names the owner (V6)" all_globs_owned "$d" "@t"
+  assert_not_contains "$ALL" "note: TEST_GLOBS entry" "no V6 note for these entries"
+}
+
+case_v6_codeowners_magic() {
+  # V6: an entry starting with : (pathspec magic) writes nothing, with a note
+  local d g=':(glob)src/**/*.py'
+  d="$(github_adapted "tests/** $g")" || return 0
+  assert_file_contains "$d/cortex/config" "TEST_GLOBS=tests/** $g" "fixture: TEST_GLOBS set"
+  # the note comes from the adapt run, so run it again and read its output
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0 with a pathspec-magic entry"
+  assert_line "$ALL" "note: TEST_GLOBS entry $g can't be written to CODEOWNERS; add its paths by hand" \
+    "the magic entry's note is printed (V6)"
+  assert_true "only tests/** is written for TEST_GLOBS (V6)" test "$(codeowners_globs "$d")" = 'tests/**'
+  assert_true "tests/** is owned by @t (V6)" owned_by "$d" 'tests/**' "@t"
+  assert_not_contains "$(block_content "$d/.github/CODEOWNERS" codeowners)" "src/" "nothing of the magic entry in the block (V6)"
+}
+
+case_v6_codeowners_two_stars() {
+  # V6: an entry with two or more lone * is written as itself, with a note
+  local d g='tests/*/*.py'
+  d="$(github_adapted "$g")" || return 0
+  assert_file_contains "$d/cortex/config" "TEST_GLOBS=$g" "fixture: TEST_GLOBS set"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0 with two lone stars"
+  assert_line "$ALL" "note: TEST_GLOBS entry $g: CODEOWNERS may not own every file it locks; write it with **" \
+    "the two-star entry's note is printed (V6)"
+  assert_true "the entry is written as itself, nothing more (V6)" test "$(codeowners_globs "$d")" = "$g"
+  assert_true "$g is owned by @t (V6)" owned_by "$d" "$g" "@t"
+}
+
+case_v7_codeowners_agent_definitions() {
+  # V7: the CODEOWNERS block owns the agent definitions and their source
+  local d p; d="$(github_adapted)" || return 0
+  for p in /CLAUDE.md '/.claude/agents/cortex-*' '/.claude/skills/cortex-*/' /cortex/adapters/; do
+    assert_true "$p is owned by @t in the codeowners block (V7)" owned_by "$d" "$p" "@t"
+  done
+}
+
+case_v8_settings_switch_asks() {
+  # V8: a forced or discarding git switch asks; -C and --amend get no rule
+  local d f ask r; d="$(tools_install claude)"
+  adapt "$d"
+  assert_exit 0 "$CODE" "adapt exits 0"
+  f="$d/.claude/settings.json"
+  assert_true "settings.json created" has_record "$d" created .claude/settings.json
+  ask="$(awk '/"ask"[[:space:]]*:/ { inb = 1; next } inb && /\]/ { inb = 0 } inb' "$f")"
+  for r in 'git switch *--discard-changes*' 'git switch *--force*' 'git switch -f*' 'git switch * -f*'; do
+    assert_contains "$ask" "\"Bash($r)\"" "ask holds Bash($r) (V8)"
+    assert_contains "$ask" "\"PowerShell($r)\"" "ask holds PowerShell($r) (V8)"
+  done
+  assert_true "no ask rule for git switch -C (V8)" eval '! grep -qE "switch[^\"]*-C" <<<"$ask"'
+  assert_not_contains "$ask" "--amend" "no ask rule for git commit --amend (V8)"
+}
+
 run_case "missing cortex/config -> exit 2" case_missing_config
 run_case "AC11 TOOLS placeholder warns, writes nothing" case_tools_placeholder
 run_case "AC11 TOOLS empty warns, writes nothing" case_tools_empty
@@ -634,4 +931,19 @@ run_case "G1 criterion 1: .prettierignore with /cortex (four variants)" case_G1_
 run_case "G1 criterion 1: .prettierignore with cortex/ (four variants)" case_G1_form_cortex_slash
 run_case "G1 criterion 1: .prettierignore with /cortex/ (four variants)" case_G1_form_slash_cortex_slash
 run_case "G1 criterion 1: .prettierignore with src/cortex/x asks" case_G1_other_path_asks
+run_case "V1: an unclosed claude block in CLAUDE.md is refused, nothing written" case_v1_unclosed_claude_block
+run_case "V1: an unclosed codeowners block is refused, nothing written" case_v1_unclosed_codeowners_block
+run_case "V1: CRLF: a closed block passes, an unclosed one is refused" case_v1_unclosed_crlf
+run_case "V1: an unclosed begin marker in a file to get a block is refused" case_v1_unclosed_unrecorded_target
+run_case "A3: begin, no end, then a second complete block is refused, nothing written" case_A3_unclosed_then_second_block
+run_case "A4: a D11 refusal with cursor leaves no temporary file" case_A4_d11_refusal_no_tmp_left
+run_case "A4: a V1 refusal with cursor leaves no temporary file" case_A4_v1_refusal_no_tmp_left
+run_case "V2: CI=GitHub removes nothing, warns" case_v2_ci_wrong_case
+run_case "V2: CI=gihub removes nothing, warns" case_v2_ci_typo
+run_case "V2: CI=none still removes the workflow and codeowners block" case_v2_ci_none_removes
+run_case "V6: CODEOWNERS lines for TEST_GLOBS entries" case_v6_codeowners_globs
+run_case "V6: a pathspec-magic TEST_GLOBS entry writes nothing, with a note" case_v6_codeowners_magic
+run_case "V6: a TEST_GLOBS entry with two lone stars, with a note" case_v6_codeowners_two_stars
+run_case "V7: CODEOWNERS owns the agent definitions" case_v7_codeowners_agent_definitions
+run_case "V8: settings.json asks before a forced or discarding git switch" case_v8_settings_switch_asks
 summary

@@ -51,24 +51,26 @@ fixture_drift() {
   pairs="$(expected_pairs "$src")"
   # shellcheck disable=SC2086 # TAGS is a word list
   have=" $(git -C "$clone" tag -l $TAGS | tr '\n' ' ')"
+  # Inside $( ), every case pattern takes its optional leading "(": bash 3.2
+  # otherwise reads a pattern's ")" as closing the $( ) (Amendment 1 A1).
   out="$(
     {
       for t in $TAGS; do
-        case "$have" in *" $t "*) ;; *) printf 'T\t%s\n' "$t" ;; esac
+        case "$have" in (*" $t "*) ;; (*) printf 'T\t%s\n' "$t" ;; esac
       done
       cut -f2 <<<"$pairs" | (cd "$src" && xargs git hash-object --no-filters --) |
         paste - <(printf '%s\n' "$pairs") | awk -F'\t' '{ print "S\t" $2 "\t" $3 "\t" $1 }'
       printf 'V\t%s\n' "$(tr -d '\r\n' < "$src/VERSION")"
-      case "$have" in *" golden-clean "*)
+      case "$have" in (*" golden-clean "*)
         git -C "$clone" ls-tree -r golden-clean | awk -F'\t' '{ split($1, m, " "); print "F\t" $2 "\t" m[3] }'
         printf 'W\t%s\n' "$(git -C "$clone" show "golden-clean:$VERSION_FILE" 2>/dev/null | sed -n 1p | tr -d '\r')"
         printf 'C\n'
-        case "$have" in *" golden-planted "*)
+        case "$have" in (*" golden-planted "*)
           { cut -f1 <<<"$pairs"; printf '%s\n' "$VERSION_FILE"; } |
             xargs git -C "$clone" diff --name-only golden-clean golden-planted -- |
             sed 's/^/P\t/' ;;
         esac
-        case "$have" in *" golden-quality "*)
+        case "$have" in (*" golden-quality "*)
           { cut -f1 <<<"$pairs"; printf '%s\n' "$VERSION_FILE"; } |
             xargs git -C "$clone" diff --name-only golden-clean golden-quality -- |
             sed 's/^/Q\t/' ;;

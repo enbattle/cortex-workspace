@@ -57,19 +57,46 @@ fp_save() {
   mv "$FP_FILE.tmp" "$FP_FILE"
 }
 
+# The lookups below start no process: they run once per record or per
+# project line, and a process costs 20-60 ms on Windows (2026-10-12 spec,
+# Amendment 2 W1).
+
+# fp_split RECORD : FP_1, FP_2 and FP_3 are its first three fields
+fp_split() {
+  local r="$1"
+  FP_1="${r%%"$TAB"*}"
+  case "$r" in *"$TAB"*) r="${r#*"$TAB"}" ;; *) r="" ;; esac
+  FP_2="${r%%"$TAB"*}"
+  case "$r" in *"$TAB"*) r="${r#*"$TAB"}" ;; *) r="" ;; esac
+  FP_3="${r%%"$TAB"*}"
+}
+
 # fp_match KIND [PATH [FIELD3]] -> the matching records
 fp_match() {
   [ -n "$FP_RECORDS" ] || return 0
-  printf '%s\n' "$FP_RECORDS" | FM_K="$1" FM_P="${2-}" FM_HP="${2+x}" FM_F="${3-}" FM_HF="${3+x}" awk -F'\t' '
-    $1 == ENVIRON["FM_K"] && (ENVIRON["FM_HP"] == "" || $2 == ENVIRON["FM_P"]) &&
-      (ENVIRON["FM_HF"] == "" || $3 == ENVIRON["FM_F"])'
+  local rec
+  while IFS= read -r rec; do
+    fp_split "$rec"
+    [ "$FP_1" = "$1" ] || continue
+    [ "$#" -lt 2 ] || [ "$FP_2" = "$2" ] || continue
+    [ "$#" -lt 3 ] || [ "$FP_3" = "$3" ] || continue
+    printf '%s\n' "$rec"
+  done <<<"$FP_RECORDS"
 }
 
 # fp_drop KIND PATH [FIELD3] : forget the matching records
 fp_drop() {
   [ -n "$FP_RECORDS" ] || return 0
-  FP_RECORDS="$(printf '%s\n' "$FP_RECORDS" | FM_K="$1" FM_P="$2" FM_F="${3-}" FM_HF="${3+x}" awk -F'\t' '
-    !($1 == ENVIRON["FM_K"] && $2 == ENVIRON["FM_P"] && (ENVIRON["FM_HF"] == "" || $3 == ENVIRON["FM_F"]))')"
+  local rec out=""
+  while IFS= read -r rec; do
+    fp_split "$rec"
+    if [ "$FP_1" = "$1" ] && [ "$FP_2" = "$2" ] && { [ "$#" -lt 3 ] || [ "$FP_3" = "$3" ]; }; then
+      continue
+    fi
+    out="$out$rec"$'\n'
+  done <<<"$FP_RECORDS"
+  while [ "${out%$'\n'}" != "$out" ]; do out="${out%$'\n'}"; done
+  FP_RECORDS="$out"
 }
 
 # fp_add FIELD... : add a record (one per path and kind, block id or entry line)
@@ -81,8 +108,17 @@ fp_add() {
 }$rec"
 }
 
-# fp_field RECORD N -> field N of a record
-fp_field() { printf '%s\n' "$1" | cut -f "$2"; }
+# fp_field RECORD N -> field N of a record (as cut -f N: a record without a
+# tab is its own every field)
+fp_field() {
+  local r="$1" i=1
+  case "$r" in *"$TAB"*) ;; *) printf '%s\n' "$r"; return 0 ;; esac
+  while [ "$i" -lt "$2" ]; do
+    case "$r" in *"$TAB"*) r="${r#*"$TAB"}" ;; *) r="" ;; esac
+    i=$((i + 1))
+  done
+  printf '%s\n' "${r%%"$TAB"*}"
+}
 
 # file_sha PATH -> the blob git would store for PATH (its filters applied)
 file_sha() { git hash-object -- "$1"; }
@@ -135,25 +171,34 @@ block_unedited() {
 # prettierignore_has FILE : FILE has a PRETTIERIGNORE_LINE, carriage
 # returns aside (G1)
 prettierignore_has() {
-  [ -f "$1" ] && tr -d '\r' < "$1" | grep -qxE -- "$PRETTIERIGNORE_LINE"
+  [ -f "$1" ] && tr -d '\r' < "$1" | grep -xE -- "$PRETTIERIGNORE_LINE" >/dev/null
 }
 
 # entry_rule FIELD -> an entry record's quoted rule ("Bash(git add *)"), or
 # nothing if the field has none (.prettierignore's cortex/)
-entry_rule() { printf '%s\n' "$1" | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p'; }
+entry_rule() {
+  local re='^[[:space:]]*("[^"]*")'
+  if [[ $1 =~ $re ]]; then printf '%s\n' "${BASH_REMATCH[1]}"; fi
+  return 0
+}
 
 # entry_present PATH FIELD TEXT : TEXT (a file's content, or one of its
 # lines) has the entry recorded for PATH with FIELD: for .prettierignore a
 # PRETTIERIGNORE_LINE (G1), for any other file the field's quoted rule (B6).
 # The one rule C13 and remove.sh's references step share (N1).
 entry_present() {
-  local rule
+  local l rule="" re='^[[:space:]]*("[^"]*")' pre="^($PRETTIERIGNORE_LINE)\$"
   if [ "$1" = .prettierignore ]; then
-    printf '%s\n' "$3" | tr -d '\r' | grep -qxE -- "$PRETTIERIGNORE_LINE"
-    return
+    while IFS= read -r l; do
+      [[ $l =~ $pre ]] && return 0
+    done <<<"${3//$CR/}"
+    return 1
   fi
-  rule="$(entry_rule "$2")"
-  [ -n "$rule" ] && grep -qF -- "$rule" <<<"$3"
+  # entry_rule's match, inline: no subshell per call
+  if [[ $2 =~ $re ]]; then rule="${BASH_REMATCH[1]}"; fi
+  [ -n "$rule" ] || return 1
+  case "$3" in *"$rule"*) return 0 ;; esac
+  return 1
 }
 
 # fp_add_block PATH ID SEP : (re)record PATH's ID block as it is now
@@ -171,6 +216,37 @@ block_count() {
   fi
 }
 
+# block_closed PATH ID : the file's first begin marker for ID has an end
+# marker for ID after it, before any other begin marker for ID (2026-10-12
+# spec V1, Amendment 1 A3). A file without the begin marker isn't a block to
+# close; callers check block_count first.
+block_closed() {
+  awk -v BINMODE=3 -v b="$(marker_begin "$1" "$2")" -v e="$(marker_end "$1" "$2")" '
+    { l = $0; sub(/\r$/, "", l) }
+    inb && l == b { exit }
+    !inb && l == b { inb = 1; next }
+    inb && l == e { closed = 1; exit }
+    END { exit !closed }' "$1"
+}
+
+# unclosed_refusal PATH ID : print V1's refusal and return 0 when PATH holds
+# an ID block with no end marker after it; return 1 otherwise
+unclosed_refusal() {
+  [ -f "$1" ] && [ "$(block_count "$1" "$2")" -gt 0 ] && ! block_closed "$1" "$2" || return 1
+  echo "refused $1: its cortex $2 block has no end marker; restore it, then run again"
+}
+
+# fp_unclosed_refusals : V1's refusal for every recorded block with no end
+# marker; returns 1 when there was one
+fp_unclosed_refusals() {
+  local rec bad=0
+  while IFS= read -r rec; do
+    [ -n "$rec" ] || continue
+    ! unclosed_refusal "$(fp_field "$rec" 2)" "$(fp_field "$rec" 3)" || bad=1
+  done <<<"$(fp_match block)"
+  [ "$bad" = 0 ]
+}
+
 # block_sha PATH ID -> git hash-object of the block's lines, framing aside
 # (A7, F1)
 block_sha() { block_body "$1" "$2" | git hash-object --stdin --path="$1"; }
@@ -183,7 +259,7 @@ framed() { case "${1##*/}" in CODEOWNERS) echo 0 ;; *) echo 1 ;; esac; }
 # (the file uses CRLF, and a block in it does too, D15), else nothing
 file_cr() {
   [ -s "$1" ] || return 0
-  if head -n 1 "$1" | grep -qU "$CR$"; then printf '%s' "$CR"; fi
+  if head -n 1 "$1" | grep -U "$CR$" >/dev/null; then printf '%s' "$CR"; fi
 }
 
 # block_insert PATH ID SOURCE -> prints sep : append ID's block, holding
@@ -226,6 +302,7 @@ frame_lines() {
 # stay
 block_set() {
   local f="$1" id="$2" src="$3" nl=1 cr
+  block_closed "$f" "$id" || return 1 # never past a missing end marker (V1)
   [ -z "$(tail -c 1 "$f")" ] || nl=0
   cr="$(file_cr "$f")"
   frame_lines "$src" "$(framed "$f")" "$cr" > "$f.cortex-src"
@@ -246,6 +323,7 @@ block_set() {
 # inserting it added before it (A6), so the file is as it was before
 block_strip() {
   local f="$1" id="$2" sep="$3" nl=1
+  block_closed "$f" "$id" || return 1 # V1
   [ -z "$(tail -c 1 "$f")" ] || nl=0
   awk -v BINMODE=3 -v b="$(marker_begin "$f" "$id")" -v e="$(marker_end "$f" "$id")" -v sep="$sep" -v nl="$nl" '
     { line[NR] = $0 }
@@ -293,6 +371,8 @@ fp_remove_block() {
   rec="$(fp_match block "$f" "$id" | sed -n 1p)"
   sep="$(fp_field "$rec" 5)"
   if [ -f "$f" ] && [ "$(block_count "$f" "$id")" -gt 0 ]; then
+    # callers refuse an unclosed block first (V1); this keeps it and its record
+    block_closed "$f" "$id" || return 1
     if ! block_unedited "$f" "$id" "$rec"; then
       echo "note: the $id block in $f was edited after install; its content was:"
       block_content "$f" "$id" | tr -d '\r' | sed 's/^/  | /'

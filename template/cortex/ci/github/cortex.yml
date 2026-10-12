@@ -14,6 +14,9 @@ name: cortex
 
 on:
   pull_request:
+    # edited: a change of base branch re-runs the check against the new
+    # base's scripts
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
   contents: read
@@ -23,22 +26,37 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # The branch as pushed, not GitHub's merge preview: the test lock
           # compares the branch with its own lock commit, so a later change on
           # the base branch must not read as tampering.
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0 # the lock check needs the branch's full history
+          persist-credentials: false
+      # The test lock is judged here, before any of the project's code (setup
+      # included) runs: a step's result is fixed when it ends, and project
+      # code run in the same step could change it.
+      - name: Test lock, before any project code runs
+        env:
+          BASE: origin/${{ github.base_ref }}
+          CORTEX_GATES_LOCK_ONLY: 1
+        run: |
+          # ci-gates.sh itself comes from the base too, so the change under
+          # review can't edit the script that judges it. The branch's copy is
+          # used only when the base has none (the change that installs cortex).
+          if git cat-file -e "$BASE:cortex/bin/ci-gates.sh" 2>/dev/null; then
+            git show "$BASE:cortex/bin/ci-gates.sh" > "$RUNNER_TEMP/ci-gates.sh"
+          else
+            cp cortex/bin/ci-gates.sh "$RUNNER_TEMP/ci-gates.sh"
+          fi
+          bash "$RUNNER_TEMP/ci-gates.sh" "$BASE"
       # Add the setup your BUILD_CMD / TEST_CMD / LINT_CMD need here, e.g.
       # actions/setup-node plus `npm ci`, pinned to a SHA like the step above.
       - name: Gates, with every checker taken from the base branch
         env:
           BASE: origin/${{ github.base_ref }}
         run: |
-          # ci-gates.sh itself comes from the base too, so the change under
-          # review can't edit the script that judges it. The branch's copy is
-          # used only when the base has none (the change that installs cortex).
           if git cat-file -e "$BASE:cortex/bin/ci-gates.sh" 2>/dev/null; then
             git show "$BASE:cortex/bin/ci-gates.sh" > "$RUNNER_TEMP/ci-gates.sh"
           else

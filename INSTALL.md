@@ -63,6 +63,10 @@ batch where you can:
    touching a test. Patterns are git pathspecs: one that doesn't start with
    `*` is anchored at the root, and `**/` needs a directory, so write
    `test_*.py **/test_*.py` for test files anywhere. `adapt.sh` notes each pattern that matches no tracked file.
+   In a pathspec `*` also matches `/`, and in CODEOWNERS it doesn't:
+   `adapt.sh` writes the extra CODEOWNERS line that makes up for one such
+   `*`, and notes a pattern it can't; `**` forms (`tests/**`) read the
+   same in both.
 4. Which agent tools the team uses (`claude`, `cursor`, `copilot`, `gemini`,
    `codex`).
 5. Whether the repository is hosted on GitHub and should get the pull
@@ -139,7 +143,8 @@ prints `check: ok`. On a fresh install it fails on purpose: C11 for each
 In Claude Code, the `.claude/settings.json` cortex provides allows the routine
 commands the pipeline runs (read-only `git`, `git add`, `git commit`,
 `git switch`, `git checkout -b`, and `bash cortex/bin/*`, for Bash and
-PowerShell) and asks before push, merge, rebase and hard reset. Add this
+PowerShell) and asks before push, merge, rebase, hard reset, and a forced
+or discarding `git switch` (`-f`, `--force`, `--discard-changes`). Add this
 repository's build, test and lint commands from `cortex/config` to its
 `allow` list with the user (for example `"Bash(npm test*)"`; these rules are
 the project's, so cortex doesn't record them and removal leaves them), or running them
@@ -160,25 +165,29 @@ The local gates are guardrails: an agent with git access on its own machine
 can get around them. The boundary is the pull request. With `CI=github` and
 `CODE_OWNERS` set, `adapt.sh` (step 4) wrote:
 
-- `.github/workflows/cortex.yml`: on every pull request it checks out the
-  branch as pushed and runs the base branch's copy of
-  `cortex/bin/ci-gates.sh`, which uses the base branch's copies of every
-  other checker. Add the setup steps its comment asks for (runtime,
-  dependency install) to its source, `cortex/ci/github/cortex.yml`, then run
+- `.github/workflows/cortex.yml`: on every pull request (and when its base
+  branch changes) it checks out the branch as pushed and runs the base
+  branch's copy of `cortex/bin/ci-gates.sh`, which uses the base branch's
+  copies of every other checker: first the test lock alone, before any of
+  the project's code runs, then every gate. Add the setup steps its comment
+  asks for (runtime, dependency install) between the two, where the comment
+  is, never above the lock step, to its source,
+  `cortex/ci/github/cortex.yml`, then run
   `bash cortex/bin/adapt.sh` again: the source is cortex's file, so an
   upgrade merges your steps with cortex's changes, and removal deletes the
   workflow cleanly. (An edit to the generated workflow itself is kept by
-  both, never updated, and left behind by removal.) It runs the test lock only for change
-  folders whose `lock.md` the pull request adds or changes. To bring a
+  both, never updated, and left behind by removal.) Both steps gate only the
+  change folders whose `lock.md` the pull request adds or changes. To bring a
   locked branch up to date, merge the base into it, and if that changed
   locked files, re-lock with the user's sign-off (`test-first` step 7,
   naming the merge commit); don't rebase.
 - a `codeowners` block in the repository's `CODEOWNERS` (the one GitHub
   reads: `.github/`, the root, or `docs/`): the test locks, the harness and
-  its configuration, the test paths in `TEST_GLOBS`, and the workflow. In
-  CODEOWNERS the last matching line wins, so for those paths the block
-  replaces the project's own owners; put them in `CODE_OWNERS` too if they
-  must keep approving.
+  its configuration, the agent definitions (`CLAUDE.md`, cortex's
+  `.claude/` agents and skills, `cortex/adapters/`), the test paths in
+  `TEST_GLOBS`, and the workflow. In CODEOWNERS the last matching line
+  wins, so for those paths the block replaces the project's own owners; put
+  them in `CODE_OWNERS` too if they must keep approving.
 
 Then tell the user the repository settings that make both binding (they are
 not in the code): require a pull request before merging, require the

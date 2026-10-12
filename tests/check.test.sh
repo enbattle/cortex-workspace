@@ -1049,6 +1049,84 @@ case_G1_C13_no_form_fails() {
   done
 }
 
+# ---- spec 3.2.0 V1: C13 and a block without its end marker ----------------------
+#
+# docs/specs/2026-10-12-verified-review-findings.md, V1: C13 fails a recorded
+# block whose begin marker has no end marker after it:
+# FAIL [C13] <path>: cortex <id> block has no end marker
+
+# end_markers FILE ID -> how many end markers for ID FILE holds (CRs ignored)
+end_markers() {
+  awk -v e="$(block_end "$1" "$2")" '{ l = $0; sub(/\r$/, "", l) } l == e { n++ } END { print n + 0 }' "$1"
+}
+
+# expect_unclosed DIR PATH ID ALLOWED : check fails with V1's C13 line
+expect_unclosed() {
+  local d="$1" p="$2" id="$3" allowed="$4"
+  expect_fail_ids "$d" "$allowed" "C13|$p"
+  assert_line "$OUT" "FAIL [C13] $p: cortex $id block has no end marker" "C13 names $p's unclosed $id block (V1)"
+}
+
+case_C13_unclosed_codeowners() {
+  # V1: the codeowners block (# markers) without its end marker
+  local d; d="$(github_install)"; baseline_ok "$d"
+  drop_end_marker "$d/.github/CODEOWNERS" codeowners
+  append "$d/.github/CODEOWNERS" "/docs/ @writers"
+  planted "the begin marker stays, the end marker is gone" \
+    test "$(block_count "$d/.github/CODEOWNERS" codeowners)/$(end_markers "$d/.github/CODEOWNERS" codeowners)" = "1/0"
+  expect_unclosed "$d" .github/CODEOWNERS codeowners "C13"
+}
+
+case_C13_unclosed_claude() {
+  # V1: CLAUDE.md's claude block (<!-- --> markers) without its end marker; C8
+  # reads that block too, so it may also fire
+  local d; d="$(adapted_prepared_install)"; baseline_ok "$d"
+  drop_end_marker "$d/CLAUDE.md" claude
+  append "$d/CLAUDE.md" "# Project notes after the block"
+  planted "the begin marker stays, the end marker is gone" \
+    test "$(block_count "$d/CLAUDE.md" claude)/$(end_markers "$d/CLAUDE.md" claude)" = "1/0"
+  expect_unclosed "$d" CLAUDE.md claude "C8 C13"
+}
+
+case_C13_unclosed_crlf() {
+  # V1: the same in a CRLF CODEOWNERS
+  local d; d="$(github_install)"; baseline_ok "$d"
+  filter_file "$d/.github/CODEOWNERS" awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }'
+  drop_end_marker "$d/.github/CODEOWNERS" codeowners
+  printf '/docs/ @writers\r\n' >> "$d/.github/CODEOWNERS"
+  planted "CODEOWNERS has CRLF line endings" has_cr "$d/.github/CODEOWNERS"
+  planted "the end marker is gone" test "$(end_markers "$d/.github/CODEOWNERS" codeowners)" = 0
+  expect_unclosed "$d" .github/CODEOWNERS codeowners "C13"
+}
+
+case_C13_end_before_begin() {
+  # V1: an end marker only before the begin marker doesn't close the block
+  local d f; d="$(github_install)"; baseline_ok "$d"
+  f="$d/.github/CODEOWNERS"
+  drop_end_marker "$f" codeowners
+  { block_end "$f" codeowners; cat "$f"; } > "$f.tmp"
+  mv "$f.tmp" "$f"
+  planted "one end marker, on the first line" \
+    test "$(end_markers "$f" codeowners)/$(sed -n 1p "$f")" = "1/$(block_end "$f" codeowners)"
+  expect_unclosed "$d" .github/CODEOWNERS codeowners "C13"
+}
+
+case_C13_unclosed_then_second_block() {
+  # Amendment 1, A3: begin, no end, the project's lines, then a second
+  # complete block: the first is unclosed (the end marker must come before
+  # the next begin marker); the duplicate-block line may fire too, as C13
+  local d f; d="$(github_install)"; baseline_ok "$d"
+  f="$d/.github/CODEOWNERS"
+  drop_end_marker "$f" codeowners
+  append "$f" "/docs/ @writers"
+  block_begin "$f" codeowners >> "$f"
+  printf '/second/ @t\n' >> "$f"
+  block_end "$f" codeowners >> "$f"
+  planted "two begin markers, one end marker, on the last line" \
+    test "$(block_count "$f" codeowners)/$(end_markers "$f" codeowners)/$(tail -n 1 "$f")" = "2/1/$(block_end "$f" codeowners)"
+  expect_unclosed "$d" .github/CODEOWNERS codeowners "C13"
+}
+
 run_case "token absent from template" case_token_absent_from_template
 run_case "AC4 baseline check: ok" case_baseline_ok
 run_case "repo-root argument" case_root_argument
@@ -1124,4 +1202,9 @@ run_case "F1: C3 16 non-blank root block lines" case_C3_root_block_16_nonblank
 run_case "F2: C13 the .prettierignore entry until merged" case_C13_prettierignore_entry
 run_case "G1 criterion 2: C13 passes for each form of the line" case_G1_C13_forms_pass
 run_case "G1 criterion 2: C13 fails without a form, src/cortex/x included" case_G1_C13_no_form_fails
+run_case "V1: C13 an unclosed codeowners block" case_C13_unclosed_codeowners
+run_case "V1: C13 an unclosed claude block" case_C13_unclosed_claude
+run_case "V1: C13 an unclosed block in a CRLF file" case_C13_unclosed_crlf
+run_case "V1: C13 an end marker only before the begin marker" case_C13_end_before_begin
+run_case "A3: C13 begin, no end, then a second complete block" case_C13_unclosed_then_second_block
 summary

@@ -27,11 +27,14 @@ lock_folder() {
   lock_tests "$1" "$2" tests/b.test.sh
 }
 
-# base_only -> filled install committed as the base (origin/main), checked out
-# on branch "feature" at the same commit; nothing locked yet
+# base_only [KEY=VALUE...] -> filled install committed as the base
+# (origin/main), checked out on branch "feature" at the same commit; nothing
+# locked yet. Each KEY=VALUE is set in cortex/config before the base commit
+# (the config is locked, B2).
 base_only() {
-  local d
+  local d kv
   d="$(filled_install)" || return 1
+  for kv in "$@"; do set_config "$d/cortex/config" "${kv%%=*}" "${kv#*=}"; done
   mkdir -p "$d/tests" "$d/src"
   printf 'echo a\n' > "$d/tests/a.test.sh"
   printf 'app\n' > "$d/src/app.txt"
@@ -1073,6 +1076,141 @@ ci-gates: ok" "the folder passes once the task is ticked"
   assert_line "$OUT" "gate tasks: ok" "the tasks gate passes"
 }
 
+# ---- 2026-10-12 spec V4: the test lock is judged before any project code runs -------
+#
+# docs/specs/2026-10-12-verified-review-findings.md, V4: gates.sh honors
+# CORTEX_GATES_LOCK_ONLY=1 (tests-locked, tasks and check run; build, test and
+# lint print "gate <name>: skipped (lock only)"), and the shipped workflow
+# runs ci-gates.sh with it in a first step, before any setup or project code.
+
+ci_gates_lock_only() { # dir [args...] -> ci_gates with CORTEX_GATES_LOCK_ONLY=1 in the environment
+  local d="$1"; shift
+  run env CORTEX_GATES_LOCK_ONLY=1 bash -c 'd="$1"; shift; cd "$d" && bash cortex/bin/ci-gates.sh "$@"' _ "$d" "$@"
+}
+
+case_V4_lock_only_through_ci_gates() {
+  # the variable reaches the base copy of gates.sh through ci-gates.sh's
+  # environment: no project command runs
+  local d g
+  d="$(base_only "BUILD_CMD=touch zz-build-ran" "TEST_CMD=touch zz-test-ran" "LINT_CMD=touch zz-lint-ran")" || return 0
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  lock_folder "$d" cortex/changes/x
+  ci_gates_lock_only "$d" "$BASE"
+  assert_exit 0 "$CODE" "lock only, clean branch -> exit 0"
+  expect_ci_lines "ci-gates: using scripts from $BASE
+ci-gates: check ok
+ci-gates: cortex/changes/x ok
+ci-gates: ok" "lock only: the ci-gates lines are as today"
+  assert_line "$OUT" "gate tests-locked: ok" "the base gates.sh ran the lock gate"
+  for g in build test lint; do
+    assert_line "$OUT" "gate $g: skipped (lock only)" "gate $g: skipped (lock only)"
+    assert_file_absent "$d/zz-$g-ran" "lock only: the $g command did not run"
+  done
+  # fixture: without the variable, the same commands do run
+  ci_gates "$d" "$BASE"
+  assert_exit 0 "$CODE" "fixture: the full run passes"
+  for g in build test lint; do
+    assert_file_exists "$d/zz-$g-ran" "fixture: the full run ran the $g command"
+  done
+}
+
+# The attack V4 reproduced, planted: TEST_CMD runs implementation code (not
+# locked, no code owner's approval) that, after "gate tests-locked: FAIL",
+# overwrites the running base copy of gates.sh in place. It finds that copy
+# under TMPDIR (ci-gates.sh's mktemp -d), which the case points at a directory
+# of its own, and writes newlines up to the file's old size, then "exit 0", so
+# wherever the running bash's read offset is, the next command it reads is
+# "exit 0". A single full run then exits 0 on a failed lock; the lock-only run
+# runs no project command, so it fails.
+ZZ_ATTACK='#!/usr/bin/env bash
+touch "$ZZ_MARK"
+find "$ZZ_ATK" -type f -name gates.sh | while IFS= read -r f; do
+  n="$(wc -c < "$f" | tr -d " ")"
+  { head -c "$n" /dev/zero | tr "\000" "\n"; printf "exit 0\n"; } > "$f.zz"
+  cat "$f.zz" > "$f"
+  rm -f "$f.zz"
+done'
+
+case_V4_attack_needs_lock_only_step() {
+  local d atk mark
+  d="$(base_only "TEST_CMD=bash scripts/zz-test.sh")" || return 0
+  atk="$(mktemp -d "$TEST_TMP/v4tmp.XXXXXX")"
+  mark="$TEST_TMP/v4-attack-ran"
+  mkdir -p "$d/scripts"
+  printf 'exit 0\n' > "$d/scripts/zz-test.sh"
+  printf 'echo b\n' > "$d/tests/b.test.sh"
+  lock_folder "$d" cortex/changes/x
+  printf '%s\n' "$ZZ_ATTACK" > "$d/scripts/zz-test.sh"
+  printf 'echo weakened\n' > "$d/tests/b.test.sh"
+  commit_all "$d" "weaken the locked test; the test command rewrites the running gates"
+  run env TMPDIR="$atk" ZZ_ATK="$atk" ZZ_MARK="$mark" \
+    bash -c 'cd "$1" && bash cortex/bin/ci-gates.sh "$2"' _ "$d" "$BASE"
+  assert_file_exists "$mark" "fixture: the full run ran the planted test command"
+  assert_line "$OUT" "gate tests-locked: FAIL (exit 1)" "fixture: the lock failed in the full run"
+  # The rewrite takes effect only where bash reads the script as it runs (it
+  # did on Linux; macOS's bash 3.2 had already read it): then no gate line
+  # after "gate test" is printed. Otherwise the demonstration is skipped.
+  if grep -q '^gate lint: ' <<<"$OUT"; then
+    echo "  note: skipped the full-run demonstration: this bash had already read gates.sh, so the rewrite took no effect"
+  else
+    assert_exit 0 "$CODE" "planted violation: a single full run exits 0 on a failed lock"
+  fi
+  rm -f "$mark"
+  run env CORTEX_GATES_LOCK_ONLY=1 TMPDIR="$atk" ZZ_ATK="$atk" ZZ_MARK="$mark" \
+    bash -c 'cd "$1" && bash cortex/bin/ci-gates.sh "$2"' _ "$d" "$BASE"
+  assert_exit 1 "$CODE" "the lock-only run fails on the weakened test"
+  assert_file_absent "$mark" "the lock-only run ran no project command"
+  assert_line "$OUT" "gate tests-locked: FAIL (exit 1)" "the lock fails"
+  assert_line "$OUT" "gate test: skipped (lock only)" "the test command is skipped"
+  assert_line "$OUT" "ci-gates: FAIL cortex/changes/x" "the folder fails"
+}
+
+# ---- 2026-10-12 spec V4/V5: the shipped workflow ----------------------------------------
+
+WF="$ROOT/template/cortex/ci/github/cortex.yml"
+
+wf_first() { grep -nE -- "$1" "$WF" | sed -n '1s/:.*//p' || true; } # ERE -> first line number
+wf_last() { grep -nE -- "$1" "$WF" | sed -n '$s/:.*//p' || true; }  # ERE -> last line number
+
+# line_before A B msg : line numbers A and B are both set and A < B
+line_before() {
+  if [ -n "$1" ] && [ -n "$2" ] && [ "$1" -lt "$2" ]; then pass
+  else fail "$3 (lines '${1:-none}' and '${2:-none}')"; fi
+}
+
+LOCK_STEP="Test lock, before any project code runs"
+
+case_V4_workflow_template() {
+  local lock name setup full checkout first fullstep n
+  assert_file_exists "$WF" "the template ships the workflow"
+  assert_true "the checkout sets persist-credentials: false" \
+    grep -qE '^[[:space:]]+persist-credentials:[[:space:]]*false[[:space:]]*(#.*)?$' "$WF"
+  assert_true "on: pull_request lists types: [opened, synchronize, reopened, edited] (V5)" \
+    grep -qE '^[[:space:]]+types:[[:space:]]*\[opened, synchronize, reopened, edited\][[:space:]]*(#.*)?$' "$WF"
+  assert_true "no job-level if: (a skipped job would report success)" \
+    bash -c '! awk '\''/^[[:space:]]*if:/ { match($0, /^ */); if (RLENGTH <= 4) bad = 1 } END { exit bad ? 0 : 1 }'\'' "$1"' _ "$WF"
+  lock="$(wf_first 'CORTEX_GATES_LOCK_ONLY(:[[:space:]]*["'\'']?1["'\'']?|=1)')"
+  name="$(wf_first "^[[:space:]]*- name:[[:space:]]*[\"']?${LOCK_STEP}[\"']?[[:space:]]*\$")"
+  setup="$(wf_first 'Add the setup')"
+  full="$(wf_last 'bash .*ci-gates\.sh')"
+  n="$(grep -cE 'bash .*ci-gates\.sh' "$WF" || true)"
+  assert_true "a step sets CORTEX_GATES_LOCK_ONLY to 1" test -n "$lock"
+  assert_true "the step is named \"$LOCK_STEP\"" test -n "$name"
+  assert_true "ci-gates.sh runs twice: the lock-only step and the full gates (got $n)" test "${n:-0}" -ge 2
+  line_before "$name" "$lock" "the variable is set in the lock step"
+  line_before "$lock" "$setup" "the lock step comes before the setup comment"
+  line_before "$lock" "$full" "the lock step comes before the full gates"
+  line_before "$setup" "$full" "the setup comment comes before the full gates"
+  # directly after checkout: the first step after the checkout is the lock step
+  checkout="$(wf_first 'uses:[[:space:]]*actions/checkout@')"
+  first="$(awk -v c="${checkout:-0}" 'NR > c && /^[[:space:]]*- (name|uses):/ { print NR; exit }' "$WF")"
+  assert_true "the lock step is the first step after checkout" test "${first:-none}" = "${name:-unset}"
+  # the full gates step does not set the variable
+  fullstep="$(awk -v f="${full:-0}" 'NR <= f && /^[[:space:]]*- (name|uses):/ { s = NR } END { print s }' "$WF")"
+  assert_true "the full gates step does not set CORTEX_GATES_LOCK_ONLY" \
+    test -z "$(sed -n "${fullstep:-1},${full:-1}p" "$WF" | grep -F CORTEX_GATES_LOCK_ONLY || true)"
+}
+
 run_case "ci-gates.sh shipped and installed executable" case_installed
 run_case "AC25 no argument -> exit 2" case_usage_no_argument
 run_case "AC25 unresolvable ref -> exit 2" case_usage_bad_ref
@@ -1117,4 +1255,7 @@ run_case "AC66 base merged, then a signed re-lock -> ok" case_base_merged_and_re
 run_case "AC35 a branch's stub _config.sh: the base's parser is used" case_AC35_branch_stub_parser
 run_case "AC62 a merged side branch weakening a locked test fails" case_AC62_side_branch_weakens_locked_test
 run_case "G3 criterion 10: an open task fails CI until ticked" case_G3_open_task_fails_ci
+run_case "V4 CORTEX_GATES_LOCK_ONLY=1 through ci-gates.sh runs no project command" case_V4_lock_only_through_ci_gates
+run_case "V4 planted: a test command rewriting the running gates passes a full run, not the lock-only run" case_V4_attack_needs_lock_only_step
+run_case "V4/V5 the workflow: lock step first, persist-credentials off, edited re-runs, no job if" case_V4_workflow_template
 summary

@@ -22,14 +22,24 @@ remove_in() {
 }
 
 # cortex_seeded -> a seeded project with cortex installed as above, committed;
-# its pre-install tree_snapshot is in "<repo>.pre"
+# its pre-install tree_snapshot is in "<repo>.pre". Built once per suite, then
+# copied for each call, as fresh_install does: the copy is byte for byte what
+# building it gives, and building it took about half of each case's time on
+# Windows (2026-10-12 spec, Amendment 2 W2).
 cortex_seeded() {
-  local d
-  d="$(seeded_repo)" || return 1
-  tree_snapshot "$d" > "$d.pre"
-  install_adapt_github "$d" || return 1
-  merge_entries "$d"
-  commit_all "$d" "install cortex"
+  local cache="$TEST_TMP/.seeded-cache" d
+  if [ ! -d "$cache/.git" ]; then
+    d="$(seeded_repo)" || return 1
+    tree_snapshot "$d" > "$d.pre"
+    install_adapt_github "$d" || return 1
+    merge_entries "$d"
+    commit_all "$d" "install cortex"
+    mv "$d" "$cache"
+    mv "$d.pre" "$cache.pre"
+  fi
+  d="$(mktemp -d "$TEST_TMP/repo.XXXXXX")"
+  cp -Rp "$cache/." "$d/"
+  cp -p "$cache.pre" "$d.pre"
   printf '%s\n' "$d"
 }
 
@@ -622,6 +632,294 @@ case_G8_no_nb_unchanged_removed() {
   assert_same_file "$TEST_TMP/codeowners.seeded" "$d/$CO" "$CO is the project's again, byte for byte"
 }
 
+# ---- 2026-10-12 spec V1: an unclosed block is refused --------------------------------
+#
+# docs/specs/2026-10-12-verified-review-findings.md, V1: remove.sh checks
+# every recorded block with its other refusals, before step 1: a begin marker
+# with no end marker after it is refused with exit 2, nothing changed.
+
+# unclosed_msg PATH ID -> V1's refusal line
+unclosed_msg() { printf 'refused %s: its cortex %s block has no end marker; restore it, then run again\n' "$1" "$2"; }
+
+# expect_unclosed_refused DIR PATH ID BEFORE HEAD [ARGS...] : remove.sh with
+# ARGS is refused for PATH's ID block, and nothing changed
+expect_unclosed_refused() {
+  local d="$1" p="$2" id="$3" before="$4" head="$5"; shift 5
+  remove_in "$d" "$@"
+  assert_exit 2 "$CODE" "an unclosed $id block in $p: exit 2 ($*)"
+  assert_line "$ALL" "$(unclosed_msg "$p" "$id")" "the refusal names $p and the $id block"
+  assert_not_contains "$ALL" "removed block" "no removed block line"
+  assert_true "nothing changed ($*)" test "$(tree_snapshot "$d")" = "$before"
+  assert_true "the work tree is clean ($*)" test -z "$(git -C "$d" status --porcelain)"
+  assert_true "no commit made ($*)" test "$(git -C "$d" rev-parse HEAD)" = "$head"
+}
+
+v1_case() { # PATH ID : a seeded install whose PATH ID block lost its end marker
+  local d before head
+  d="$(cortex_seeded)" || return 0
+  unclose_block "$d/$1" "$2" || return 0
+  commit_all "$d" "the $2 block's end marker deleted"
+  before="$(tree_snapshot "$d")"; head="$(git -C "$d" rev-parse HEAD)"
+  expect_unclosed_refused "$d" "$1" "$2" "$before" "$head" --hosting-done --references-ok --delete-records
+  assert_file_contains "$d/$1" "zz-project-line-after" "the project's line after the block is kept"
+  expect_unclosed_refused "$d" "$1" "$2" "$before" "$head"
+}
+
+case_V1_unclosed_agents_block() { v1_case AGENTS.md agents; }
+case_V1_unclosed_codeowners_block() { v1_case .github/CODEOWNERS codeowners; }
+
+case_V1_unclosed_crlf_block() {
+  # a CRLF AGENTS.md (criterion 43's fixture), its end marker deleted
+  local d before head
+  d="$(new_git_repo)"
+  printf '# Mine\r\n\r\nRun make test.\r\n' > "$d/AGENTS.md"
+  commit_all "$d" "the project"
+  "$CORTEX_INSTALL" "$d" >/dev/null 2>&1 || { fail "fixture: install failed"; return 0; }
+  unclose_block "$d/AGENTS.md" agents || return 0
+  commit_all "$d" "install, then the end marker deleted"
+  before="$(tree_snapshot "$d")"; head="$(git -C "$d" rev-parse HEAD)"
+  expect_unclosed_refused "$d" AGENTS.md agents "$before" "$head" --hosting-done --references-ok --delete-records
+}
+
+# ---- 2026-10-12 spec V3: records can't be kept inside cortex/ by any spelling -------
+#
+# V3: the guard refuses (exit 2, the current message, nothing changed) when an
+# existing ancestor of the records path, the path itself included, is the same
+# file as cortex (resolved physically): ./cortex/x, cortex/./x, an absolute path,
+# a symlink to cortex/ or into it (zz-sublink -> cortex/changes), and Cortex/x on
+# a case-insensitive file system. docs/cortex and cortexrecords are still
+# accepted.
+
+INSIDE_MSG="is inside cortex/, which is deleted; name another directory"
+
+case_V3_inside_cortex_refused() {
+  local d before head spec specs
+  d="$(cortex_seeded)" || return 0
+  add_records "$d" || return 0
+  specs="./cortex/x
+cortex/./x
+$d/cortex/x"
+  # a symlink to cortex/ and one to a directory inside it, committed, where
+  # symlinks can be made (Git Bash's ln -s may copy instead: then these
+  # spellings are skipped)
+  if ln -s cortex "$d/zz-link" 2>/dev/null && [ -L "$d/zz-link" ] &&
+    ln -s cortex/changes "$d/zz-sublink" 2>/dev/null && [ -L "$d/zz-sublink" ] &&
+    commit_all "$d" "links into cortex/" && [ -z "$(git -C "$d" status --porcelain)" ]; then
+    specs="$specs
+zz-link/x
+zz-sublink/x"
+  elif [ -L "$d/zz-link" ] || [ -L "$d/zz-sublink" ]; then
+    fail "fixture: the links could not be made and committed cleanly"; return 0
+  else
+    rm -rf "$d/zz-link" "$d/zz-sublink"
+    echo "  (skipped: symlinks can't be made here)"
+  fi
+  # Cortex/x where the file system ignores case
+  if [ -e "$d/Cortex" ]; then
+    specs="$specs
+Cortex/x"
+  else
+    echo "  (skipped Cortex/x: the file system is case-sensitive)"
+  fi
+  before="$(tree_snapshot "$d")"; head="$(git -C "$d" rev-parse HEAD)"
+  while IFS= read -r spec; do
+    remove_in "$d" --hosting-done --references-ok --keep-records "$spec"
+    assert_exit 2 "$CODE" "--keep-records $spec: exit 2"
+    assert_line "$ALL" "refused $spec: $INSIDE_MSG" "--keep-records $spec: the inside-cortex/ refusal"
+    if [ "$(tree_snapshot "$d")" = "$before" ] && [ -z "$(git -C "$d" status --porcelain)" ] &&
+      [ "$(git -C "$d" rev-parse HEAD)" = "$head" ]; then pass
+    else
+      fail "--keep-records $spec: nothing changed (the tree changed; later spellings not tried)"
+      return 0
+    fi
+  done <<<"$specs"
+}
+
+v3_accepted() { # SPEC : --keep-records SPEC keeps the records there
+  local d
+  d="$(cortex_seeded)" || return 0
+  add_records "$d" || return 0
+  remove_in "$d" --hosting-done --references-ok --keep-records "$1"
+  assert_exit 0 "$CODE" "--keep-records $1: exit 0"
+  assert_line "$OUT" "records $1" "A1: records $1"
+  assert_file_absent "$d/cortex" "cortex/ deleted"
+  assert_file_contains "$d/$1/knowledge/glossary.md" "zz-term" "the records are kept in $1"
+  assert_file_contains "$d/$1/changes/2026-10-08-demo/proposal.md" "A change the project made." "the change folder is kept in $1"
+}
+
+case_V3_docs_cortex_accepted() { v3_accepted docs/cortex; }
+case_V3_cortexrecords_accepted() { v3_accepted cortexrecords; }
+
+# ---- 2026-10-12 spec Amendment 1, A2: V3's guard, two spellings ----------------------
+#
+# A2: a records path whose deepest existing ancestor is not a directory is
+# walked from that ancestor's parent (so cortex/config/x is inside cortex/),
+# and otherwise refused as not a directory; a records path with a ..
+# component is refused. Each: exit 2, nothing changed. One fixture per
+# spelling, so each refusal is shown on its own.
+
+# a2_refused SPEC MESSAGE : --keep-records SPEC is refused with exactly
+# "refused SPEC: MESSAGE", exit 2, nothing changed
+a2_refused() {
+  local d before head
+  d="$(cortex_seeded)" || return 0
+  add_records "$d" || return 0
+  before="$(tree_snapshot "$d")"; head="$(git -C "$d" rev-parse HEAD)"
+  remove_in "$d" --hosting-done --references-ok --keep-records "$1"
+  assert_exit 2 "$CODE" "--keep-records $1: exit 2 (A2)"
+  assert_line "$ALL" "refused $1: $2" "--keep-records $1: the refusal (A2)"
+  assert_not_contains "$ALL" "removed " "--keep-records $1: nothing reported removed"
+  assert_true "--keep-records $1: nothing changed" test "$(tree_snapshot "$d")" = "$before"
+  assert_true "--keep-records $1: the work tree is clean" test -z "$(git -C "$d" status --porcelain)"
+  assert_true "--keep-records $1: no commit made" test "$(git -C "$d" rev-parse HEAD)" = "$head"
+}
+
+NOT_DIR_MSG="is not a directory; name another directory"
+DOTDOT_MSG='name the directory without ".."'
+
+case_A2_inside_cortex_file_ancestor() {
+  # cortex/config is a file: the walk starts at cortex/, so this is inside it
+  a2_refused cortex/config/x "$INSIDE_MSG"
+}
+case_A2_tracked_file_ancestor() { a2_refused README.md/x "README.md $NOT_DIR_MSG"; }
+case_A2_nested_file_ancestor() { a2_refused README.md/x/y "README.md $NOT_DIR_MSG"; }
+case_A2_dotdot_into_cortex() { a2_refused nonexist/../cortex/x "$DOTDOT_MSG"; }
+case_A2_dotdot_outside_cortex() { a2_refused .github/../keep "$DOTDOT_MSG"; }
+case_A2_dotdot_missing_dir() { a2_refused docs/../keep "$DOTDOT_MSG"; }
+
+# ---- 2026-10-12 spec Amendment 2, W1: a bounded number of processes ------------------
+#
+# W1: the number of external commands one remove.sh run starts doesn't grow
+# with the project lines naming paths under cortex/, nor with the recorded
+# entries: a removal with 40 more such lines, and one with 10 more recorded
+# entries (their lines in .claude/settings.json), start each command as often
+# as the same removal without them. Shims count them, as for check.sh's bound
+# (2026-09-23 spec Amendment 7, check.test.sh AC43). Every external command
+# remove.sh and the helpers it sources start is counted; bash itself is not.
+# Records are kept (the default), so step 2's kept lines and step 5's moves run.
+
+W1_CMDS="awk cat cp cut dirname git grep head ls mkdir mktemp mv rm rmdir sed sort tail tr"
+
+# shimmed_remove DIR LOG : remove DIR's cortex with W1_CMDS counted into LOG
+shimmed_remove() {
+  local shims="$TEST_TMP/shims.$RANDOM$RANDOM"
+  : > "$2"
+  # shellcheck disable=SC2086 # the list is split on purpose
+  make_shims "$shims" "$2" $W1_CMDS
+  run env PATH="$shims:$PATH" bash -c 'cd "$1" && bash cortex/bin/remove.sh --hosting-done --references-ok < /dev/null' _ "$1"
+}
+
+# w1_pair -> two copies of one cortex_seeded fixture, "<base> <variant>"
+w1_pair() {
+  local d
+  d="$(cortex_seeded)" || return 1
+  cp -a "$d" "$d.w1" || { fail "fixture: $d not copied"; return 1; }
+  printf '%s %s\n' "$d" "$d.w1"
+}
+
+# w1_compare LABEL BASE VARIANT : remove both, counted; each command started
+# as often in VARIANT as in BASE
+w1_compare() {
+  local label="$1" log1="$TEST_TMP/w1.base.log" log2="$TEST_TMP/w1.more.log" c n1 n2 total=0
+  shimmed_remove "$2" "$log1"
+  assert_exit 0 "$CODE" "fixture: the shimmed baseline removal exits 0"
+  assert_file_absent "$2/cortex" "fixture: the baseline removal deleted cortex/"
+  for c in $W1_CMDS; do total=$((total + $(count_calls "$log1" "$c"))); done
+  assert_true "shims see remove.sh's process starts" test "$total" -gt 0
+  shimmed_remove "$3" "$log2"
+  assert_exit 0 "$CODE" "fixture: the removal with $label exits 0"
+  assert_file_absent "$3/cortex" "fixture: the removal with $label deleted cortex/"
+  for c in $W1_CMDS; do
+    n1="$(count_calls "$log1" "$c")"; n2="$(count_calls "$log2" "$c")"
+    if [ "$n1" = "$n2" ]; then pass
+    else fail "$c started $n1 times by the removal, $n2 with $label (W1: must not grow)"; fi
+  done
+}
+
+case_W1_reference_lines() {
+  local pair base more i
+  pair="$(w1_pair)" || return 0
+  base="${pair%% *}"; more="${pair#* }"
+  mkdir -p "$more/docs"
+  for i in $(seq 1 20); do
+    append "$more/docs/zz-refs.md" "see cortex/knowledge/glossary.md ($i)"
+    append "$more/AGENTS.md" "Also read cortex/changes/zz-$i/proposal.md."
+  done
+  commit_all "$more" "40 project lines naming cortex/ paths"
+  assert_true "fixture: 20 referencing lines in docs/zz-refs.md" test "$(grep -c 'cortex/knowledge/glossary.md' "$more/docs/zz-refs.md")" = 20
+  assert_true "fixture: 20 referencing lines in AGENTS.md" test "$(grep -c 'cortex/changes/zz-' "$more/AGENTS.md")" = 20
+  w1_compare "40 more referencing lines" "$base" "$more"
+  assert_true "the 40 lines are listed as references" \
+    test "$(grep -cE '^reference (docs/zz-refs\.md|AGENTS\.md):' <<<"$OUT" || true)" = 40
+}
+
+case_W1_entries() {
+  local pair base more i lines="$TEST_TMP/w1.entries" n
+  pair="$(w1_pair)" || return 0
+  base="${pair%% *}"; more="${pair#* }"
+  n="$(entry_count "$more")"
+  # ten entry lines as adapt.sh records them, five naming a cortex/ path
+  : > "$lines"
+  for i in $(seq 1 5); do
+    printf '      "Bash(bash cortex/bin/zz-%s.sh *)",\n' "$i" >> "$lines"
+    printf '      "Bash(zz-tool-%s *)",\n' "$i" >> "$lines"
+  done
+  filter_file "$more/$SETTINGS" awk -v t="$lines" '
+    { print } !done && /\[/ { while ((getline x < t) > 0) print x; done = 1 }'
+  # recorded as install writes them: the format line, then the records sorted
+  {
+    sed -n 1p "$more/cortex/footprint"
+    { sed 1d "$more/cortex/footprint"; awk -v p="$SETTINGS" '{ print "entry\t" p "\t" $0 }' "$lines"; } | LC_ALL=C sort
+  } > "$TEST_TMP/w1.footprint"
+  cat "$TEST_TMP/w1.footprint" > "$more/cortex/footprint"
+  commit_all "$more" "10 more recorded entries, merged"
+  assert_true "fixture: 10 more entry records" test "$(entry_count "$more")" = "$((n + 10))"
+  assert_true "fixture: footprint still starts with its format line" test "$(sed -n 1p "$more/cortex/footprint")" = "$FOOTPRINT_HEADER"
+  while IFS= read -r i; do
+    assert_true "fixture: recorded: $i" has_record "$more" entry "$SETTINGS" "$i"
+    assert_true "fixture: merged: $i" grep -qxF -- "$i" "$more/$SETTINGS"
+  done < "$lines"
+  w1_compare "10 more recorded entries" "$base" "$more"
+  assert_true "every recorded entry listed (D4)" test "$(listed_entries "$OUT" | grep -c . || true)" = "$((n + 10))"
+}
+
+# ---- 2026-10-12 spec Amendment 3, P2: no reader stops before its writer --------------
+#
+# remove.sh keeps cortex/AGENTS.md's Conventions section (step 5). Here a
+# "## " section of about 1 MB follows it, so whatever feeds the reader is
+# still writing when the Conventions section has ended; under pipefail a
+# reader that stops there fails the removal halfway.
+
+case_P2_conventions_before_1mb() {
+  local d f filler="$TEST_TMP/p2.filler" expected
+  d="$(cortex_seeded)" || return 0
+  f="$d/cortex/AGENTS.md"
+  insert_after "$f" "## Conventions" "- zz-convention" || return 0
+  filler_mb > "$filler"
+  # the filler section right after Conventions: before the next "## ", or last
+  filter_file "$f" awk -v t="$filler" '
+    function filler() { print "## zz-filler"; while ((getline x < t) > 0) print x; done = 1 }
+    conv && !done && /^## / { filler() }
+    { print }
+    $0 == "## Conventions" { conv = 1 }
+    END { if (!done) filler() }'
+  commit_all "$d" "a 1 MB section after Conventions"
+  # what the kept section is: its heading through the line before the next "## "
+  expected="$(awk '$0 == "## Conventions" { inside = 1; print; next }
+    inside && /^## / { inside = 0 } inside { print }' "$f")"
+  assert_true "fixture: the Conventions section holds zz-convention" grep -qxF -- "- zz-convention" <<<"$expected"
+  assert_true "fixture: cortex/AGENTS.md is over 1 MB" test "$(wc -c < "$f")" -gt 1000000
+  assert_true "fixture: the filler section follows Conventions" \
+    test "$(awk '$0 == "## Conventions" { c = 1; next } c && /^## / { print; exit }' "$f")" = "## zz-filler"
+  remove_in "$d" --hosting-done --references-ok
+  assert_exit 0 "$CODE" "remove.sh exits 0 with 1 MB after the Conventions section"
+  assert_not_contains "$ALL" "Broken pipe" "no writer fails on a closed pipe"
+  assert_file_absent "$d/cortex" "cortex/ deleted"
+  assert_line "$OUT" "records docs/cortex-records" "records kept in the default directory"
+  assert_true "conventions.md is the Conventions section, heading through the line before the next ##" \
+    test "$(cat "$d/docs/cortex-records/conventions.md" 2>/dev/null)" = "$expected"
+  assert_file_not_contains "$d/docs/cortex-records/conventions.md" "zz-filler" "the next section is not kept"
+}
 
 run_case "criterion 12: round trip with --delete-records" case_round_trip_delete_records
 run_case "criterion 13: round trip with --keep-records <dir>" case_round_trip_keep_records
@@ -650,4 +948,19 @@ run_case "G7 criterion 12: no kept line with --delete-records" case_G7_kept_dele
 run_case "G8 criterion 13: no nb, blank lines changed: shown as edited" case_G8_no_nb_blank_lines_edited
 run_case "G8 criterion 13: no nb, unchanged: removed" case_G8_no_nb_unchanged_removed
 run_case "As built criterion 17: kept lines name only kept paths, without #fragment or ?query" case_C17_kept_paths
+run_case "V1 an AGENTS.md agents block without its end marker refused, nothing changed" case_V1_unclosed_agents_block
+run_case "V1 a CODEOWNERS block (# markers) without its end marker refused" case_V1_unclosed_codeowners_block
+run_case "V1 a CRLF AGENTS.md block without its end marker refused" case_V1_unclosed_crlf_block
+run_case "V3 --keep-records inside cortex/ by any spelling refused, nothing changed" case_V3_inside_cortex_refused
+run_case "V3 --keep-records docs/cortex accepted" case_V3_docs_cortex_accepted
+run_case "V3 --keep-records cortexrecords accepted" case_V3_cortexrecords_accepted
+run_case "A2 --keep-records cortex/config/x refused as inside cortex/" case_A2_inside_cortex_file_ancestor
+run_case "A2 --keep-records README.md/x refused: not a directory" case_A2_tracked_file_ancestor
+run_case "A2 --keep-records README.md/x/y refused: not a directory" case_A2_nested_file_ancestor
+run_case "A2 --keep-records nonexist/../cortex/x refused: no .." case_A2_dotdot_into_cortex
+run_case "A2 --keep-records .github/../keep refused: no .." case_A2_dotdot_outside_cortex
+run_case "A2 --keep-records docs/../keep refused: no .." case_A2_dotdot_missing_dir
+run_case "W1 40 more referencing project lines start no more processes" case_W1_reference_lines
+run_case "W1 10 more recorded entries start no more processes" case_W1_entries
+run_case "P2 the Conventions section kept with 1 MB after it" case_P2_conventions_before_1mb
 summary
