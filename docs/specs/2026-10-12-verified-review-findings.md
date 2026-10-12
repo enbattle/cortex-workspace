@@ -322,11 +322,15 @@ A process costs 20-60 ms on Windows, so a user there waits as long.
   input (the existing suites are the tests of that). New criterion: the
   number of external commands one `remove.sh` run starts doesn't grow with
   the number of project lines that name paths under `cortex/`, nor with the
-  number of footprint records: a removal with 40 more such lines, and one
-  with 10 more recorded blocks and entries, start the same number of each
-  command as without them (shims count them, as for Amendment 7's
-  `check.sh` bound). `_footprint.sh`'s helpers may change to make that
-  possible, with every other caller's behavior unchanged.
+  number of recorded entries: a removal with 40 more such lines, and one
+  with 10 more recorded entries (their lines present in the file), start
+  the same number of each command as without them (shims count them, as
+  for Amendment 7's `check.sh` bound). A recorded block still costs a few
+  processes, since its file is read, checked and rewritten; looking a
+  record up in the footprint costs none. `_footprint.sh`'s helpers may
+  change to make that possible, with every other caller's behavior
+  unchanged. The removals measured keep their records, so the "kept as"
+  lines are counted too.
 - **W2. The remove suite builds its seeded install once.** `cortex_seeded`
   copies a per-suite cache, as `fresh_install` does; the copy is
   byte-for-byte what building it gives (files, modes, `.git`, and the

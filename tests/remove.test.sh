@@ -777,6 +777,102 @@ case_A2_dotdot_into_cortex() { a2_refused nonexist/../cortex/x "$DOTDOT_MSG"; }
 case_A2_dotdot_outside_cortex() { a2_refused .github/../keep "$DOTDOT_MSG"; }
 case_A2_dotdot_missing_dir() { a2_refused docs/../keep "$DOTDOT_MSG"; }
 
+# ---- 2026-10-12 spec Amendment 2, W1: a bounded number of processes ------------------
+#
+# W1: the number of external commands one remove.sh run starts doesn't grow
+# with the project lines naming paths under cortex/, nor with the recorded
+# entries: a removal with 40 more such lines, and one with 10 more recorded
+# entries (their lines in .claude/settings.json), start each command as often
+# as the same removal without them. Shims count them, as for check.sh's bound
+# (2026-09-23 spec Amendment 7, check.test.sh AC43). Every external command
+# remove.sh and the helpers it sources start is counted; bash itself is not.
+# Records are kept (the default), so step 2's kept lines and step 5's moves run.
+
+W1_CMDS="awk cat cp cut dirname git grep head ls mkdir mktemp mv rm rmdir sed sort tail tr"
+
+# shimmed_remove DIR LOG : remove DIR's cortex with W1_CMDS counted into LOG
+shimmed_remove() {
+  local shims="$TEST_TMP/shims.$RANDOM$RANDOM"
+  : > "$2"
+  # shellcheck disable=SC2086 # the list is split on purpose
+  make_shims "$shims" "$2" $W1_CMDS
+  run env PATH="$shims:$PATH" bash -c 'cd "$1" && bash cortex/bin/remove.sh --hosting-done --references-ok < /dev/null' _ "$1"
+}
+
+# w1_pair -> two copies of one cortex_seeded fixture, "<base> <variant>"
+w1_pair() {
+  local d
+  d="$(cortex_seeded)" || return 1
+  cp -a "$d" "$d.w1" || { fail "fixture: $d not copied"; return 1; }
+  printf '%s %s\n' "$d" "$d.w1"
+}
+
+# w1_compare LABEL BASE VARIANT : remove both, counted; each command started
+# as often in VARIANT as in BASE
+w1_compare() {
+  local label="$1" log1="$TEST_TMP/w1.base.log" log2="$TEST_TMP/w1.more.log" c n1 n2 total=0
+  shimmed_remove "$2" "$log1"
+  assert_exit 0 "$CODE" "fixture: the shimmed baseline removal exits 0"
+  assert_file_absent "$2/cortex" "fixture: the baseline removal deleted cortex/"
+  for c in $W1_CMDS; do total=$((total + $(count_calls "$log1" "$c"))); done
+  assert_true "shims see remove.sh's process starts" test "$total" -gt 0
+  shimmed_remove "$3" "$log2"
+  assert_exit 0 "$CODE" "fixture: the removal with $label exits 0"
+  assert_file_absent "$3/cortex" "fixture: the removal with $label deleted cortex/"
+  for c in $W1_CMDS; do
+    n1="$(count_calls "$log1" "$c")"; n2="$(count_calls "$log2" "$c")"
+    if [ "$n1" = "$n2" ]; then pass
+    else fail "$c started $n1 times by the removal, $n2 with $label (W1: must not grow)"; fi
+  done
+}
+
+case_W1_reference_lines() {
+  local pair base more i
+  pair="$(w1_pair)" || return 0
+  base="${pair%% *}"; more="${pair#* }"
+  mkdir -p "$more/docs"
+  for i in $(seq 1 20); do
+    append "$more/docs/zz-refs.md" "see cortex/knowledge/glossary.md ($i)"
+    append "$more/AGENTS.md" "Also read cortex/changes/zz-$i/proposal.md."
+  done
+  commit_all "$more" "40 project lines naming cortex/ paths"
+  assert_true "fixture: 20 referencing lines in docs/zz-refs.md" test "$(grep -c 'cortex/knowledge/glossary.md' "$more/docs/zz-refs.md")" = 20
+  assert_true "fixture: 20 referencing lines in AGENTS.md" test "$(grep -c 'cortex/changes/zz-' "$more/AGENTS.md")" = 20
+  w1_compare "40 more referencing lines" "$base" "$more"
+  assert_true "the 40 lines are listed as references" \
+    test "$(grep -cE '^reference (docs/zz-refs\.md|AGENTS\.md):' <<<"$OUT" || true)" = 40
+}
+
+case_W1_entries() {
+  local pair base more i lines="$TEST_TMP/w1.entries" n
+  pair="$(w1_pair)" || return 0
+  base="${pair%% *}"; more="${pair#* }"
+  n="$(entry_count "$more")"
+  # ten entry lines as adapt.sh records them, five naming a cortex/ path
+  : > "$lines"
+  for i in $(seq 1 5); do
+    printf '      "Bash(bash cortex/bin/zz-%s.sh *)",\n' "$i" >> "$lines"
+    printf '      "Bash(zz-tool-%s *)",\n' "$i" >> "$lines"
+  done
+  filter_file "$more/$SETTINGS" awk -v t="$lines" '
+    { print } !done && /\[/ { while ((getline x < t) > 0) print x; done = 1 }'
+  # recorded as install writes them: the format line, then the records sorted
+  {
+    sed -n 1p "$more/cortex/footprint"
+    { sed 1d "$more/cortex/footprint"; awk -v p="$SETTINGS" '{ print "entry\t" p "\t" $0 }' "$lines"; } | LC_ALL=C sort
+  } > "$TEST_TMP/w1.footprint"
+  cat "$TEST_TMP/w1.footprint" > "$more/cortex/footprint"
+  commit_all "$more" "10 more recorded entries, merged"
+  assert_true "fixture: 10 more entry records" test "$(entry_count "$more")" = "$((n + 10))"
+  assert_true "fixture: footprint still starts with its format line" test "$(sed -n 1p "$more/cortex/footprint")" = "$FOOTPRINT_HEADER"
+  while IFS= read -r i; do
+    assert_true "fixture: recorded: $i" has_record "$more" entry "$SETTINGS" "$i"
+    assert_true "fixture: merged: $i" grep -qxF -- "$i" "$more/$SETTINGS"
+  done < "$lines"
+  w1_compare "10 more recorded entries" "$base" "$more"
+  assert_true "every recorded entry listed (D4)" test "$(listed_entries "$OUT" | grep -c . || true)" = "$((n + 10))"
+}
+
 
 run_case "criterion 12: round trip with --delete-records" case_round_trip_delete_records
 run_case "criterion 13: round trip with --keep-records <dir>" case_round_trip_keep_records
@@ -817,4 +913,6 @@ run_case "A2 --keep-records README.md/x/y refused: not a directory" case_A2_nest
 run_case "A2 --keep-records nonexist/../cortex/x refused: no .." case_A2_dotdot_into_cortex
 run_case "A2 --keep-records .github/../keep refused: no .." case_A2_dotdot_outside_cortex
 run_case "A2 --keep-records docs/../keep refused: no .." case_A2_dotdot_missing_dir
+run_case "W1 40 more referencing project lines start no more processes" case_W1_reference_lines
+run_case "W1 10 more recorded entries start no more processes" case_W1_entries
 summary
