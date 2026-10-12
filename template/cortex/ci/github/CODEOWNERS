@@ -16,6 +16,11 @@
 /cortex/constitution.md       @OWNER
 /cortex/AGENTS.md             @OWNER
 /AGENTS.md                    @OWNER
+# The agent definitions: the reviewer's isolation and tools, and their source.
+/CLAUDE.md                    @OWNER
+/.claude/agents/cortex-*      @OWNER
+/.claude/skills/cortex-*/     @OWNER
+/cortex/adapters/             @OWNER
 # CI, including the file that holds this block.
 /.github/workflows/cortex.yml @OWNER
 /.github/CODEOWNERS           @OWNER

@@ -216,6 +216,8 @@ else
           report C13 "$path" "its recorded cortex $f3 block is missing"
         elif [ "$n" -gt 1 ]; then
           report C13 "$path" "has $n cortex $f3 blocks; keep one"
+        elif ! block_closed "$path" "$f3"; then
+          report C13 "$path" "cortex $f3 block has no end marker"
         fi ;;
       entry)
         if [ ! -f "$path" ] || ! entry_present "$path" "$f3" "$(cat "$path")"; then

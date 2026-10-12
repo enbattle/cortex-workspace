@@ -44,11 +44,19 @@
       "Bash(git *merge *)",
       "Bash(git*rebase*)",
       "Bash(git*reset --hard*)",
+      "Bash(git switch *--discard-changes*)",
+      "Bash(git switch *--force*)",
+      "Bash(git switch -f*)",
+      "Bash(git switch * -f*)",
       "PowerShell(git*push*)",
       "PowerShell(git merge *)",
       "PowerShell(git *merge *)",
       "PowerShell(git*rebase*)",
-      "PowerShell(git*reset --hard*)"
+      "PowerShell(git*reset --hard*)",
+      "PowerShell(git switch *--discard-changes*)",
+      "PowerShell(git switch *--force*)",
+      "PowerShell(git switch -f*)",
+      "PowerShell(git switch * -f*)"
     ]
   }
 }

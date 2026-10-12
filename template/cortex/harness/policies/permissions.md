@@ -19,7 +19,7 @@ enforce a row, the row still binds and review checks it.
 history, commits to the default branch, writes an approval line on its own (R6), reads
 secret files (`.env` and similar), or runs a destructive or irreversible
 operation without the user's go-ahead in that moment. Any step that would do
-one of these is marked `HUMAN-GATE:` and stops there.
+one of these stops for the user's go-ahead.
 
 Tool permission rules match command text, so they are a guardrail against
 mistakes, not a security boundary: a determined or confused agent can reach

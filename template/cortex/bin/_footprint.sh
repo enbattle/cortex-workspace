@@ -171,6 +171,35 @@ block_count() {
   fi
 }
 
+# block_closed PATH ID : the file's first begin marker for ID has an end
+# marker for ID after it (2026-10-12 spec V1). A file without the begin
+# marker isn't a block to close; callers check block_count first.
+block_closed() {
+  awk -v BINMODE=3 -v b="$(marker_begin "$1" "$2")" -v e="$(marker_end "$1" "$2")" '
+    { l = $0; sub(/\r$/, "", l) }
+    !inb && l == b { inb = 1; next }
+    inb && l == e { closed = 1; exit }
+    END { exit !closed }' "$1"
+}
+
+# unclosed_refusal PATH ID : print V1's refusal and return 0 when PATH holds
+# an ID block with no end marker after it; return 1 otherwise
+unclosed_refusal() {
+  [ -f "$1" ] && [ "$(block_count "$1" "$2")" -gt 0 ] && ! block_closed "$1" "$2" || return 1
+  echo "refused $1: its cortex $2 block has no end marker; restore it, then run again"
+}
+
+# fp_unclosed_refusals : V1's refusal for every recorded block with no end
+# marker; returns 1 when there was one
+fp_unclosed_refusals() {
+  local rec bad=0
+  while IFS= read -r rec; do
+    [ -n "$rec" ] || continue
+    ! unclosed_refusal "$(fp_field "$rec" 2)" "$(fp_field "$rec" 3)" || bad=1
+  done <<<"$(fp_match block)"
+  [ "$bad" = 0 ]
+}
+
 # block_sha PATH ID -> git hash-object of the block's lines, framing aside
 # (A7, F1)
 block_sha() { block_body "$1" "$2" | git hash-object --stdin --path="$1"; }
@@ -226,6 +255,7 @@ frame_lines() {
 # stay
 block_set() {
   local f="$1" id="$2" src="$3" nl=1 cr
+  block_closed "$f" "$id" || return 1 # never past a missing end marker (V1)
   [ -z "$(tail -c 1 "$f")" ] || nl=0
   cr="$(file_cr "$f")"
   frame_lines "$src" "$(framed "$f")" "$cr" > "$f.cortex-src"
@@ -246,6 +276,7 @@ block_set() {
 # inserting it added before it (A6), so the file is as it was before
 block_strip() {
   local f="$1" id="$2" sep="$3" nl=1
+  block_closed "$f" "$id" || return 1 # V1
   [ -z "$(tail -c 1 "$f")" ] || nl=0
   awk -v BINMODE=3 -v b="$(marker_begin "$f" "$id")" -v e="$(marker_end "$f" "$id")" -v sep="$sep" -v nl="$nl" '
     { line[NR] = $0 }
@@ -293,6 +324,8 @@ fp_remove_block() {
   rec="$(fp_match block "$f" "$id" | sed -n 1p)"
   sep="$(fp_field "$rec" 5)"
   if [ -f "$f" ] && [ "$(block_count "$f" "$id")" -gt 0 ]; then
+    # callers refuse an unclosed block first (V1); this keeps it and its record
+    block_closed "$f" "$id" || return 1
     if ! block_unedited "$f" "$id" "$rec"; then
       echo "note: the $id block in $f was edited after install; its content was:"
       block_content "$f" "$id" | tr -d '\r' | sed 's/^/  | /'

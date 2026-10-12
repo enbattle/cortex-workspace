@@ -9,6 +9,11 @@
 # repository root. Running them is the point of this script. The other
 # scripts run through `bash`, so a lost executable bit can't break the gates.
 #
+# With CORTEX_GATES_LOCK_ONLY=1, the commands from cortex/config are skipped:
+# CI judges the test lock in a step before any project code runs, since a
+# command run here could rewrite this script while it runs (2026-10-12 spec
+# V4).
+#
 # Usage: cortex/bin/gates.sh <change-folder>
 # Exit:  0 all gates pass, 1 any gate failed, 2 usage error.
 set -euo pipefail
@@ -50,6 +55,10 @@ gate() { # name command... : run it, show its output if it fails
 
 config_gate() { # name KEY
   local cmd=""
+  if [ "${CORTEX_GATES_LOCK_ONLY:-}" = 1 ]; then
+    echo "gate $1: skipped (lock only)"
+    return 0
+  fi
   [ ! -f cortex/config ] || cmd="$(config_value "$2" < cortex/config)"
   if [ -z "$cmd" ]; then
     echo "gate $1: FAIL (not set in cortex/config)"

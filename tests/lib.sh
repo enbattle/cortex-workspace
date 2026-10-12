@@ -107,7 +107,8 @@ summary() {
   p=$(grep -c '^P$' "$RESULTS" || true)
   f=$(grep -c '^F$' "$RESULTS" || true)
   echo "$(basename "$0"): $p passed, $f failed"
-  [ "$f" -eq 0 ]
+  # a suite in which no assertion ran passed nothing (2026-10-12 spec V11)
+  [ "$f" -eq 0 ] && [ "$p" -gt 0 ]
 }
 
 # ---- fixtures -------------------------------------------------------------------

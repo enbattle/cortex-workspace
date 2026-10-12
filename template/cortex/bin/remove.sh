@@ -51,6 +51,24 @@ usage() {
 }
 refuse() { echo "refused $1: $2"; exit 2; }
 
+# inside_cortex PATH : PATH is cortex/ or inside it, however it is spelled:
+# its deepest existing directory, resolved physically (links followed), or
+# one above that, is cortex/ (-ef: the same file, so case and links don't
+# matter; 2026-10-12 spec V3)
+inside_cortex() {
+  local d="$1" p
+  while [ ! -e "$d" ]; do
+    case "$d" in */*) d="${d%/*}"; [ -n "$d" ] || d=/ ;; *) d=. ;; esac
+  done
+  p="$(cd "$d" 2>/dev/null && pwd -P)" || return 1
+  while :; do
+    [ "$p" -ef cortex ] && return 0
+    [ "$p" != / ] || return 1
+    p="${p%/*}"
+    [ -n "$p" ] || p=/
+  done
+}
+
 hosting_done=0
 references_ok=0
 records=""   # a directory, "delete", or "" (ask, or the default)
@@ -84,6 +102,8 @@ fp_load || refuse cortex/footprint "unknown format '$FP_BAD_FORMAT' (this cortex
 if [ -n "$(git status --porcelain)" ]; then
   refuse "$(pwd)" "the work tree has uncommitted changes; commit or stash them first, so the removal is one diff you can review or undo (D14)"
 fi
+# 2026-10-12 spec V1: a block with no end marker can't be taken out cleanly
+fp_unclosed_refusals || exit 2
 
 # ---- 1. hosting ------------------------------------------------------------------------
 
@@ -162,9 +182,9 @@ if [ -z "$records" ]; then
 fi
 if [ "$records" != delete ]; then
   records="${records%/}"
-  case "$records" in
-    cortex | cortex/*) refuse "$records" "is inside cortex/, which is deleted; name another directory" ;;
-  esac
+  if inside_cortex "$records"; then
+    refuse "$records" "is inside cortex/, which is deleted; name another directory"
+  fi
   if [ -e "$records" ] && [ -n "$(ls -A "$records" 2>/dev/null)" ]; then
     refuse "$records" "exists and isn't empty; name another directory with --keep-records <dir>"
   fi

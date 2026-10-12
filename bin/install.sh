@@ -244,6 +244,14 @@ if [ "$(major "$version")" != "$(major "$installed")" ]; then
     refuse "${open_locks//$'\n'/, }" "a change is in progress, and cortex $version is a new major version; finish or archive it first (locks on other branches too: see the CHANGELOG)"
   fi
 fi
+# 2026-10-12 spec V1: a block with no end marker is refused before anything is
+# merged, never truncated
+unclosed=0
+fp_unclosed_refusals || unclosed=1
+if [ -z "$(fp_match block AGENTS.md agents)" ]; then
+  ! unclosed_refusal AGENTS.md agents || unclosed=1
+fi
+[ "$unclosed" = 0 ] || exit 2
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT

@@ -98,6 +98,20 @@ while IFS="$TAB" read -r p src; do
   fi
 done <<<"$wholes"
 
+# V1 (2026-10-12 spec): a block with no end marker, recorded or one this run
+# would write into, is refused before anything is written, never truncated
+blocks="$(fp_match block | cut -f 2,3)"
+if active claude; then blocks="$blocks"$'\n'"CLAUDE.md${TAB}claude"; fi
+if active copilot; then blocks="$blocks"$'\n'".github/copilot-instructions.md${TAB}copilot"; fi
+if active gemini; then blocks="$blocks"$'\n'"GEMINI.md${TAB}gemini"; fi
+if [ "$ci" = github ] && [ -n "$owners" ]; then blocks="$blocks"$'\n'"$codeowners${TAB}codeowners"; fi
+unclosed=0
+while IFS="$TAB" read -r p id; do
+  [ -n "$p" ] || continue
+  ! unclosed_refusal "$p" "$id" || unclosed=1
+done <<<"$(printf '%s\n' "$blocks" | LC_ALL=C sort -u)"
+[ "$unclosed" = 0 ] || exit 2
+
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp" ${cursor_src:+"$cursor_src"}' EXIT
 desired=""   # every path this run keeps, one per line
@@ -246,13 +260,34 @@ case "$ci" in
       want "$codeowners" # an earlier block stays until CODE_OWNERS is set again
       echo "warning: CI=github but CODE_OWNERS is not set in cortex/config; no CODEOWNERS block written"
     else
+      # TEST_GLOBS are pathspecs, where * also matches /; in CODEOWNERS it
+      # doesn't, so an entry with one lone * (not next to another) also gets
+      # that * as */**/*, and together they own what the entry locks (V6)
+      set -f
+      # shellcheck disable=SC2086 # the globs are split on purpose, unexpanded
+      for g in $globs; do printf '%s\n' "$g"; done > "$tmp/globs.in"
+      set +f
+      awk -v notes="$tmp/notes" '
+        /^:/ { print "note: TEST_GLOBS entry " $0 " can'\''t be written to CODEOWNERS; add its paths by hand" > notes; next }
+        {
+          n = 0; pos = 0
+          for (i = 1; i <= length($0); i++) {
+            # (i > 1): substr($0, 0, 1) is the first character in some awks
+            if (substr($0, i, 1) != "*" || (i > 1 && substr($0, i - 1, 1) == "*") || substr($0, i + 1, 1) == "*") continue
+            n++
+            if (!pos) pos = i
+          }
+          print
+          if (n == 1 && !(index($0, "/") == 0 && pos == 1))
+            print substr($0, 1, pos - 1) "*/**/*" substr($0, pos + 1)
+          else if (n > 1)
+            print "note: TEST_GLOBS entry " $0 ": CODEOWNERS may not own every file it locks; write it with **" > notes
+        }' "$tmp/globs.in" > "$tmp/globs"
+      [ ! -f "$tmp/notes" ] || cat "$tmp/notes"
       {
         grep -v '^#' cortex/ci/github/CODEOWNERS | grep -v '^[[:space:]]*$' || true
         echo "# The tests (TEST_GLOBS in cortex/config):"
-        set -f
-        # shellcheck disable=SC2086 # the globs are split on purpose, unexpanded
-        for g in $globs; do printf '%s\n' "$g"; done
-        set +f
+        cat "$tmp/globs"
       } | awk -v o="$owners" -v co="/$codeowners" '
         /^#/ { print; next }
         { p = $1; if (p == "/.github/CODEOWNERS") p = co; printf "%-40s %s\n", p, o }' > "$tmp/codeowners"
@@ -310,7 +345,8 @@ while IFS= read -r p; do
   [ -n "$p" ] || continue
   grep -qxF -- "$p" <<<"$desired" && continue
   o="$(owner "$p")"
-  case "$o" in install | other) continue ;; ci) ;; *) [ -n "$tools" ] || continue ;; esac
+  # an unknown CI value says nothing on purpose, so nothing is removed for it (V2)
+  case "$o" in install | other) continue ;; ci) case "$ci" in github | none) ;; *) continue ;; esac ;; *) [ -n "$tools" ] || continue ;; esac
   fp_remove_path "$p" 0
   while IFS= read -r rec; do
     [ -n "$rec" ] || continue

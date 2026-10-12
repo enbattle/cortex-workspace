@@ -25,10 +25,11 @@ against the change before approving it.
 
 ## Procedure
 
-1. Record the working tree's state before you start
-   (`git status --porcelain -uall`). Review never edits anything in the
-   repository; any experiment or probe script goes in a scratch directory
-   outside it.
+1. Record the repository's state before you start: the working tree
+   (`git status --porcelain -uall`), the commit (`git rev-parse HEAD`) and
+   the branch (`git rev-parse --abbrev-ref HEAD`). Review never edits,
+   commits or switches anything in the repository; any experiment or probe
+   script goes in a scratch directory outside it.
 2. Find the base, the commit the change branch started from:
    `git merge-base HEAD <default branch>` (in a fresh clone, use
    `origin/<default branch>`). The diff under review is
@@ -73,7 +74,8 @@ against the change before approving it.
    A Medium or Low finding the user waived, recorded in
    `review-findings.md`, doesn't block approval; no waiver covers a
    constitution breach.
-9. Confirm the working tree is exactly as it was in step 1.
+9. Confirm the working tree, the commit and the branch are exactly as they
+   were in step 1.
 
 Budget: this review runs once. After two request-changes rounds on the same
 change (count them in `review-findings.md`), refuse a third automated
