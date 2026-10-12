@@ -1183,7 +1183,7 @@ case_V4_workflow_template() {
   assert_true "no job-level if: (a skipped job would report success)" \
     bash -c '! awk '\''/^[[:space:]]*if:/ { match($0, /^ */); if (RLENGTH <= 4) bad = 1 } END { exit bad ? 0 : 1 }'\'' "$1"' _ "$WF"
   lock="$(wf_first 'CORTEX_GATES_LOCK_ONLY(:[[:space:]]*["'\'']?1["'\'']?|=1)')"
-  name="$(wf_first "^[[:space:]]*- name:[[:space:]]*[\"']?$LOCK_STEP[\"']?[[:space:]]*\$")"
+  name="$(wf_first "^[[:space:]]*- name:[[:space:]]*[\"']?${LOCK_STEP}[\"']?[[:space:]]*\$")"
   setup="$(wf_first 'Add the setup')"
   full="$(wf_last 'bash .*ci-gates\.sh')"
   n="$(grep -cE 'bash .*ci-gates\.sh' "$WF" || true)"
