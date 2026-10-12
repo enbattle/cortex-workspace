@@ -3,9 +3,10 @@
 # pass/fail, and exits nonzero if any suite failed.
 #
 # Usage: tests/run.sh [--parallel] [suite ...]
-#   --parallel runs the suites side by side. CI uses it (multi-core Linux). It
-#   is off by default because on Windows the suites compete for process
-#   creation: a parallel full run there was not faster than sequential.
+#   --parallel runs the suites side by side. CI uses it on every job (on
+#   its 4-core Windows runner, 1122 s against 1466 s in a row). It is off by
+#   default because on a loaded Windows machine the suites compete for
+#   process creation: a parallel full run there was not faster.
 #   With no arguments, every tests/*.test.sh runs. Name suites (for example
 #   `tests/run.sh ci-gates tests-locked`) to run only those while iterating;
 #   run the full set before opening a pull request. CI always runs the full

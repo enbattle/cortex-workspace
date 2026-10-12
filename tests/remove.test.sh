@@ -22,14 +22,24 @@ remove_in() {
 }
 
 # cortex_seeded -> a seeded project with cortex installed as above, committed;
-# its pre-install tree_snapshot is in "<repo>.pre"
+# its pre-install tree_snapshot is in "<repo>.pre". Built once per suite, then
+# copied for each call, as fresh_install does: the copy is byte for byte what
+# building it gives, and building it took about half of each case's time on
+# Windows (2026-10-12 spec, Amendment 2 W2).
 cortex_seeded() {
-  local d
-  d="$(seeded_repo)" || return 1
-  tree_snapshot "$d" > "$d.pre"
-  install_adapt_github "$d" || return 1
-  merge_entries "$d"
-  commit_all "$d" "install cortex"
+  local cache="$TEST_TMP/.seeded-cache" d
+  if [ ! -d "$cache/.git" ]; then
+    d="$(seeded_repo)" || return 1
+    tree_snapshot "$d" > "$d.pre"
+    install_adapt_github "$d" || return 1
+    merge_entries "$d"
+    commit_all "$d" "install cortex"
+    mv "$d" "$cache"
+    mv "$d.pre" "$cache.pre"
+  fi
+  d="$(mktemp -d "$TEST_TMP/repo.XXXXXX")"
+  cp -Rp "$cache/." "$d/"
+  cp -p "$cache.pre" "$d.pre"
   printf '%s\n' "$d"
 }
 

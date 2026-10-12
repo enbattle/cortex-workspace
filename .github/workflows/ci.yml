@@ -61,4 +61,8 @@ jobs:
         with:
           fetch-depth: 0
       - name: install, upgrade and remove suites (Git Bash)
-        run: bash tests/run.sh install upgrade remove
+        # Side by side, temporary files on D: (faster than C: here); 2026-10-12
+        # spec, Amendment 2 W3
+        run: |
+          export TMPDIR="$RUNNER_TEMP" TMP="$RUNNER_TEMP" TEMP="$RUNNER_TEMP"
+          bash tests/run.sh --parallel install upgrade remove
