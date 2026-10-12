@@ -302,3 +302,37 @@ for the items above.
   that aren't recorded. Where `mktemp` ignores `TMPDIR` (macOS's BSD `mktemp`
   without a template), the temporary-file check can't be observed and is
   skipped with a note; it runs on Linux and Git Bash.
+
+## Amendment 2 (2026-10-12): the Windows job, from 25 minutes
+
+Approved by the maintainer, 2026-10-12, for this release.
+
+**Measured** on GitHub's Windows runner (4 cores; Defender real-time
+protection already off), each suite as its own step, run 38274883290:
+`remove` 1072 s, `upgrade` 281 s, `install` 113 s; the three with
+`--parallel`, 1122 s, since the job waits for `remove`; temporary files on
+D: (`$RUNNER_TEMP`) instead of C:, about 8% less. Locally, one remove case
+spends about 28 s building its fixture (`cortex_seeded`: a real install,
+adapt, a commit) and about 26 s in `remove.sh`, which made 560 `fp_match`
+and 224 `fp_drop` calls, each a pipeline of new processes, on one removal.
+A process costs 20-60 ms on Windows, so a user there waits as long.
+
+- **W1. `remove.sh` starts a bounded number of processes.** Its output,
+  exit codes and resulting tree are byte-for-byte as before for every
+  input (the existing suites are the tests of that). New criterion: the
+  number of external commands one `remove.sh` run starts doesn't grow with
+  the number of project lines that name paths under `cortex/`, nor with the
+  number of footprint records: a removal with 40 more such lines, and one
+  with 10 more recorded blocks and entries, start the same number of each
+  command as without them (shims count them, as for Amendment 7's
+  `check.sh` bound). `_footprint.sh`'s helpers may change to make that
+  possible, with every other caller's behavior unchanged.
+- **W2. The remove suite builds its seeded install once.** `cortex_seeded`
+  copies a per-suite cache, as `fresh_install` does; the copy is
+  byte-for-byte what building it gives (files, modes, `.git`, and the
+  `<repo>.pre` snapshot beside it). Every suite's assertion count is
+  unchanged.
+- **W3. The Windows job runs its suites with `--parallel` and its temporary
+  files on D:** (`TMPDIR`, `TMP` and `TEMP` set to `$RUNNER_TEMP`). Its
+  suites stay install, upgrade and remove (D15).
+- The Windows job's time after W1-W3 is recorded here from CI.
