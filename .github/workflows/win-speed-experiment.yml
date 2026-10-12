@@ -10,9 +10,8 @@ jobs:
       fail-fast: false
       matrix:
         tmp: [c, d]
-        defender: [on, off]
         mode: [steps, parallel]
-    name: tmp-${{ matrix.tmp }} defender-${{ matrix.defender }} ${{ matrix.mode }}
+    name: tmp-${{ matrix.tmp }} ${{ matrix.mode }}
     runs-on: windows-latest
     timeout-minutes: 60
     defaults:
@@ -30,12 +29,6 @@ jobs:
           Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled, AMRunningMode | Format-List
           Get-PSDrive C, D | Format-Table Name, Used, Free
           "TEMP=$env:TEMP RUNNER_TEMP=$env:RUNNER_TEMP"
-      - name: defender off
-        if: matrix.defender == 'off'
-        shell: pwsh
-        run: |
-          Set-MpPreference -DisableRealtimeMonitoring $true
-          Get-MpComputerStatus | Select-Object RealTimeProtectionEnabled | Format-List
       - name: temp on D
         if: matrix.tmp == 'd'
         run: |
@@ -46,7 +39,7 @@ jobs:
         run: |
           echo "TMPDIR=${TMPDIR:-unset} mktemp -> $(mktemp -d)"
           time (for i in $(seq 50); do git --version >/dev/null; done)
-          time (for i in $(seq 50); do grep -q x /dev/null; done)
+          time (for i in $(seq 50); do grep -q x /dev/null || true; done)
           d="$(mktemp -d)"; time (for i in $(seq 50); do echo $i > "$d/f$i"; git -C "$d" init -q "r$i"; done)
       - name: install
         if: matrix.mode == 'steps'
