@@ -1,12 +1,13 @@
 # Changelog
 
-## 3.2.0 — unreleased
+## 3.2.0 — 2026-10-12
 
-**Before release:** the golden cycle and the reviewer-tools probe (review.md
-and the review skill changed); the completeness audit and its findings; the
-full suites and CI on Linux, macOS and Windows; `VERSION` 3.2.0 and the
-fixture refreshed; README's status and install tag; a date here, and the
-tag.
+**Before release** (all done): the golden cycle and the reviewer-tools
+probe (review.md and the review skill changed); the completeness audits
+and their findings (`evals/audits/2026-10-12.md`, `2026-10-12-3.2.0.md`);
+V5 confirmed on a scratch repository; the full suites and CI on Linux,
+macOS and Windows; `VERSION` 3.2.0 and the fixture refreshed; README's
+status and install tag; a date here, and the tag.
 
 **Changed: the 2026-10-12 review's verified findings**
 (`docs/specs/2026-10-12-verified-review-findings.md`).
@@ -38,13 +39,15 @@ tag.
   `--discard-changes`**, which discard uncommitted work.
 - **Review's integrity check records the commit and branch** as well as the
   status, so a reviewer that commits or switches branch is caught.
-- **Removal is faster on Windows:** the footprint lookups start no process,
-  and `remove.sh` no longer starts processes for each project line that
-  names `cortex/` (one removal: 26 s to 7 s in Git Bash). Output unchanged.
+- **Removal is faster on Windows:** `remove.sh` starts no process per project
+  line that names `cortex/` or per recorded entry, and the footprint's
+  lookups are plain bash (one removal: 26 s to 7 s in Git Bash). Output
+  unchanged.
 - **No more random failures on files over 4 KB:** a reader that stopped
   early (`awk ... exit`, `grep -q`) could fail its writer with a broken
-  pipe, which aborted a removal halfway or failed the `tasks` gate on a
-  long `tasks.md`, depending on timing. Every reader now reads to the end.
+  pipe, which aborted a removal halfway, failed the `tasks` gate on a long
+  `tasks.md`, or lost a value read from a long `cortex/config`, depending
+  on timing. Every reader now reads to the end.
 - **Removed:** `permissions.md`'s unused `HUMAN-GATE:` marker.
 
 **For installed repositories:** after upgrading, move any setup steps in
