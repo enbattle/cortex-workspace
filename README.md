@@ -61,7 +61,7 @@ The workflow for a nontrivial change:
 | `spec-clarify` | you + the agent | an interrogated proposal, design, tasks, and a brief from a fresh agent; **you** approve |
 | `test-first` | a fresh agent | failing tests, committed and locked |
 | `implement` | another fresh agent | the change, with the locked tests untouched (checked by script) |
-| `review` | another fresh, read-only agent | a verdict with findings; a separate security pass for new external surfaces |
+| `review` | one or more fresh, read-only agents (split when the change is more than one can read) | a verdict with findings; a separate security pass for new external surfaces |
 | `retro` | you + the agent | approved process fixes and a pipeline-log row |
 
 In any agent tool: *"Read and execute `cortex/harness/commands/<name>.md`."*

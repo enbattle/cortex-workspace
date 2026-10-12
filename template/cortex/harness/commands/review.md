@@ -22,6 +22,24 @@ against the change before approving it.
   (`implement` commits every task). If tasks are open, stop and tell the user
   to finish `implement`. Missing gate output under `## Gate output` is a
   finding, not a reason to stop: you run the gates yourself anyway.
+- **A change too large for one reviewer is split (R13).** If the diff and
+  the change folder are more than one reviewer can read in full, the
+  session that starts the review splits it across fresh reviewers by file:
+  - the parts together cover every file in the diff, and each part's file
+    list is recorded in the round;
+  - each piece of code is in the same part as its tests;
+  - every reviewer keeps the inputs above (it may read the whole diff and
+    change folder) and answers for its own part;
+  - one reviewer also owns the gates and verification (step 3) and the
+    checklist's items that span the change;
+  - the security pass (step 7) runs once, over the external-surface files
+    and their tests.
+
+  The round lists each reviewer's findings as returned, collapses only
+  identical ones (same file, line and defect), and its verdict is request
+  changes if any reviewer's is. It counts as one round for the budget.
+  The session that merges the returns judges none of them: findings are
+  triaged in `implement`.
 
 ## Procedure
 

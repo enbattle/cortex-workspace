@@ -162,6 +162,13 @@ task right. Concretely:
   sections to read and the one question to answer, and asks for a condensed
   result. It never pastes content the subagent can read itself, or the
   calling session's reasoning.
+- **A read-only role too large for one context is split.** When a review,
+  audit or verification has more material than one context can read in
+  full, it is split across fresh agents with the same brief, each
+  answering for one part, so none summarizes what it should have read. The
+  session that briefed them merges their returns without filtering them; a
+  finding is judged where findings are triaged, never by the session that
+  merged it. Writing roles (the test writer, the implementer) aren't split.
 - **Long efforts hand off and restart.** Work that spans many turns writes
   its state into durable files (R9): the change folder, a progress note in
   it, or the tool's memory. It then continues in a fresh session instead of
@@ -170,9 +177,14 @@ task right. Concretely:
   severity bar, such as correctness and high/medium findings. Once a round
   finds nothing above the bar, the loop ends; below-bar findings are
   recorded, not iterated on (R10 sets the cap). A finding is confirmed
-  against the code before it becomes work, and a below-bar or theoretical
-  finding is recorded as a known limitation by default, not turned into a
-  test or a rule. The exception is a cheap test for a severe class
+  before it becomes work, against the code (the input occurs, it
+  reproduces, it is reachable) and against the decisions the project
+  recorded for that work, by a context that has them: an agent that saw
+  only part of the project can't know what it decided. A finding whose
+  fix would contradict a recorded decision is disputed and stops for the
+  user, who revisits the decision or records the finding. A below-bar or
+  theoretical finding is recorded as a known limitation by default, not
+  turned into a test or a rule. The exception is a cheap test for a severe class
   (security, data loss, money), which `review` already refuses to
   downgrade for rarity alone. Artifacts are sized to what
   the reader needs, since every extra paragraph is paid again by every

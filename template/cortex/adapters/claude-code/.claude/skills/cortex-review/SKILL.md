@@ -14,3 +14,9 @@ to `review-findings.md` as a `## Round <n>` section, then record all three
 again: the only difference from before may be `review-findings.md` in the
 status, and any other (a new commit or another branch included) is a
 finding. Then commit that file alone.
+
+If the change is more than one reviewer can read in full, split it as
+`cortex/harness/commands/review.md` (Preconditions) says: one
+`cortex-reviewer` per part, spawned together, each given the change
+folder's path and its part's file list. Write their returns into one round
+as that paragraph says, adding no judgment of your own.

@@ -1,5 +1,34 @@
 # Changelog
 
+## 3.3.0 — unreleased
+
+**Before release:** the golden cycle and the reviewer-tools probe
+(`review.md`, `implement.md` and the review skill changed); the
+completeness audit and its findings; the full suites and CI on Linux,
+macOS and Windows; `VERSION` 3.3.0 and the fixture refreshed; README's
+status and install tag; a date here, and the tag.
+
+**Changed: findings checked against recorded decisions, and a read-only
+role split across agents**
+(`docs/specs/2026-10-12-verified-findings-split-review.md`).
+
+- **A finding is checked against what the project decided** (design rule
+  R13). `implement`'s triage now also checks each review finding against
+  the change's recorded decisions (the proposal's Non-goals, the design's
+  Alternatives considered, the constitution, decision records the change
+  folder names, this change's earlier known limitations). A finding whose
+  fix would contradict one is disputed and stops for you.
+- **A review too large for one reviewer is split.** `review` splits it
+  across fresh reviewers by file: the parts cover the whole diff and are
+  recorded in the round, code stays with its tests, one reviewer owns the
+  gates, the security pass runs once, and the round lists every reviewer's
+  findings as returned (request changes if any reviewer requests them).
+  The session that merges them judges none. In Claude Code, the review
+  skill spawns the reviewers.
+
+**For installed repositories:** nothing to do; the upgrade merges the
+changed commands and the review skill and agent.
+
 ## 3.2.0 — 2026-10-12
 
 **Before release** (all done): the golden cycle and the reviewer-tools
