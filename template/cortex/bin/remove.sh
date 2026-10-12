@@ -250,7 +250,8 @@ while IFS= read -r path; do
   while IFS= read -r rec; do
     [ -n "$rec" ] || continue
     rec="${rec#*"$TAB"}"   # the fields from the third on, as cut -f3-
-    entries="${entries}entry $path ${rec#*"$TAB"}"$'\n'
+    case "$rec" in *"$TAB"*) rec="${rec#*"$TAB"}" ;; *) rec="" ;; esac
+    entries="${entries}entry $path $rec"$'\n'
   done <<<"$(fp_match entry "$path")"
   fp_drop entry "$path"
 done <<<"$(printf '%s\n' "$FP_RECORDS" | cut -f2 | LC_ALL=C sort -u)"
