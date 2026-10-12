@@ -1147,7 +1147,14 @@ case_V4_attack_needs_lock_only_step() {
     bash -c 'cd "$1" && bash cortex/bin/ci-gates.sh "$2"' _ "$d" "$BASE"
   assert_file_exists "$mark" "fixture: the full run ran the planted test command"
   assert_line "$OUT" "gate tests-locked: FAIL (exit 1)" "fixture: the lock failed in the full run"
-  assert_exit 0 "$CODE" "planted violation: a single full run exits 0 on a failed lock"
+  # The rewrite takes effect only where bash reads the script as it runs (it
+  # did on Linux; macOS's bash 3.2 had already read it): then no gate line
+  # after "gate test" is printed. Otherwise the demonstration is skipped.
+  if grep -q '^gate lint: ' <<<"$OUT"; then
+    echo "  note: skipped the full-run demonstration: this bash had already read gates.sh, so the rewrite took no effect"
+  else
+    assert_exit 0 "$CODE" "planted violation: a single full run exits 0 on a failed lock"
+  fi
   rm -f "$mark"
   run env CORTEX_GATES_LOCK_ONLY=1 TMPDIR="$atk" ZZ_ATK="$atk" ZZ_MARK="$mark" \
     bash -c 'cd "$1" && bash cortex/bin/ci-gates.sh "$2"' _ "$d" "$BASE"

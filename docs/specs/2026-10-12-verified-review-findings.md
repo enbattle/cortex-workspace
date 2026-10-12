@@ -108,6 +108,12 @@ the fix is ordering.
   locks and `cortex/config` are unchanged (3.0.0 D12).
 - Known limit, unchanged: the branch supplies the workflow file, protected
   by Code Owners review (R11's Limit).
+- The planted test's demonstration (a single full run exits 0 after the
+  attack) depends on the shell re-reading a running script: it reproduced
+  on Linux and Git Bash, not on macOS's bash 3.2, which had read the whole
+  script already. Where the attack's rewrite didn't take effect, that half
+  is skipped with a note; the lock-only half, the fix, is asserted
+  everywhere.
 
 ### V5. Retargeting a pull request re-runs the check
 
