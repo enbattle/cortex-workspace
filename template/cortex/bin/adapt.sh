@@ -125,7 +125,7 @@ record_created() { fp_drop created "$1"; fp_add created "$1" "$(file_sha "$1")";
 emit_file() {
   local f="$1" src="$2" rec
   want "$f"
-  rec="$(fp_match created "$f" | sed -n 1p)"
+  rec="$(fp_first created "$f")"
   if [ ! -e "$f" ]; then
     case "$f" in */*) mkdir -p "${f%/*}" ;; esac
     cp "$src" "$f"
@@ -146,7 +146,7 @@ emit_file() {
 emit_block() {
   local f="$1" id="$2" src="$3" rec sep new=0
   want "$f"
-  rec="$(fp_match block "$f" "$id" | sed -n 1p)"
+  rec="$(fp_first block "$f" "$id")"
   # A block written through a link would land in the file it points to,
   # recorded under the wrong path (CLAUDE.md -> AGENTS.md is common, and the
   # tool then reads AGENTS.md, which already holds cortex's block).
@@ -192,7 +192,7 @@ emit_entries() {
         continue ;;
     esac
     printf '%s\n' "$line" | grep -E '^[[:space:]]*"[^"]*",?[[:space:]]*$' >/dev/null || continue
-    rule="$(printf '%s\n' "$line" | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p')"
+    rule="$(entry_rule "$line")"
     if grep -qF -- "$rule" "$f"; then
       continue # merged already (a recorded entry stays recorded), or the project's own
     fi
@@ -224,7 +224,7 @@ else
         settings=.claude/settings.json
         # created when absent; replaced while cortex's copy is unedited;
         # otherwise (the project's, or edited) the missing rules are entries
-        rec="$(fp_match created "$settings" | sed -n 1p)"
+        rec="$(fp_first created "$settings")"
         if [ -f "$ADAPTERS/$settings" ]; then
           if [ ! -e "$settings" ] || cmp -s "$ADAPTERS/$settings" "$settings" ||
             { [ -n "$rec" ] && [ "$(file_sha "$settings")" = "$(fp_field "$rec" 3)" ]; }; then

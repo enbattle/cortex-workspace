@@ -480,7 +480,7 @@ else
       fi
     fi
   fi
-  rec="$(fp_match block AGENTS.md agents | sed -n 1p)"
+  rec="$(fp_first block AGENTS.md agents)"
   sep="$(fp_field "$rec" 5)"
   fp_drop block AGENTS.md agents
   fp_add_block AGENTS.md agents "${sep:-1}"

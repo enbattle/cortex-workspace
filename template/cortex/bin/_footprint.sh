@@ -31,6 +31,9 @@ CR="$(printf '\r')"
 # a .prettierignore line that leaves cortex/ alone: cortex, /cortex, cortex/
 # or /cortex/, blanks around it aside (G1)
 PRETTIERIGNORE_LINE='[[:blank:]]*/?cortex/?[[:blank:]]*'
+# an entry line's quoted rule ("Bash(git add *)"): the one pattern entry_rule,
+# entry_present and adapt.sh read it with (2026-10-12 nominations, M1)
+ENTRY_RULE_RE='^[[:space:]]*("[^"]*")'
 
 # fp_load : read cortex/footprint into FP_RECORDS; returns 1 (FP_BAD_FORMAT
 # set) when its first line is not FP_FORMAT. An absent footprint is empty.
@@ -71,18 +74,28 @@ fp_split() {
   FP_3="${r%%"$TAB"*}"
 }
 
-# fp_match KIND [PATH [FIELD3]] -> the matching records
-fp_match() {
+# fp_scan ONE KIND [PATH [FIELD3]] -> the records of KIND (and PATH, and
+# FIELD3, when given); with ONE=1 only the first
+fp_scan() {
+  local one="$1" rec
+  shift
   [ -n "$FP_RECORDS" ] || return 0
-  local rec
   while IFS= read -r rec; do
     fp_split "$rec"
     [ "$FP_1" = "$1" ] || continue
     [ "$#" -lt 2 ] || [ "$FP_2" = "$2" ] || continue
     [ "$#" -lt 3 ] || [ "$FP_3" = "$3" ] || continue
     printf '%s\n' "$rec"
+    [ "$one" = 0 ] || return 0
   done <<<"$FP_RECORDS"
 }
+
+# fp_match KIND [PATH [FIELD3]] -> the matching records
+fp_match() { fp_scan 0 "$@"; }
+
+# fp_first KIND [PATH [FIELD3]] -> the first record fp_match would print, or
+# nothing (2026-10-12 nominations, M2)
+fp_first() { fp_scan 1 "$@"; }
 
 # fp_drop KIND PATH [FIELD3] : forget the matching records
 fp_drop() {
@@ -177,8 +190,7 @@ prettierignore_has() {
 # entry_rule FIELD -> an entry record's quoted rule ("Bash(git add *)"), or
 # nothing if the field has none (.prettierignore's cortex/)
 entry_rule() {
-  local re='^[[:space:]]*("[^"]*")'
-  if [[ $1 =~ $re ]]; then printf '%s\n' "${BASH_REMATCH[1]}"; fi
+  if [[ $1 =~ $ENTRY_RULE_RE ]]; then printf '%s\n' "${BASH_REMATCH[1]}"; fi
   return 0
 }
 
@@ -187,7 +199,7 @@ entry_rule() {
 # PRETTIERIGNORE_LINE (G1), for any other file the field's quoted rule (B6).
 # The one rule C13 and remove.sh's references step share (N1).
 entry_present() {
-  local l rule="" re='^[[:space:]]*("[^"]*")' pre="^($PRETTIERIGNORE_LINE)\$"
+  local l rule="" pre="^($PRETTIERIGNORE_LINE)\$"
   if [ "$1" = .prettierignore ]; then
     while IFS= read -r l; do
       [[ $l =~ $pre ]] && return 0
@@ -195,7 +207,7 @@ entry_present() {
     return 1
   fi
   # entry_rule's match, inline: no subshell per call
-  if [[ $2 =~ $re ]]; then rule="${BASH_REMATCH[1]}"; fi
+  if [[ $2 =~ $ENTRY_RULE_RE ]]; then rule="${BASH_REMATCH[1]}"; fi
   [ -n "$rule" ] || return 1
   case "$3" in *"$rule"*) return 0 ;; esac
   return 1
@@ -368,7 +380,7 @@ rmdir_up() {
 # block is shown first. Prints A1's "removed block <path> <id>".
 fp_remove_block() {
   local f="$1" id="$2" rec sep
-  rec="$(fp_match block "$f" "$id" | sed -n 1p)"
+  rec="$(fp_first block "$f" "$id")"
   sep="$(fp_field "$rec" 5)"
   if [ -f "$f" ] && [ "$(block_count "$f" "$id")" -gt 0 ]; then
     # callers refuse an unclosed block first (V1); this keeps it and its record
@@ -390,7 +402,7 @@ fp_remove_block() {
 # only whitespace is left. Drops the record.
 fp_remove_created() {
   local f="$1" force="$2" held="$3" rec sha
-  rec="$(fp_match created "$f" | sed -n 1p)"
+  rec="$(fp_first created "$f")"
   sha="$(fp_field "$rec" 3)"
   fp_drop created "$f"
   [ -f "$f" ] || return 0
