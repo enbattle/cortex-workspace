@@ -63,12 +63,14 @@ Reproduced: `remove.sh --keep-records ./cortex/x` moves the records into
 `cortex/` and then deletes `cortex/`. The guard matches only the literal
 `cortex` and `cortex/*`. D6: deleting records takes an explicit choice.
 
-- The guard walks the records path's existing ancestors (the path itself
-  included, if it exists) and refuses when one is the same file as
-  `cortex` (`[ "$d" -ef cortex ]`), with the current message and exit 2,
-  changing nothing. This catches `./cortex/x`, `cortex/./x`, an absolute
-  path, a symlink into `cortex/`, and `Cortex/x` on a case-insensitive file
-  system.
+- The guard takes the records path's deepest existing ancestor (the path
+  itself, if it exists), resolves it physically (`cd` into it, `pwd -P`),
+  and walks that physical path up to the root, refusing when any directory
+  on it is the same file as `cortex` (`[ "$d" -ef cortex ]`), with the
+  current message and exit 2, changing nothing. This catches `./cortex/x`,
+  `cortex/./x`, an absolute path, a symlink to `cortex/` or to a directory
+  inside it (`lnk -> cortex/changes`, then `lnk/x`), and `Cortex/x` on a
+  case-insensitive file system.
 - `docs/cortex`, `cortexrecords` and `docs/cortex-records` are still
   accepted.
 
@@ -85,7 +87,8 @@ the fix is ordering.
 
 - `gates.sh` honors `CORTEX_GATES_LOCK_ONLY=1`: it runs `tests-locked`,
   `tasks` and `check`, and prints `gate build: skipped (lock only)` (and the
-  same for `test` and `lint`) without running them. Its exit code and final
+  same for `test` and `lint`) without running them, each line where that
+  gate's line is today, so the order is unchanged. Its exit code and final
   line are as today. Unset, its output is unchanged.
 - `template/cortex/ci/github/cortex.yml`:
   - the checkout sets `persist-credentials: false`;
@@ -129,10 +132,12 @@ For each entry, `adapt.sh` writes into the CODEOWNERS block:
   with that `*` replaced by `*/**/*` (`tests/*` gives `tests/*` and
   `tests/*/**/*`; `src/*.test.ts` gives `src/*.test.ts` and
   `src/*/**/*.test.ts`; `test_*.py` gives `test_*.py` and
-  `test_*/**/*.py`), which together match what the pathspec matches;
+  `test_*/**/*.py`; `**/test_*.py` gives `**/test_*.py` and
+  `**/test_*/**/*.py`, since a plain pathspec's `**` is two `*`s), which
+  together match what the pathspec matches;
 - an entry with two or more lone `*`: the entry, and prints
   `note: TEST_GLOBS entry <g>: CODEOWNERS may not own every file it locks; write it with **`;
-- any other entry (`*.test.js`, `tests/**`, `**/test_*.py`): as today.
+- any other entry (`*.test.js`, `tests/**`): as today.
 
 INSTALL step 3 says `**` forms are what both the lock and CODEOWNERS read
 the same way.
