@@ -57,19 +57,46 @@ fp_save() {
   mv "$FP_FILE.tmp" "$FP_FILE"
 }
 
+# The lookups below start no process: they run once per record or per
+# project line, and a process costs 20-60 ms on Windows (2026-10-12 spec,
+# Amendment 2 W1).
+
+# fp_split RECORD : FP_1, FP_2 and FP_3 are its first three fields
+fp_split() {
+  local r="$1"
+  FP_1="${r%%"$TAB"*}"
+  case "$r" in *"$TAB"*) r="${r#*"$TAB"}" ;; *) r="" ;; esac
+  FP_2="${r%%"$TAB"*}"
+  case "$r" in *"$TAB"*) r="${r#*"$TAB"}" ;; *) r="" ;; esac
+  FP_3="${r%%"$TAB"*}"
+}
+
 # fp_match KIND [PATH [FIELD3]] -> the matching records
 fp_match() {
   [ -n "$FP_RECORDS" ] || return 0
-  printf '%s\n' "$FP_RECORDS" | FM_K="$1" FM_P="${2-}" FM_HP="${2+x}" FM_F="${3-}" FM_HF="${3+x}" awk -F'\t' '
-    $1 == ENVIRON["FM_K"] && (ENVIRON["FM_HP"] == "" || $2 == ENVIRON["FM_P"]) &&
-      (ENVIRON["FM_HF"] == "" || $3 == ENVIRON["FM_F"])'
+  local rec
+  while IFS= read -r rec; do
+    fp_split "$rec"
+    [ "$FP_1" = "$1" ] || continue
+    [ "$#" -lt 2 ] || [ "$FP_2" = "$2" ] || continue
+    [ "$#" -lt 3 ] || [ "$FP_3" = "$3" ] || continue
+    printf '%s\n' "$rec"
+  done <<<"$FP_RECORDS"
 }
 
 # fp_drop KIND PATH [FIELD3] : forget the matching records
 fp_drop() {
   [ -n "$FP_RECORDS" ] || return 0
-  FP_RECORDS="$(printf '%s\n' "$FP_RECORDS" | FM_K="$1" FM_P="$2" FM_F="${3-}" FM_HF="${3+x}" awk -F'\t' '
-    !($1 == ENVIRON["FM_K"] && $2 == ENVIRON["FM_P"] && (ENVIRON["FM_HF"] == "" || $3 == ENVIRON["FM_F"]))')"
+  local rec out=""
+  while IFS= read -r rec; do
+    fp_split "$rec"
+    if [ "$FP_1" = "$1" ] && [ "$FP_2" = "$2" ] && { [ "$#" -lt 3 ] || [ "$FP_3" = "$3" ]; }; then
+      continue
+    fi
+    out="$out$rec"$'\n'
+  done <<<"$FP_RECORDS"
+  while [ "${out%$'\n'}" != "$out" ]; do out="${out%$'\n'}"; done
+  FP_RECORDS="$out"
 }
 
 # fp_add FIELD... : add a record (one per path and kind, block id or entry line)
@@ -81,8 +108,17 @@ fp_add() {
 }$rec"
 }
 
-# fp_field RECORD N -> field N of a record
-fp_field() { printf '%s\n' "$1" | cut -f "$2"; }
+# fp_field RECORD N -> field N of a record (as cut -f N: a record without a
+# tab is its own every field)
+fp_field() {
+  local r="$1" i=1
+  case "$r" in *"$TAB"*) ;; *) printf '%s\n' "$r"; return 0 ;; esac
+  while [ "$i" -lt "$2" ]; do
+    case "$r" in *"$TAB"*) r="${r#*"$TAB"}" ;; *) r="" ;; esac
+    i=$((i + 1))
+  done
+  printf '%s\n' "${r%%"$TAB"*}"
+}
 
 # file_sha PATH -> the blob git would store for PATH (its filters applied)
 file_sha() { git hash-object -- "$1"; }
@@ -140,20 +176,29 @@ prettierignore_has() {
 
 # entry_rule FIELD -> an entry record's quoted rule ("Bash(git add *)"), or
 # nothing if the field has none (.prettierignore's cortex/)
-entry_rule() { printf '%s\n' "$1" | sed -n 's/^[[:space:]]*\("[^"]*"\).*/\1/p'; }
+entry_rule() {
+  local re='^[[:space:]]*("[^"]*")'
+  if [[ $1 =~ $re ]]; then printf '%s\n' "${BASH_REMATCH[1]}"; fi
+  return 0
+}
 
 # entry_present PATH FIELD TEXT : TEXT (a file's content, or one of its
 # lines) has the entry recorded for PATH with FIELD: for .prettierignore a
 # PRETTIERIGNORE_LINE (G1), for any other file the field's quoted rule (B6).
 # The one rule C13 and remove.sh's references step share (N1).
 entry_present() {
-  local rule
+  local l rule="" re='^[[:space:]]*("[^"]*")' pre="^($PRETTIERIGNORE_LINE)\$"
   if [ "$1" = .prettierignore ]; then
-    printf '%s\n' "$3" | tr -d '\r' | grep -qxE -- "$PRETTIERIGNORE_LINE"
-    return
+    while IFS= read -r l; do
+      [[ $l =~ $pre ]] && return 0
+    done <<<"${3//$CR/}"
+    return 1
   fi
-  rule="$(entry_rule "$2")"
-  [ -n "$rule" ] && grep -qF -- "$rule" <<<"$3"
+  # entry_rule's match, inline: no subshell per call
+  if [[ $2 =~ $re ]]; then rule="${BASH_REMATCH[1]}"; fi
+  [ -n "$rule" ] || return 1
+  case "$3" in *"$rule"*) return 0 ;; esac
+  return 1
 }
 
 # fp_add_block PATH ID SEP : (re)record PATH's ID block as it is now
