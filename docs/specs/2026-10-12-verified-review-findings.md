@@ -339,4 +339,9 @@ A process costs 20-60 ms on Windows, so a user there waits as long.
 - **W3. The Windows job runs its suites with `--parallel` and its temporary
   files on D:** (`TMPDIR`, `TMP` and `TEMP` set to `$RUNNER_TEMP`). Its
   suites stay install, upgrade and remove (D15).
-- The Windows job's time after W1-W3 is recorded here from CI.
+- The Windows job's time after W1-W3 is recorded here from CI. *Measured*
+  (run 38289710197): the suites step took 325 s, against 1479 s before
+  (run 38217158969); Linux 53 s, macOS 195 s. One removal on Git Bash
+  locally: 26.4 s before, 7.0 s after. The first try set `TMPDIR` to
+  `$RUNNER_TEMP` as given (`D:\a\_temp`), whose backslashes the suites'
+  `awk -v` read as escapes; the job uses the POSIX form (`cygpath -u`).

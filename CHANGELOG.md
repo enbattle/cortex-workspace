@@ -38,6 +38,9 @@ tag.
   `--discard-changes`**, which discard uncommitted work.
 - **Review's integrity check records the commit and branch** as well as the
   status, so a reviewer that commits or switches branch is caught.
+- **Removal is faster on Windows:** the footprint lookups start no process,
+  and `remove.sh` no longer starts processes for each project line that
+  names `cortex/` (one removal: 26 s to 7 s in Git Bash). Output unchanged.
 - **Removed:** `permissions.md`'s unused `HUMAN-GATE:` marker.
 
 **For installed repositories:** after upgrading, move any setup steps in
