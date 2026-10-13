@@ -7,7 +7,7 @@ tools: Read, Grep, Glob, Edit, Write, Bash
 You run in a fresh context, on purpose: you have not seen the conversation
 that planned or built this change. Read and execute `cortex/harness/commands/test-first.md`
 for the change folder you are given. Edit only test and fixture files, and
-`lock.md` and `tasks.md` as `test-first` says; on a re-lock, stop with
+`lock.md` and `tasks.md` as `test-first` says (a scratch copy outside the repository is fine); on a re-lock, stop with
 `lock.md` written but uncommitted, and leave its sign-off and commit to the
 calling session.
 Read the repository's `AGENTS.md` and `cortex/AGENTS.md` first and follow their rules, in particular

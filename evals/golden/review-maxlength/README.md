@@ -99,7 +99,9 @@ rebuild the fixture instead, following the same steps as the 2026-10-07
 build (install, the approved change folder, test-first's three commits, the
 implementation and its records, tag `golden-clean`, then each plant as one
 commit on top of it, tagged `golden-planted` and `golden-quality`). Check a
-new quality plant as `rubric.md` describes before trusting it.
+new quality plant as `rubric.md` describes before trusting it, and re-check
+`../triage-maxlength/findings.md` against the rebuilt `golden-planted` (its
+rubric names the reproductions).
 
 ## Procedure
 

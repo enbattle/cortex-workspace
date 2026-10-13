@@ -8,7 +8,7 @@ evidence. It is plain markdown and a few bash scripts, works with any agent
 tool, and ships a Claude Code adapter that enforces as much of the isolation
 as the tool allows.
 
-**Status:** 3.3.0, released 2026-10-12 (3.0.0 on 2026-10-09): everything cortex installs lives in
+**Status:** 3.4.0, released 2026-10-13 (3.0.0 on 2026-10-09): everything cortex installs lives in
 one `cortex/` directory, and installs upgrade and remove cleanly (see
 [CHANGELOG.md](CHANGELOG.md)). Its release candidate was installed, used for
 one real change, upgraded and removed in a real repository first
@@ -22,8 +22,8 @@ compatibility break, and a fresh reviewer caught a planted bug the tests
 missed. [Pilot 2](evals/pilots/2026-09-24-pilot-2.md) then ran the Claude
 Code adapter for real from inside an installed repository: each role was
 delegated to its own subagent, the three-commit test lock held, and review
-again caught a real compatibility break. The rebuilt golden task
-([evals/golden/](evals/golden/review-maxlength/)) passes.
+again caught a real compatibility break. The golden tasks
+([evals/golden/](evals/golden/): review, and since 3.4.0 implement's triage) pass.
 [Pilots 3](evals/pilots/2026-10-03-pilot-3.md) and
 [3b](evals/pilots/2026-10-03-pilot-3b.md) counted the permission prompts a
 person would see, which fell to 5 in 129 actions after their fixes. cortex
@@ -74,13 +74,13 @@ Prerequisites: git and bash (Git Bash on Windows; macOS's bash 3.2 is fine).
 
 Ask your agent, in your repository:
 
-> Install cortex v3.3.0 from https://github.com/enbattle/cortex-workspace by following its INSTALL.md.
+> Install cortex v3.4.0 from https://github.com/enbattle/cortex-workspace by following its INSTALL.md.
 
 It works on a branch, runs the installer, interviews you for the commands,
 tools and conventions, and runs the checks. Everything it can't know is left
 as a visible `TODO`. Later:
 
-> Upgrade cortex to v3.4.0 by following its INSTALL.md.
+> Upgrade cortex to v3.5.0 by following its INSTALL.md.
 
 > Remove cortex from this repository.
 
@@ -88,7 +88,7 @@ Without an agent, from a clone made outside your repository (full history,
 so upgrades can read the installed version):
 
 ```bash
-git clone --branch v3.3.0 https://github.com/enbattle/cortex-workspace.git ../cortex
+git clone --branch v3.4.0 https://github.com/enbattle/cortex-workspace.git ../cortex
 bash ../cortex/bin/install.sh .     # install, or upgrade an older 3.x
 bash cortex/bin/remove.sh           # remove: it stops for the hosting steps first
 ```

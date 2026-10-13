@@ -8,7 +8,8 @@ each off with a one-line note and commits at every task boundary. -->
 
 ## Criteria to tests
 
-<!-- Filled by test-first: each automatable criterion -> its test(s). -->
+<!-- Filled by test-first: each automatable criterion -> its test(s), and
+the evidence for each test it removed or merged (test-first step 2). -->
 
 ## Manual verification
 

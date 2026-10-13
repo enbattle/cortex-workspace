@@ -32,7 +32,9 @@ R12, in `cortex/design-rules.md`), separate from the test writer and the reviewe
    Alternatives considered, the constitution, decision records the change
    folder names, and known limitations recorded in this change's earlier
    rounds. A finding whose fix would contradict one is **disputed**, naming
-   the decision (design rule R13). Under that round, record
+   the decision (design rule R13). So is a finding that doesn't reproduce or
+   isn't reachable, with the attempt as evidence (the command and its
+   output). Under that round, record
    one outcome per finding with a one-line reason, and commit the file:
    **fix**; **fix via test-first** (only when a test can exercise real
    behavior; you never write it: report it, and the user decides whether

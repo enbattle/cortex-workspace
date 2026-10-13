@@ -1127,6 +1127,351 @@ case_C13_unclosed_then_second_block() {
   expect_unclosed "$d" .github/CODEOWNERS codeowners "C13"
 }
 
+# ---- spec 3.4.0 P1: C15 checks the pipeline log -----------------------------------
+#
+# docs/specs/2026-10-13-til-ports.md, P1: when cortex/changes/pipeline-log.md
+# exists, C15 reads its table (header, separator, rows; a cell boundary is a
+# `|` not preceded by `\`; cells trimmed) and reports
+# FAIL [C15] cortex/changes/pipeline-log.md: <message> once per problem: (1)
+# a header other than the seven columns, (2) a row without exactly 7 cells,
+# (3) a cell that doesn't match its column's format, (4) a Retro containing
+# `pending`, (5) a Retro that is only `nothing to change` after failed gates
+# or H/M/L findings. Each message names the row by its first two cells. A
+# missing log is not a failure; the template's empty log passes.
+
+PLOG="cortex/changes/pipeline-log.md"
+
+# log_row DATE CHANGE GATES FINDINGS ROUNDS RETRO ESCAPED -> one table row
+log_row() {
+  printf '| %s | %s | %s | %s | %s | %s | %s |\n' "$@"
+}
+
+# a row's first two cells, valid under rule 3
+VALID_DATE="2026-10-13"
+VALID_CHANGE="cortex/changes/2026-10-13-demo"
+
+# log_install -> a filled install; its pipeline log is saved beside it
+# (<dir>.plog) for reset_log
+log_install() {
+  local d
+  d="$(prepared_install)" || return 1
+  [ -f "$d/$PLOG" ] || { fail "log_install: no $PLOG in the install"; return 1; }
+  cp -p "$d/$PLOG" "$d.plog"
+  printf '%s\n' "$d"
+}
+
+# reset_log DIR : DIR's pipeline log as installed
+reset_log() { cp -p "$1.plog" "$1/$PLOG"; }
+
+# add_row DIR ROW : append ROW to DIR's pipeline log; a failure is recorded
+# (and 1 returned) if the log doesn't then hold it as a line
+add_row() {
+  append "$1/$PLOG" "$2"
+  planted "row in the log: $2" grep -qxF -- "$2" "$1/$PLOG"
+}
+
+# c15_lines -> the last check_in's FAIL [C15] lines
+c15_lines() { grep '^FAIL \[C15\] ' <<<"$OUT" || true; }
+
+# expect_c15_once DIR : C15 alone fails DIR's log, with exactly one line
+expect_c15_once() {
+  expect_violation "$1" C15 "$PLOG"
+  if [ "$(c15_lines | grep -c . || true)" = 1 ]; then pass
+  else fail "[C15] expected exactly one C15 line (one problem)"; show_output; fi
+}
+
+# expect_c15_row DIR CELL1 CELL2 : expect_c15_once, and its line names the
+# row by its first two cells
+expect_c15_row() {
+  local l
+  expect_c15_once "$1"
+  l="$(c15_lines)"
+  if grep -qF -- "$2" <<<"$l" && grep -qF -- "$3" <<<"$l"; then pass
+  else fail "[C15] line doesn't name the row by '$2' and '$3'"; show_output; fi
+}
+
+# expect_log_ok DIR MSG : check passes with no C15 line
+expect_log_ok() {
+  check_in "$1"
+  assert_exit 0 "$CODE" "$2: check passes"
+  assert_not_contains "$OUT" "[C15]" "$2: no C15"
+}
+
+case_C15_template_log_ok() {
+  # P1: the template's empty log (header, separator, no rows) passes
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  assert_same_file "$d/$PLOG" "$ROOT/template/$PLOG" "the installed log is the template's"
+  expect_log_ok "$d" "the empty template log"
+}
+
+case_C15_no_log_ok() {
+  # P1: a missing log is not a failure (no check requires the log)
+  local d; d="$(prepared_install)"; baseline_ok "$d"
+  rm -f "${d:?}/${PLOG:?}"
+  planted "the log is gone" test ! -e "$d/$PLOG" || return 0
+  expect_log_ok "$d" "no pipeline log"
+}
+
+case_C15_valid_rows_ok() {
+  # P1: full valid rows: gate-failure text after the count, findings with
+  # and without pre:N, rounds, an escaped defect filled in or empty
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row 2026-10-13 cortex/changes/2026-10-13-demo "2 lint, check.sh" "1/2/0, pre:1" 1 "tightened implement step 3" "cortex/changes/2026-10-20-fix")" || return 0
+  add_row "$d" "$(log_row 2026-10-14 cortex/changes/2026-10-14-other 0 0/0/0 0 "added a glossary entry" "")" || return 0
+  add_row "$d" "$(log_row 2026-10-15 cortex/changes/2026-10-15-third "0" "10/0/12, pre:0" 2 "split the review checklist" "")" || return 0
+  expect_log_ok "$d" "full valid rows"
+}
+
+case_C15_nothing_to_change_with_reason_ok() {
+  # P1 rule 5: `nothing to change` with a reason, after findings or failed
+  # gates, passes
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row 2026-10-13 cortex/changes/a 0 0/1/0 1 "nothing to change: the finding was a nit the linter now catches" "")" || return 0
+  add_row "$d" "$(log_row 2026-10-14 cortex/changes/b "1 test" 2/0/1 2 "Nothing to change, because the flaky test is already tracked" "")" || return 0
+  expect_log_ok "$d" "nothing to change with a reason"
+}
+
+case_C15_bare_nothing_to_change_clean_ok() {
+  # P1 rule 5: a bare `nothing to change` with 0 gate failures and
+  # 0/0/0, pre:2 passes (findings already present don't count)
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row 2026-10-13 cortex/changes/clean 0 "0/0/0, pre:2" 0 "nothing to change" "")" || return 0
+  expect_log_ok "$d" "bare nothing to change, 0 failures, 0/0/0, pre:2"
+}
+
+case_C15_escaped_pipe_ok() {
+  # P1: `\|` is not a cell boundary, so a row holding one keeps 7 cells
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row 2026-10-13 cortex/changes/pipe '1 lint \| check.sh' 0/0/1 1 'matched a\|b in the lint pattern' "")" || return 0
+  add_row "$d" "$(log_row 2026-10-14 cortex/changes/pipe2 0 0/0/0 0 "documented the flag" 'cortex/changes/x \| y')" || return 0
+  expect_log_ok "$d" 'an escaped \| inside a cell'
+}
+
+case_C15_crlf_ok() {
+  # P1: a log with CRLF line endings (header, separator and rows) passes
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row 2026-10-13 cortex/changes/crlf "1 lint" 1/0/0 1 "tightened the lint step" "")" || return 0
+  add_row "$d" "$(log_row 2026-10-14 cortex/changes/crlf2 0 0/0/0 0 "nothing to change" "")" || return 0
+  filter_file "$d/$PLOG" awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }'
+  planted "the log has CRLF line endings" has_cr "$d/$PLOG" || return 0
+  expect_log_ok "$d" "a CRLF log"
+}
+
+case_C15_rule1_header() {
+  # P1 rule 1: the header's cells must be exactly the seven columns
+  local d v; d="$(log_install)" || return 1; baseline_ok "$d"
+  for v in 's/| Rounds |/| Round |/' 's/^| Date |/| date |/' \
+    's/| Escaped defect |$/| Escaped defect | Agents |/' 's/| Escaped defect |$/|/'; do
+    reset_log "$d"
+    filter_file "$d/$PLOG" sed "$v"
+    planted "header changed by $v" test "$(grep -m1 '^|' "$d/$PLOG")" != "$(grep -m1 '^|' "$d.plog")" || continue
+    expect_c15_once "$d"
+  done
+}
+
+case_C15_rule2_cell_count() {
+  # P1 rule 2: a row with other than 7 cells (an unescaped | inside a cell
+  # is a boundary)
+  local d r; d="$(log_install)" || return 1; baseline_ok "$d"
+  for r in \
+    "| $VALID_DATE | $VALID_CHANGE | 0 | 0/0/0 | 0 | added a note |  | extra |" \
+    "| $VALID_DATE | $VALID_CHANGE | 0 | 0/0/0 | 0 | added a note |" \
+    "| $VALID_DATE | $VALID_CHANGE | 0 | 0/0/0 | 0 | matched a | b in a pattern |  |"; do
+    reset_log "$d"
+    add_row "$d" "$r" || continue
+    expect_c15_row "$d" "$VALID_DATE" "$VALID_CHANGE"
+  done
+}
+
+# rule3_variants DIR COLUMN CELL... : for each CELL, a row valid but for
+# COLUMN (1-6) holding CELL fails C15 once, naming the row
+rule3_variants() {
+  local d="$1" col="$2" c r name2; shift 2
+  for c in "$@"; do
+    reset_log "$d"
+    case "$col" in
+      1) r="$(log_row "$c" "$VALID_CHANGE" 0 0/0/0 0 "added a note" "")" ;;
+      2) r="$(log_row "$VALID_DATE" "$c" 0 0/0/0 0 "added a note" "")" ;;
+      3) r="$(log_row "$VALID_DATE" "$VALID_CHANGE" "$c" 0/0/0 0 "added a note" "")" ;;
+      4) r="$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 "$c" 0 "added a note" "")" ;;
+      5) r="$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 0/0/0 "$c" "added a note" "")" ;;
+      6) r="$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 0/0/0 0 "$c" "")" ;;
+    esac
+    add_row "$d" "$r" || continue
+    if [ "$col" = 1 ]; then expect_c15_row "$d" "$c" "$VALID_CHANGE"
+    else
+      name2="$VALID_CHANGE"; [ "$col" != 2 ] || name2=""
+      expect_c15_row "$d" "$VALID_DATE" "$name2"
+    fi
+  done
+}
+
+case_C15_rule3_formats() {
+  # P1 rule 3: each column's format, one bad cell per row
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  rule3_variants "$d" 1 2026-1-13 13-10-2026 yesterday ""        # YYYY-MM-DD
+  rule3_variants "$d" 2 "" "   "                                # non-empty
+  rule3_variants "$d" 3 none "lint failed once" "" "-1"          # ^[0-9]+
+  rule3_variants "$d" 4 0/0 1/x/0 H/M/L "0/0/0, pre:" "0/0/0 pre:2" \
+    "0/0/0, pre:x" "-1/0/0" ""                                   # H/M/L[, pre:N]
+  rule3_variants "$d" 5 one -1 1.5 ""                            # an integer >= 0
+  rule3_variants "$d" 6 "" "   "                                # non-empty
+}
+
+case_C15_rule4_pending() {
+  # P1 rule 4: a Retro containing the word pending, in any case (the pilot's
+  # R7: a retro row written before the developer answered)
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  rule3_variants "$d" 6 pending "Pending the developer's answer" "retro PENDING" \
+    "nothing to change (pending)"
+}
+
+case_C15_rule5_bare_nothing_to_change() {
+  # P1 rule 5: a Retro that is only `nothing to change` (any case, spaces
+  # and a trailing `.` ignored) after failed gates or an H, M or L finding
+  local d v g f t r; d="$(log_install)" || return 1; baseline_ok "$d"
+  for v in "1 lint|0/0/0|nothing to change" \
+    "0|1/0/0|Nothing to change." \
+    "0|0/2/0, pre:1|NOTHING TO CHANGE" \
+    "0|0/0/3|nothing to change." \
+    "3 test, lint|0/0/0, pre:4|  Nothing To Change  "; do
+    g="${v%%|*}"; f="${v#*|}"; t="${f#*|}"; f="${f%%|*}"
+    reset_log "$d"
+    r="$(log_row "$VALID_DATE" "$VALID_CHANGE" "$g" "$f" 1 "$t" "")"
+    add_row "$d" "$r" || continue
+    expect_c15_row "$d" "$VALID_DATE" "$VALID_CHANGE"
+  done
+}
+
+case_C15_one_line_per_problem() {
+  # P1: one line per problem: two broken rows, two C15 lines, each naming
+  # its own row, the valid row between them not named
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row 2026-10-13 cortex/changes/first 0 0/0/0 0 pending "")" || return 0
+  add_row "$d" "$(log_row 2026-10-14 cortex/changes/ok 0 0/0/0 0 "added a note" "")" || return 0
+  add_row "$d" "$(log_row 2026-10-15 cortex/changes/second "1 lint" 0/0/0 1 "nothing to change" "")" || return 0
+  expect_violation "$d" C15 "$PLOG"
+  assert_true "two C15 lines" test "$(c15_lines | grep -c . || true)" = 2
+  assert_contains "$(c15_lines)" "cortex/changes/first" "the pending row is named"
+  assert_contains "$(c15_lines)" "cortex/changes/second" "the bare nothing-to-change row is named"
+  assert_not_contains "$(c15_lines)" "cortex/changes/ok" "the valid row is not named"
+}
+
+
+# ---- spec 3.4.0 Review round (2026-10-13): C15, tightened -----------------------
+#
+# docs/specs/2026-10-13-til-ports.md, "Review round": R1 a failing awk
+# program gives one C15 line, never a silent pass; R2 rule 5 removes
+# backticks and `*`, collapses runs of spaces and tabs and drops trailing
+# `.`, `!` and `…` before comparing; R3 a row is named by its own first two
+# cells (an empty cell when it has fewer); R4 the line after the header must
+# be a separator (cells of `-`, an optional `:` at either end). Also the
+# whole-word `pending` rule (P1's clarification).
+
+# C15_MARK: a string only C15's awk program holds (its header columns)
+C15_MARK="Escaped defect"
+
+# make_c15_awk_shim DIR CALLED : an `awk` in DIR that exits 2 when its
+# program (an argument, or a file after -f) holds C15_MARK, touching CALLED
+# first; any other call goes to the real awk (resolved now, before DIR is on
+# PATH)
+make_c15_awk_shim() {
+  local dir="$1" called="$2" real
+  real="$(command -v awk)" || { echo "no real awk" >&2; return 1; }
+  mkdir -p "$dir"
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf 'real=%q; called=%q; mark=%q\n' "$real" "$called" "$C15_MARK"
+    printf 'prev=\n'
+    printf 'for a in "$@"; do\n'
+    printf '  hit=\n'
+    printf '  case "$a" in *"$mark"*) hit=1 ;; esac\n'
+    printf '  if [ "$prev" = -f ] && [ -f "$a" ] && grep -qF -- "$mark" "$a"; then hit=1; fi\n'
+    printf '  if [ -n "$hit" ]; then : > "$called"; echo "awk: shimmed failure" >&2; exit 2; fi\n'
+    printf '  prev="$a"\n'
+    printf 'done\n'
+    printf 'exec "$real" "$@"\n'
+  } > "$dir/awk"
+  chmod +x "$dir/awk"
+}
+
+case_R_C15_awk_failure_reported() {
+  # Review R1: C15's awk program failing gives exactly one C15 line, exit 1,
+  # and no `check: ok` (the pending row is never reached, so no second line)
+  local d shims called fails
+  d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row 2026-10-13 cortex/changes/r1 0 0/0/0 0 pending "")" || return 0
+  shims="$TEST_TMP/awk-c15.$RANDOM$RANDOM"; called="$shims.called"
+  make_c15_awk_shim "$shims" "$called"
+  run env PATH="$shims:$PATH" bash -c 'cd "$1" && ./cortex/bin/check.sh' _ "$d"
+  assert_file_exists "$called" "fixture: the shim ran in place of C15's awk program"
+  assert_exit 1 "$CODE" "[C15] a failing awk program exits 1"
+  assert_true "[C15] exactly one C15 line (got $(c15_lines | grep -c . || true))" \
+    test "$(c15_lines | grep -c . || true)" = 1
+  assert_contains "$OUT" "FAIL [C15] $PLOG:" "[C15] line names $PLOG"
+  fails="$(grep '^FAIL ' <<<"$OUT" || true)"
+  assert_true "[C15] no other check fails" test -z "$(grep -vF '[C15]' <<<"$fails" || true)"
+  assert_not_contains "$OUT" "check: ok" "[C15] a failing awk program does not claim ok"
+}
+
+case_R_C15_rule5_decorated_bare() {
+  # Review R2: backticks, `*`, runs of spaces or tabs and a trailing . ! or
+  # … don't hide a bare `nothing to change` after a finding
+  local d t; d="$(log_install)" || return 1; baseline_ok "$d"
+  for t in '`nothing to change`' '**Nothing to change.**' 'nothing  to change!' \
+    'nothing to change…' $'nothing\tto change'; do
+    reset_log "$d"
+    add_row "$d" "$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 0/1/0 1 "$t" "")" || continue
+    expect_c15_row "$d" "$VALID_DATE" "$VALID_CHANGE"
+  done
+}
+
+case_R_C15_rule5_decorated_with_reason_ok() {
+  # Review R2: a decorated `nothing to change` with a reason passes
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 0/0/1 1 '`nothing to change`: the Low was cosmetic' "")" || return 0
+  expect_log_ok "$d" "a decorated nothing to change with a reason"
+}
+
+case_R_C15_short_row_named_by_own_cells() {
+  # Review R3: a short row is named by its own cells, not the previous row's
+  local d l; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row 2026-10-15 cortex/changes/r3-previous 0 0/0/0 0 "added a note" "")" || return 0
+  add_row "$d" "| 2026-10-16 |" || return 0
+  expect_c15_once "$d"
+  l="$(c15_lines)"
+  assert_contains "$l" "2026-10-16" "[C15] the short row is named by its date"
+  assert_not_contains "$l" "cortex/changes/r3-previous" "[C15] the previous row's Change is not named"
+}
+
+case_R_C15_missing_separator() {
+  # Review R4: without the separator, the line after the header is checked
+  # as one and reported; the check fails
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 0/0/0 0 "added a note" "")" || return 0
+  filter_file "$d/$PLOG" sed '/^| -* | -* |/d'
+  planted "the separator is gone" test -z "$(grep -E '^\| *-+ *\|' "$d/$PLOG" || true)" || return 0
+  expect_violation "$d" C15 "$PLOG"
+  assert_true "[C15] a C15 line mentions the separator" \
+    grep -qi 'separator' <<<"$(c15_lines)"
+}
+
+case_R_C15_aligned_separator_ok() {
+  # Review R4: a separator with alignment colons passes
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 0/0/0 0 "added a note" "")" || return 0
+  filter_file "$d/$PLOG" sed 's/^| -* | -* |.*$/| :--- | ---: | :---: | --- | :-: | --- | -: |/'
+  planted "the separator has alignment colons" grep -qxF '| :--- | ---: | :---: | --- | :-: | --- | -: |' "$d/$PLOG" || return 0
+  expect_log_ok "$d" "a separator with alignment colons"
+}
+
+case_R_C15_whole_word_pending_ok() {
+  # P1 clarification: `pending` is a whole word; `spending` passes
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 0/0/0 0 "spending less time on review" "")" || return 0
+  expect_log_ok "$d" "spending in a Retro"
+}
+
 run_case "token absent from template" case_token_absent_from_template
 run_case "AC4 baseline check: ok" case_baseline_ok
 run_case "repo-root argument" case_root_argument
@@ -1207,4 +1552,24 @@ run_case "V1: C13 an unclosed claude block" case_C13_unclosed_claude
 run_case "V1: C13 an unclosed block in a CRLF file" case_C13_unclosed_crlf
 run_case "V1: C13 an end marker only before the begin marker" case_C13_end_before_begin
 run_case "A3: C13 begin, no end, then a second complete block" case_C13_unclosed_then_second_block
+run_case "P1: C15 the empty template log ok" case_C15_template_log_ok
+run_case "P1: C15 no pipeline log ok" case_C15_no_log_ok
+run_case "P1: C15 full valid rows ok" case_C15_valid_rows_ok
+run_case "P1: C15 nothing to change with a reason ok" case_C15_nothing_to_change_with_reason_ok
+run_case "P1: C15 bare nothing to change, 0 failures, 0/0/0, pre:2 ok" case_C15_bare_nothing_to_change_clean_ok
+run_case "P1: C15 an escaped \| inside a cell ok" case_C15_escaped_pipe_ok
+run_case "P1: C15 a CRLF log ok" case_C15_crlf_ok
+run_case "P1: C15 rule 1, a header other than the seven columns" case_C15_rule1_header
+run_case "P1: C15 rule 2, a row without exactly 7 cells" case_C15_rule2_cell_count
+run_case "P1: C15 rule 3, a cell not in its column's format" case_C15_rule3_formats
+run_case "P1: C15 rule 4, a Retro saying pending" case_C15_rule4_pending
+run_case "P1: C15 rule 5, a bare nothing to change after failures or findings" case_C15_rule5_bare_nothing_to_change
+run_case "P1: C15 one line per problem, each naming its row" case_C15_one_line_per_problem
+run_case "R: C15 a failing awk program is one C15 line, never a pass" case_R_C15_awk_failure_reported
+run_case "R: C15 rule 5, a decorated bare nothing to change after a finding" case_R_C15_rule5_decorated_bare
+run_case "R: C15 rule 5, a decorated nothing to change with a reason ok" case_R_C15_rule5_decorated_with_reason_ok
+run_case "R: C15 a short row is named by its own cells" case_R_C15_short_row_named_by_own_cells
+run_case "R: C15 a missing separator is reported" case_R_C15_missing_separator
+run_case "R: C15 a separator with alignment colons ok" case_R_C15_aligned_separator_ok
+run_case "R: C15 whole-word pending, spending ok" case_R_C15_whole_word_pending_ok
 summary

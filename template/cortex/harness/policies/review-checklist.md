@@ -24,6 +24,7 @@ boundary case is Low, unless a criterion depends on it.
 - [ ] Each automatable criterion maps to a test in `tasks.md`; each manual-verify item is listed for the user.
 - [ ] Tests call the code the way its users do and assert against literal expected values, never values computed by the code under test or a re-implementation of it; the unit under test is never mocked.
 - [ ] Tests are deterministic and isolated: nothing depends on the clock, test order, the network, or state a test didn't set up.
+- [ ] A removed or merged test has its evidence under `## Criteria to tests` in `tasks.md` (`test-first` step 2); a behavior no remaining test guards is Medium.
 - [ ] Boundary and error cases from the criteria are tested, not only the expected path; where the input space is large (a parser, a validator, a serializer), a property-based test covers it.
 
 ## Verification on the real artifact
