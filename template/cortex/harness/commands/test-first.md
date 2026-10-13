@@ -38,17 +38,19 @@ tests to fit it, so the tests stop encoding the spec.
    change in a scratch copy outside the repository). A test removed with the
    behavior it tested needs none; say so. Record each under
    `## Criteria to tests` in `tasks.md` (step 4).
-3. Run the test command and confirm each new test **fails for the expected
-   reason**: the behavior is missing, not a typo, an import error, or a
-   broken fixture. Failing to import a module or name the approved design
-   introduces, which nothing implements yet, is the expected reason; a test
-   that doesn't need that module goes in a file that doesn't import it, so
-   its own reason shows. A test that passes before the implementation exists
-   tests nothing; rewrite it. The exception is a criterion that guards
-   existing behavior ("inputs without the new option behave as before"): its
-   test is expected to pass now. Say so in the criterion-to-test mapping.
-   Then run `LINT_CMD` from `cortex/config` and fix any problem in the files
-   you wrote: once they are locked, no later stage can.
+3. Run `LINT_CMD` from `cortex/config` and fix any problem in the files you
+   wrote: once they are locked, no later stage can. An error that only
+   reports a module or name the approved design introduces, which nothing
+   implements yet, is expected; never suppress it. Then run the test command
+   and confirm each new test **fails for the expected reason**: the
+   behavior is missing, or a module or name the design introduces can't be
+   imported yet; not a typo, any other import error, or a broken fixture. A
+   test that doesn't need that module goes in a file that doesn't import
+   it, so its own reason shows. A test that passes before the implementation
+   exists tests nothing; rewrite it (and lint again). The exception is a
+   criterion that guards existing behavior ("inputs without the new option
+   behave as before"): its test is expected to pass now. Say so in the
+   criterion-to-test mapping.
 4. Commit the tests on the change branch (commit T). Then, as the **very
    next commit**, copy `cortex/harness/templates/change-folder/lock.md` into the
    change folder, fill in T's full sha and one `- <path>` line per test or
@@ -66,8 +68,8 @@ tests to fit it, so the tests stop encoding the spec.
    Neither may change `cortex/config`: if the base changed it, the change
    can't take that base in; stop and tell the user that the merge must be
    undone, and the change finished without that base or started over from
-   it. Run `LINT_CMD` and fix any problem in the corrected files before
-   committing T2. Rewrite `lock.md`: T2's full sha, every file the earlier lock listed,
+   it. Lint the corrected files as step 3 does, and give step 2's evidence
+   for any test T2 removes or merges, before committing T2. Rewrite `lock.md`: T2's full sha, every file the earlier lock listed,
    and every file T2 created or changed. Stop for the user's sign-off on
    the `Re-lock signed off by:` line: they write it, or explicitly tell you
    to (design rule R6). If you

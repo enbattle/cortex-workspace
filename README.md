@@ -22,8 +22,8 @@ compatibility break, and a fresh reviewer caught a planted bug the tests
 missed. [Pilot 2](evals/pilots/2026-09-24-pilot-2.md) then ran the Claude
 Code adapter for real from inside an installed repository: each role was
 delegated to its own subagent, the three-commit test lock held, and review
-again caught a real compatibility break. The rebuilt golden task
-([evals/golden/](evals/golden/review-maxlength/)) passes.
+again caught a real compatibility break. The golden tasks
+([evals/golden/](evals/golden/): review, and since 3.4.0 implement's triage) pass.
 [Pilots 3](evals/pilots/2026-10-03-pilot-3.md) and
 [3b](evals/pilots/2026-10-03-pilot-3b.md) counted the permission prompts a
 person would see, which fell to 5 in 129 actions after their fixes. cortex
