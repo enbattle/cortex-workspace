@@ -2,8 +2,8 @@
 
 One row per change, appended by `retro`. Each retro only sees its own change;
 this table is what lets a pattern across changes show up, and what makes a
-retro checkable: a change with failed gates or real findings whose retro says
-"nothing to change" should say why.
+retro checkable. `cortex/bin/check.sh` (C15) checks these columns' format and
+the Retro rules.
 
 Rows are never rewritten, except to fill in **Escaped defect** when a later
 fix traces a bug to that change. An escaped defect is the most important

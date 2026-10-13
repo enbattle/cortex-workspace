@@ -20,6 +20,8 @@
 #   C12 -    cortex/AGENTS.md or the root cortex block still contains TODO
 #   C13 R15  cortex/footprint doesn't match the repository
 #   C14 -    a merge-conflict marker is left under cortex/ or in a cortex block
+#   C15 R11  a cortex/changes/pipeline-log.md row breaks the log's format or
+#            its Retro rules
 #
 # Usage: cortex/bin/check.sh [repo-root]
 # Exit:  0 clean, 1 violations found.
@@ -254,6 +256,83 @@ if [ -n "$FP_RECORDS" ]; then
       report C14 "$path" "the cortex $f3 block has merge-conflict markers; resolve them"
     fi
   done <<<"$FP_RECORDS"
+fi
+
+# C15 — R11: the pipeline log's rules are checked, not only stated. One awk
+# pass over the table (spec Amendment 7): the first line starting with | is
+# the header, the next the separator, every later line starting with | a
+# row. A cell boundary is a | not preceded by \; the text before the first |
+# and after the last isn't a cell. A missing log is C13's business, not
+# C15's. awk prints one message per problem; each names its row by its
+# first two cells. A row with the wrong cell count gets only that message.
+plog=cortex/changes/pipeline-log.md
+if [ -f "$plog" ]; then
+  while IFS= read -r msg; do
+    [ -z "$msg" ] || report C15 "$plog" "$msg"
+  done <<<"$(awk '
+    function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
+    function unescape(s,   a, n, i, r) {
+      n = split(s, a, "\001"); r = a[1]
+      for (i = 2; i <= n; i++) r = r "\\|" a[i]
+      return r
+    }
+    # split_cells LINE -> the cell count; the trimmed cells in cell[1..n]
+    function split_cells(line,   s, parts, n, i) {
+      s = trim(line)
+      gsub(/\\[|]/, "\001", s)
+      s = substr(s, 2)
+      if (substr(s, length(s)) == "|") s = substr(s, 1, length(s) - 1)
+      n = split(s, parts, "|")
+      for (i = 1; i <= n; i++) cell[i] = unescape(trim(parts[i]))
+      return n
+    }
+    function leading_int(s) { return match(s, /^[0-9]+/) ? substr(s, 1, RLENGTH) + 0 : 0 }
+    BEGIN {
+      want = "Date|Change|Gate failures|Findings (H/M/L, pre)|Rounds|Retro|Escaped defect"
+      state = 0
+    }
+    { sub(/\r$/, "") }
+    state == 1 { state = 2; next }
+    !/^\|/ { next }
+    state == 0 {
+      n = split_cells($0); got = ""
+      for (i = 1; i <= n; i++) got = got (i > 1 ? "|" : "") cell[i]
+      if (got != want) {
+        gsub(/\|/, " | ", want)
+        print "the table header must be exactly the columns " want
+      }
+      state = 1; next
+    }
+    {
+      n = split_cells($0)
+      row = "row \"" cell[1] " | " cell[2] "\": "
+      if (n != 7) { print row "has " n " cells; a row has exactly 7, one per column (escape a | inside a cell as \\|)"; next }
+      if (cell[1] !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/)
+        print row "Date \"" cell[1] "\" is not YYYY-MM-DD"
+      if (cell[2] == "") print row "Change is empty; it names the change folder"
+      if (cell[3] !~ /^[0-9]+/)
+        print row "Gate failures \"" cell[3] "\" does not start with a count (0 if none)"
+      if (cell[4] !~ /^[0-9]+\/[0-9]+\/[0-9]+(, pre:[0-9]+)?$/)
+        print row "Findings \"" cell[4] "\" is not H/M/L or H/M/L, pre:N"
+      if (cell[5] !~ /^[0-9]+$/)
+        print row "Rounds \"" cell[5] "\" is not a whole number"
+      if (cell[6] == "") print row "Retro is empty; it says what was applied, or nothing to change and why"
+      retro = tolower(cell[6])
+      if (retro ~ /(^|[^a-z0-9_])pending([^a-z0-9_]|$)/)
+        print row "Retro says pending; write the retro row once the developer has answered, not before"
+      bare = retro; sub(/\.+$/, "", bare); bare = trim(bare)
+      if (bare == "nothing to change") {
+        found = 0
+        if (cell[4] ~ /^[0-9]+\/[0-9]+\/[0-9]+/) {
+          split(cell[4], hml, "/")
+          found = leading_int(hml[1]) + leading_int(hml[2]) + leading_int(hml[3])
+        }
+        if (leading_int(cell[3]) > 0 || found > 0)
+          print row "Retro is a bare nothing to change after failed gates or findings; say why nothing changes"
+      }
+    }
+    END { if (state == 0) print "has no table; the log needs its header row" }
+  ' "$plog")"
 fi
 
 if [ "$failures" -eq 0 ]; then
