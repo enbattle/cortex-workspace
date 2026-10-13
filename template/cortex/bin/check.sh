@@ -260,24 +260,27 @@ fi
 
 # C15 — R11: the pipeline log's rules are checked, not only stated. One awk
 # pass over the table (spec Amendment 7): the first line starting with | is
-# the header, the next the separator, every later line starting with | a
-# row. A cell boundary is a | not preceded by \; the text before the first |
-# and after the last isn't a cell. A missing log is C13's business, not
-# C15's. awk prints one message per problem; each names its row by its
-# first two cells. A row with the wrong cell count gets only that message.
+# the header, the next must be the separator, every later line starting
+# with | a row. A cell boundary is a | not preceded by \; the text before
+# the first | and after the last isn't a cell. A missing log is not a
+# failure: no check requires it. awk prints one message per problem; each
+# names its row by its own first two cells. A row with the wrong cell count
+# gets only that message. awk's output is captured before it is read, so a
+# failing awk is reported, never a silent pass.
 plog=cortex/changes/pipeline-log.md
 if [ -f "$plog" ]; then
-  while IFS= read -r msg; do
-    [ -z "$msg" ] || report C15 "$plog" "$msg"
-  done <<<"$(awk '
+  c15_status=0
+  c15_out="$(awk '
     function trim(s) { sub(/^[ \t]+/, "", s); sub(/[ \t]+$/, "", s); return s }
     function unescape(s,   a, n, i, r) {
       n = split(s, a, "\001"); r = a[1]
       for (i = 2; i <= n; i++) r = r "\\|" a[i]
       return r
     }
-    # split_cells LINE -> the cell count; the trimmed cells in cell[1..n]
+    # split_cells LINE -> the cell count; the trimmed cells in cell[1..n],
+    # nothing left over from an earlier line
     function split_cells(line,   s, parts, n, i) {
+      split("", cell)
       s = trim(line)
       gsub(/\\[|]/, "\001", s)
       s = substr(s, 2)
@@ -287,18 +290,48 @@ if [ -f "$plog" ]; then
       return n
     }
     function leading_int(s) { return match(s, /^[0-9]+/) ? substr(s, 1, RLENGTH) + 0 : 0 }
+    # plain_retro S -> S without backticks or *, runs of spaces and tabs as
+    # one space, trimmed, without trailing . ! or the ellipsis (compared as
+    # a string, so it works byte-wise in the C locale and per character in
+    # a UTF-8 one)
+    function plain_retro(s,   cut) {
+      gsub(decoration, "", s)
+      gsub(/[ \t]+/, " ", s)
+      s = trim(s)
+      for (;;) {
+        if (s ~ /[.!]$/) cut = 1
+        else if (length(s) >= length(ellipsis) && substr(s, length(s) - length(ellipsis) + 1) == ellipsis) cut = length(ellipsis)
+        else break
+        s = trim(substr(s, 1, length(s) - cut))
+      }
+      return s
+    }
     BEGIN {
       want = "Date|Change|Gate failures|Findings (H/M/L, pre)|Rounds|Retro|Escaped defect"
+      ellipsis = "\342\200\246"
+      # a backquote or *; \140 keeps a literal backquote out of the shell
+      # text of the "$(...)" around this program
+      decoration = "[\140*]"
       state = 0
     }
     { sub(/\r$/, "") }
-    state == 1 { state = 2; next }
-    !/^\|/ { next }
+    state == 1 {
+      state = 2
+      sep = ($0 ~ /^[|]/)
+      if (sep) {
+        n = split_cells($0)
+        sep = n > 0
+        for (i = 1; i <= n; i++) if (cell[i] !~ /^:?-+:?$/) sep = 0
+      }
+      if (!sep) print "the line after the header is not a separator row (cells of -, an optional : at either end)"
+      next
+    }
+    !/^[|]/ { next }
     state == 0 {
       n = split_cells($0); got = ""
       for (i = 1; i <= n; i++) got = got (i > 1 ? "|" : "") cell[i]
       if (got != want) {
-        gsub(/\|/, " | ", want)
+        gsub(/[|]/, " | ", want)
         print "the table header must be exactly the columns " want
       }
       state = 1; next
@@ -320,8 +353,7 @@ if [ -f "$plog" ]; then
       retro = tolower(cell[6])
       if (retro ~ /(^|[^a-z0-9_])pending([^a-z0-9_]|$)/)
         print row "Retro says pending; write the retro row once the developer has answered, not before"
-      bare = retro; sub(/\.+$/, "", bare); bare = trim(bare)
-      if (bare == "nothing to change") {
+      if (plain_retro(retro) == "nothing to change") {
         found = 0
         if (cell[4] ~ /^[0-9]+\/[0-9]+\/[0-9]+/) {
           split(cell[4], hml, "/")
@@ -332,7 +364,14 @@ if [ -f "$plog" ]; then
       }
     }
     END { if (state == 0) print "has no table; the log needs its header row" }
-  ' "$plog")"
+  ' "$plog")" || c15_status=$?
+  if [ "$c15_status" -ne 0 ]; then
+    report C15 "$plog" "awk failed reading the log (exit $c15_status); its rules were not checked"
+  else
+    while IFS= read -r msg; do
+      [ -z "$msg" ] || report C15 "$plog" "$msg"
+    done <<<"$c15_out"
+  fi
 fi
 
 if [ "$failures" -eq 0 ]; then
