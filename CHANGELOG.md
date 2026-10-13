@@ -1,5 +1,38 @@
 # Changelog
 
+## 3.4.0 — unreleased
+
+**Before release:** the golden cycle (review 5/5, triage 2/2:
+`evals/golden/review-maxlength/results/2026-10-13-3.4.0.md`,
+`evals/golden/triage-maxlength/results/2026-10-13-3.4.0.md`); the
+completeness audit and its findings; the full suites and CI on Linux,
+macOS and Windows; `VERSION` 3.4.0 and the fixture refreshed; README's
+status and install tag; a date here, and the tag.
+
+**Changed: practices from `til`**
+(`docs/specs/2026-10-13-til-ports.md`).
+
+- **`check.sh` checks the pipeline log (C15).** Each row of
+  `cortex/changes/pipeline-log.md` has the header's seven columns in their
+  format; a retro still "pending" fails, and so does a bare `nothing to
+  change` after failed gates or findings. A missing log is not a failure.
+- **`test-first` closes three gaps.** It runs `LINT_CMD` on the tests it
+  wrote before locking them (no later stage can fix a locked file); a
+  failure to import a module the design introduces is the expected reason;
+  and removing or merging a test needs evidence that a remaining test
+  still catches each behavior only it asserted, which review checks.
+- **`implement`: a finding that doesn't reproduce is disputed**, with the
+  attempt as evidence, and stops for you like any dispute.
+- **A golden task for the triage** (`evals/golden/triage-maxlength/`),
+  run after editing `implement` step 1.
+- **Fixed: a fresh install could fail on macOS** with `tar: Write error`:
+  the extracting tar stopped before its input ended and broke the pipe.
+  `install.sh` now reads the rest of that input.
+
+**For installed repositories:** the upgrade merges the changed commands,
+checklist and log header. If your pipeline log has rows, run
+`bash cortex/bin/check.sh` after upgrading: C15 checks every row.
+
 ## 3.3.0 — 2026-10-12
 
 **Before release** (all done): the golden cycle, twice over (before and
