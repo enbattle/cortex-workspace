@@ -173,7 +173,9 @@ run_adapt() {
 if [ ! -e cortex ]; then
   # One tar pass and one cp, chmod: the process count doesn't grow with the
   # template (2.x spec Amendment 5; process starts are slow on Windows).
-  (cd "$CORTEX_ROOT/template" && tar -cf - cortex) | tar -xf -
+  # cat drains the pipe: macOS's tar stops at the archive's end marker, and the
+  # writer would get a broken pipe.
+  (cd "$CORTEX_ROOT/template" && tar -cf - cortex) | { tar -xf - && cat > /dev/null; }
   cp "$RULES_SRC" cortex/design-rules.md
   printf '%s\n%s\n' "$version" "$commit" > cortex/version
   scripts=()
