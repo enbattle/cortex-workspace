@@ -1,6 +1,8 @@
 # Plan: an audit across changes, an independent read of retro edits, and a ruling on disputed findings (3.5.0)
 
-Status: **draft, awaiting the maintainer's approval.**
+Status: **approved by the maintainer, 2026-10-13** (written by the agent on
+the maintainer's instruction, "Approve; you record it", with the cadence
+at 10 log rows). A point-in-time record.
 
 ## Context
 
