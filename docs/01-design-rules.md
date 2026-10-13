@@ -143,7 +143,13 @@ author never approves their own change; a fresh context also has undegraded
 attention). The spec and clarify stages stay with the human and the
 orchestrating session, since the human's approval is the independent check
 on "is this what I want". Docs stay with the implementer, since docs are not
-a correctness check. Don't add a role without naming the bias it prevents.
+a correctness check. A stage may also call for a single-purpose read, as
+`review` calls for its security pass: `retro` has its process edits read by
+a fresh context first, since the author of a process edit reads it with
+the reasoning that produced it and hasn't loaded the text it may
+contradict; `audit` reads the docs and the pipeline log fresh, since no
+per-change context sees drift across changes. Don't add a role or a read
+without naming the bias it prevents.
 This reasoning comes from the `til` project's pipeline (its `docs/SDLC.md`),
 where it was worked out on a running pipeline.
 
@@ -181,10 +187,11 @@ task right. Concretely:
   before it becomes work, against the code (the input occurs, it
   reproduces, it is reachable) and against the decisions the project
   recorded for that work, by a context that has them: an agent that saw
-  only part of the project can't know what it decided. A finding whose
-  fix would contradict a recorded decision is disputed and stops for the
-  user, who revisits the decision or records the finding (a High can't
-  become a known limitation: `implement`). A below-bar or
+  only part of the project can't know what it decided. A finding that
+  doesn't reproduce, or whose fix would contradict a recorded decision, is
+  disputed and stops for the user, whose ruling is recorded: not real, the
+  decision stands, fix, or a known limitation (never for a High:
+  `implement`). A below-bar or
   theoretical finding is recorded as a known limitation by default, not
   turned into a test or a rule. The exception is a cheap test for a severe class
   (security, data loss, money), which `review` already refuses to

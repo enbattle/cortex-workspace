@@ -41,7 +41,7 @@ cortex/
   config                       build, test and lint commands, test globs, tools, CI
   knowledge/                   index, glossary, architecture, verification recipe, decisions/
   changes/                     one folder per change, and the pipeline log
-  harness/                     commands (spec-new ... retro, onboard), policies, templates
+  harness/                     commands (spec-new ... retro, audit, onboard), policies, templates
   bin/                         check, gates, tests-locked, ci-gates, adapt, remove
   adapters/  ci/               sources for the tool files and the GitHub workflow
   design-rules.md  deferred-practices.md  version  footprint
@@ -62,11 +62,13 @@ The workflow for a nontrivial change:
 | `test-first` | a fresh agent | failing tests, committed and locked |
 | `implement` | another fresh agent | the change, with the locked tests untouched (checked by script) |
 | `review` | one or more fresh, read-only agents (split when the change is more than one can read) | a verdict with findings; a separate security pass for new external surfaces |
-| `retro` | you + the agent | approved process fixes and a pipeline-log row |
+| `retro` | you + the agent, and a fresh reader of process edits | approved process fixes and a pipeline-log row |
+| `audit` | you + fresh, read-only readers (every 10 changes, or on demand) | stale docs, copied facts and recurring friction found; approved fixes and an audit-log row |
 
 In any agent tool: *"Read and execute `cortex/harness/commands/<name>.md`."*
 In Claude Code, the adapter adds `/cortex-<name>` skills that delegate the
-three role-separated commands to subagents.
+role-separated steps to subagents: `test-first`, `implement` and `review`,
+and the fresh reads in `spec-clarify`, `retro` and `audit`.
 
 ## Install, upgrade, remove
 

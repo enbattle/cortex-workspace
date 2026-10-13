@@ -39,18 +39,31 @@ This is the maintenance loop for everything under `cortex/harness/` and
    the trigger or the four answers (a large one is its own change folder),
    record them in the pipeline-log row, and update the entry; don't build it
    inside the retro.
-5. Show the user the proposed edits, and wait for their answer on every
-   one before step 6: the row records the answers. Apply only what they
-   approve.
+5. If a proposed edit touches `cortex/harness/`, the constitution, an
+   `AGENTS.md` file, `cortex/knowledge/` or the project's agent
+   instructions, a fresh, read-only context reads it first (design rule
+   R12): it gets the proposed diff, the evidence for each edit (the files
+   you cited, not your reasoning) and the paths, and answers: does an edit
+   contradict existing text (counts and step numbers included); could a
+   newcomer apply it two ways; is each edit earned by its evidence; would a
+   check or a deletion make the text unnecessary. It also tries the edits
+   on two or three realistic changes and says where they gave no clear
+   answer. One pass: fix what you can't refute in a sentence. Then show
+   the user the proposed edits, beside the reader's findings you didn't
+   act on, and wait for their answer on every one before step 6: the row
+   records the answers. Apply only what they approve.
 6. Append one row to `cortex/changes/pipeline-log.md` recording what was actually
    applied (its header defines the columns). An **escaped defect** (a bug
    found after review approved the change that introduced it) is recorded
    in that change's row and gets a retro immediately.
-7. Once the change has merged, archive its folder: `git mv` it under
+7. If the pipeline log now has 10 or more rows past the **Log rows** of the
+   last row in `cortex/changes/audit-log.md` (or 10 rows and no audit yet),
+   propose running `audit` to the user.
+8. Once the change has merged, archive its folder: `git mv` it under
    `cortex/changes/archive/`, alone in its own commit. The CI gates skip archived
    folders, so the lock record stays in history without being gated again.
 
-Budget: one pass over the evidence; no loop. Proposals the user declines are
+Budget: one pass over the evidence, and one read of the edits; no loop. Proposals the user declines are
 logged in the row, not re-proposed in the same retro.
 
 ## Output

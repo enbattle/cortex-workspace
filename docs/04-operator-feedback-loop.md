@@ -45,7 +45,7 @@ The skill to build: treat the *feeling* as a loggable event. Feelings about proc
 ### 4. The calendar notices (staleness)
 - A version warning from `install.sh` (the repository runs an older template than cortex now ships).
 - "Last verified" dates aging on runbooks (once they exist).
-- A quarter passing — the horizon scan and retro-review are calendar-triggered on purpose, because some signals never announce themselves.
+- A quarter passing — the horizon scan is calendar-triggered on purpose, and `audit` comes due every 10 changes, because some signals never announce themselves.
 
 ### 5. The outside world notices
 - The horizon scan surfaces a practice missing from the catalog.
