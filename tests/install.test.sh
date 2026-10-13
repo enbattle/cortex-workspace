@@ -720,6 +720,82 @@ case_G9_modeless_clone() {
   assert_true "the note names exactly those scripts" test "$files" = "$want"
 }
 
+# ---- P4 (2026-10-13 til-ports spec): install.sh drains its tar pipe ---------------
+
+# make_tar_shim DIR MODE : a `tar` in DIR that install.sh's fresh-install
+# pipeline runs in place of the real one (resolved now, before DIR is on
+# PATH). Any call other than `-cf`/`-xf` goes to the real tar.
+#   early: create mode writes the real archive, then 1 MiB of zeros, more
+#     than any pipe buffer holds. Extract mode reads only the archive's
+#     length (measured now, from the same template), extracts it with the
+#     real tar and exits with its status, leaving the zeros unread. The
+#     writer is then still writing into a pipe nobody reads, whatever the
+#     platform's tar does at an archive's end.
+#   fail: create mode is the real tar. Extract mode extracts with the real
+#     tar, reads the rest of its input and exits 1: every file is in place,
+#     so only the extract's own status can fail the install.
+make_tar_shim() {
+  local dir="$1" mode="$2" real size
+  real="$(command -v tar)" || { echo "no real tar" >&2; return 1; }
+  size="$(cd "$ROOT/template" && "$real" -cf - cortex | wc -c | tr -d ' ')"
+  mkdir -p "$dir"
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf 'real=%q\n' "$real"
+    printf 'case "$1" in\n'
+    if [ "$mode" = early ]; then
+      printf '  -cf) "$real" "$@" && head -c 1048576 /dev/zero ;;\n'
+      printf '  -xf) head -c %q | "$real" -xf - ;;\n' "$size"
+    else
+      printf '  -cf) exec "$real" "$@" ;;\n'
+      printf '  -xf) "$real" -xf -; cat > /dev/null; exit 1 ;;\n'
+    fi
+    printf '  *) exec "$real" "$@" ;;\n'
+    printf 'esac\n'
+  } > "$dir/tar"
+  chmod +x "$dir/tar"
+}
+
+case_p4_early_exiting_extractor() {
+  local d shims files f
+  d="$(new_git_repo)"
+  shims="$TEST_TMP/tar-early"
+  make_tar_shim "$shims" early
+  # sanity: the shimmed pipeline breaks the writer's pipe
+  set +e
+  (cd "$ROOT/template" && PATH="$shims:$PATH" tar -cf - cortex) |
+    (cd "$TEST_TMP" && mkdir -p probe && cd probe && PATH="$shims:$PATH" tar -xf -)
+  local st=("${PIPESTATUS[@]}")
+  set -e
+  assert_true "fixture: the shimmed writer gets a broken pipe (status ${st[0]})" test "${st[0]}" -ne 0
+  assert_true "fixture: the shimmed extract succeeds" test "${st[1]}" -eq 0
+  assert_same_file "$ROOT/template/cortex/AGENTS.md" "$TEST_TMP/probe/cortex/AGENTS.md" "fixture: the shimmed extract extracts"
+
+  files="$(template_files)"
+  run env PATH="$shims:$PATH" "$INSTALL" "$d"
+  assert_exit 0 "$CODE" "fresh install with an early-exiting extractor exits 0"
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
+    assert_same_file "$ROOT/template/cortex/$f" "$d/cortex/$f" "early-exiting extractor: cortex/$f installed"
+    assert_line "$OUT" "created cortex/$f" "early-exiting extractor: reports created cortex/$f"
+  done <<<"$files"
+  assert_same_file "$ROOT/docs/01-design-rules.md" "$d/cortex/design-rules.md" "early-exiting extractor: cortex/design-rules.md installed"
+  assert_line "$OUT" "created cortex/design-rules.md" "early-exiting extractor: reports created cortex/design-rules.md"
+  assert_line "$OUT" "created cortex/version" "early-exiting extractor: reports created cortex/version"
+  assert_line "$OUT" "created AGENTS.md" "early-exiting extractor: reports created AGENTS.md"
+  assert_true "early-exiting extractor: summary line" has_line_re "$OUT" "$SUMMARY_RE"
+}
+
+case_p4_failing_extractor() {
+  local d shims
+  d="$(new_git_repo)"
+  shims="$TEST_TMP/tar-fail"
+  make_tar_shim "$shims" fail
+  run env PATH="$shims:$PATH" "$INSTALL" "$d"
+  assert_file_exists "$d/cortex/AGENTS.md" "fixture: the failing extract extracted the files"
+  assert_true "fresh install with a failing extractor exits non-zero (got $CODE)" test "$CODE" -ne 0
+}
+
 run_case "no argument -> exit 2" case_no_argument
 run_case "missing target dir -> exit 2" case_missing_dir
 run_case "non-git dir -> exit 2" case_non_git_dir
@@ -748,4 +824,6 @@ run_case "F1: template/blocks/AGENTS.md in CommonMark normal form" case_v3_templ
 run_case "F1: CODEOWNERS blocks are not framed; markdown blocks are" case_v3_codeowners_unframed
 run_case "F3: cortex/AGENTS.md: the stricter rule applies" case_v3_router_stricter_rule
 run_case "G9 criterion 14: install from a clone without file modes" case_G9_modeless_clone
+run_case "P4: a fresh install succeeds when the extracting tar leaves the pipe unread" case_p4_early_exiting_extractor
+run_case "P4: a failing extract fails the install" case_p4_failing_extractor
 summary
