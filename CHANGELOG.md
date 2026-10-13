@@ -1,11 +1,13 @@
 # Changelog
 
-## 3.4.0 — unreleased
+## 3.4.0 — 2026-10-13
 
-**Before release:** the golden cycle (review 5/5, triage 2/2:
+**Before release** (done but the tag): the golden cycle (review 5/5,
+triage 2/2 before and after D2:
 `evals/golden/review-maxlength/results/2026-10-13-3.4.0.md`,
-`evals/golden/triage-maxlength/results/2026-10-13-3.4.0.md`); the
-completeness audit and its findings; the full suites and CI on Linux,
+`evals/golden/triage-maxlength/results/`); the completeness audit, an
+adversarial review and the round that fixed their findings
+(`evals/audits/2026-10-13-3.4.0.md`); the full suites and CI on Linux,
 macOS and Windows; `VERSION` 3.4.0 and the fixture refreshed; README's
 status and install tag; a date here, and the tag.
 
@@ -15,12 +17,15 @@ status and install tag; a date here, and the tag.
 - **`check.sh` checks the pipeline log (C15).** Each row of
   `cortex/changes/pipeline-log.md` has the header's seven columns in their
   format; a retro still "pending" fails, and so does a bare `nothing to
-  change` after failed gates or findings. A missing log is not a failure.
+  change` after failed gates or findings, however it's decorated. The line
+  under the header must be a separator, and if awk itself fails, C15 says
+  so instead of passing. A missing log is not a failure.
 - **`test-first` closes three gaps.** It runs `LINT_CMD` on the tests it
-  wrote before locking them (no later stage can fix a locked file); a
-  failure to import a module the design introduces is the expected reason;
-  and removing or merging a test needs evidence that a remaining test
-  still catches each behavior only it asserted, which review checks.
+  wrote before locking them (no later stage can fix a locked file); an
+  import or lint error about a module the design introduces is the
+  expected reason, never suppressed; and removing or merging a test,
+  including on a re-lock, needs evidence that a remaining test still
+  catches each behavior only it asserted, which review checks.
 - **`implement`: a finding that doesn't reproduce is disputed**, with the
   attempt as evidence, and stops for you like any dispute.
 - **A golden task for the triage** (`evals/golden/triage-maxlength/`),
