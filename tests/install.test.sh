@@ -734,6 +734,9 @@ case_G9_modeless_clone() {
 #   fail: create mode is the real tar. Extract mode extracts with the real
 #     tar, reads the rest of its input and exits 1: every file is in place,
 #     so only the extract's own status can fail the install.
+#   writefail: create mode writes the real archive, then exits 1. Extract
+#     mode is the real tar: every file is in place, so only the writer's
+#     own status can fail the install.
 make_tar_shim() {
   local dir="$1" mode="$2" real size
   real="$(command -v tar)" || { echo "no real tar" >&2; return 1; }
@@ -746,6 +749,9 @@ make_tar_shim() {
     if [ "$mode" = early ]; then
       printf '  -cf) "$real" "$@" && head -c 1048576 /dev/zero ;;\n'
       printf '  -xf) head -c %q | "$real" -xf - ;;\n' "$size"
+    elif [ "$mode" = writefail ]; then
+      printf '  -cf) "$real" "$@"; exit 1 ;;\n'
+      printf '  -xf) exec "$real" "$@" ;;\n'
     else
       printf '  -cf) exec "$real" "$@" ;;\n'
       printf '  -xf) "$real" -xf -; cat > /dev/null; exit 1 ;;\n'
@@ -796,6 +802,18 @@ case_p4_failing_extractor() {
   assert_true "fresh install with a failing extractor exits non-zero (got $CODE)" test "$CODE" -ne 0
 }
 
+case_R_p4_failing_writer() {
+  # Review round: a writing tar that fails after writing a valid archive
+  # fails the install
+  local d shims
+  d="$(new_git_repo)"
+  shims="$TEST_TMP/tar-writefail"
+  make_tar_shim "$shims" writefail
+  run env PATH="$shims:$PATH" "$INSTALL" "$d"
+  assert_file_exists "$d/cortex/AGENTS.md" "fixture: the archive was written and extracted"
+  assert_true "fresh install with a failing writer exits non-zero (got $CODE)" test "$CODE" -ne 0
+}
+
 run_case "no argument -> exit 2" case_no_argument
 run_case "missing target dir -> exit 2" case_missing_dir
 run_case "non-git dir -> exit 2" case_non_git_dir
@@ -826,4 +844,5 @@ run_case "F3: cortex/AGENTS.md: the stricter rule applies" case_v3_router_strict
 run_case "G9 criterion 14: install from a clone without file modes" case_G9_modeless_clone
 run_case "P4: a fresh install succeeds when the extracting tar leaves the pipe unread" case_p4_early_exiting_extractor
 run_case "P4: a failing extract fails the install" case_p4_failing_extractor
+run_case "R: P4 a writer failing after a valid archive fails the install" case_R_p4_failing_writer
 summary

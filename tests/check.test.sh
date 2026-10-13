@@ -1205,7 +1205,7 @@ case_C15_template_log_ok() {
 }
 
 case_C15_no_log_ok() {
-  # P1: a missing log is not a failure (C13 owns missing files)
+  # P1: a missing log is not a failure (no check requires the log)
   local d; d="$(prepared_install)"; baseline_ok "$d"
   rm -f "${d:?}/${PLOG:?}"
   planted "the log is gone" test ! -e "$d/$PLOG" || return 0
@@ -1357,6 +1357,121 @@ case_C15_one_line_per_problem() {
   assert_not_contains "$(c15_lines)" "cortex/changes/ok" "the valid row is not named"
 }
 
+
+# ---- spec 3.4.0 Review round (2026-10-13): C15, tightened -----------------------
+#
+# docs/specs/2026-10-13-til-ports.md, "Review round": R1 a failing awk
+# program gives one C15 line, never a silent pass; R2 rule 5 removes
+# backticks and `*`, collapses runs of spaces and tabs and drops trailing
+# `.`, `!` and `…` before comparing; R3 a row is named by its own first two
+# cells (an empty cell when it has fewer); R4 the line after the header must
+# be a separator (cells of `-`, an optional `:` at either end). Also the
+# whole-word `pending` rule (P1's clarification).
+
+# C15_MARK: a string only C15's awk program holds (its header columns)
+C15_MARK="Escaped defect"
+
+# make_c15_awk_shim DIR CALLED : an `awk` in DIR that exits 2 when its
+# program (an argument, or a file after -f) holds C15_MARK, touching CALLED
+# first; any other call goes to the real awk (resolved now, before DIR is on
+# PATH)
+make_c15_awk_shim() {
+  local dir="$1" called="$2" real
+  real="$(command -v awk)" || { echo "no real awk" >&2; return 1; }
+  mkdir -p "$dir"
+  {
+    printf '#!/usr/bin/env bash\n'
+    printf 'real=%q; called=%q; mark=%q\n' "$real" "$called" "$C15_MARK"
+    printf 'prev=\n'
+    printf 'for a in "$@"; do\n'
+    printf '  hit=\n'
+    printf '  case "$a" in *"$mark"*) hit=1 ;; esac\n'
+    printf '  if [ "$prev" = -f ] && [ -f "$a" ] && grep -qF -- "$mark" "$a"; then hit=1; fi\n'
+    printf '  if [ -n "$hit" ]; then : > "$called"; echo "awk: shimmed failure" >&2; exit 2; fi\n'
+    printf '  prev="$a"\n'
+    printf 'done\n'
+    printf 'exec "$real" "$@"\n'
+  } > "$dir/awk"
+  chmod +x "$dir/awk"
+}
+
+case_R_C15_awk_failure_reported() {
+  # Review R1: C15's awk program failing gives exactly one C15 line, exit 1,
+  # and no `check: ok` (the pending row is never reached, so no second line)
+  local d shims called fails
+  d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row 2026-10-13 cortex/changes/r1 0 0/0/0 0 pending "")" || return 0
+  shims="$TEST_TMP/awk-c15.$RANDOM$RANDOM"; called="$shims.called"
+  make_c15_awk_shim "$shims" "$called"
+  run env PATH="$shims:$PATH" bash -c 'cd "$1" && ./cortex/bin/check.sh' _ "$d"
+  assert_file_exists "$called" "fixture: the shim ran in place of C15's awk program"
+  assert_exit 1 "$CODE" "[C15] a failing awk program exits 1"
+  assert_true "[C15] exactly one C15 line (got $(c15_lines | grep -c . || true))" \
+    test "$(c15_lines | grep -c . || true)" = 1
+  assert_contains "$OUT" "FAIL [C15] $PLOG:" "[C15] line names $PLOG"
+  fails="$(grep '^FAIL ' <<<"$OUT" || true)"
+  assert_true "[C15] no other check fails" test -z "$(grep -vF '[C15]' <<<"$fails" || true)"
+  assert_not_contains "$OUT" "check: ok" "[C15] a failing awk program does not claim ok"
+}
+
+case_R_C15_rule5_decorated_bare() {
+  # Review R2: backticks, `*`, runs of spaces or tabs and a trailing . ! or
+  # … don't hide a bare `nothing to change` after a finding
+  local d t; d="$(log_install)" || return 1; baseline_ok "$d"
+  for t in '`nothing to change`' '**Nothing to change.**' 'nothing  to change!' \
+    'nothing to change…' $'nothing\tto change'; do
+    reset_log "$d"
+    add_row "$d" "$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 0/1/0 1 "$t" "")" || continue
+    expect_c15_row "$d" "$VALID_DATE" "$VALID_CHANGE"
+  done
+}
+
+case_R_C15_rule5_decorated_with_reason_ok() {
+  # Review R2: a decorated `nothing to change` with a reason passes
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 0/0/1 1 '`nothing to change`: the Low was cosmetic' "")" || return 0
+  expect_log_ok "$d" "a decorated nothing to change with a reason"
+}
+
+case_R_C15_short_row_named_by_own_cells() {
+  # Review R3: a short row is named by its own cells, not the previous row's
+  local d l; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row 2026-10-15 cortex/changes/r3-previous 0 0/0/0 0 "added a note" "")" || return 0
+  add_row "$d" "| 2026-10-16 |" || return 0
+  expect_c15_once "$d"
+  l="$(c15_lines)"
+  assert_contains "$l" "2026-10-16" "[C15] the short row is named by its date"
+  assert_not_contains "$l" "cortex/changes/r3-previous" "[C15] the previous row's Change is not named"
+}
+
+case_R_C15_missing_separator() {
+  # Review R4: without the separator, the line after the header is checked
+  # as one and reported; the check fails
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 0/0/0 0 "added a note" "")" || return 0
+  filter_file "$d/$PLOG" sed '/^| -* | -* |/d'
+  planted "the separator is gone" test -z "$(grep -E '^\| *-+ *\|' "$d/$PLOG" || true)" || return 0
+  expect_violation "$d" C15 "$PLOG"
+  assert_true "[C15] a C15 line mentions the separator" \
+    grep -qi 'separator' <<<"$(c15_lines)"
+}
+
+case_R_C15_aligned_separator_ok() {
+  # Review R4: a separator with alignment colons passes
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 0/0/0 0 "added a note" "")" || return 0
+  filter_file "$d/$PLOG" sed 's/^| -* | -* |.*$/| :--- | ---: | :---: | --- | :-: | --- | -: |/'
+  planted "the separator has alignment colons" grep -qxF '| :--- | ---: | :---: | --- | :-: | --- | -: |' "$d/$PLOG" || return 0
+  expect_log_ok "$d" "a separator with alignment colons"
+}
+
+case_R_C15_whole_word_pending_ok() {
+  # P1 clarification: `pending` is a whole word; `spending` passes
+  local d; d="$(log_install)" || return 1; baseline_ok "$d"
+  add_row "$d" "$(log_row "$VALID_DATE" "$VALID_CHANGE" 0 0/0/0 0 "spending less time on review" "")" || return 0
+  expect_log_ok "$d" "spending in a Retro"
+}
+
 run_case "token absent from template" case_token_absent_from_template
 run_case "AC4 baseline check: ok" case_baseline_ok
 run_case "repo-root argument" case_root_argument
@@ -1450,4 +1565,11 @@ run_case "P1: C15 rule 3, a cell not in its column's format" case_C15_rule3_form
 run_case "P1: C15 rule 4, a Retro saying pending" case_C15_rule4_pending
 run_case "P1: C15 rule 5, a bare nothing to change after failures or findings" case_C15_rule5_bare_nothing_to_change
 run_case "P1: C15 one line per problem, each naming its row" case_C15_one_line_per_problem
+run_case "R: C15 a failing awk program is one C15 line, never a pass" case_R_C15_awk_failure_reported
+run_case "R: C15 rule 5, a decorated bare nothing to change after a finding" case_R_C15_rule5_decorated_bare
+run_case "R: C15 rule 5, a decorated nothing to change with a reason ok" case_R_C15_rule5_decorated_with_reason_ok
+run_case "R: C15 a short row is named by its own cells" case_R_C15_short_row_named_by_own_cells
+run_case "R: C15 a missing separator is reported" case_R_C15_missing_separator
+run_case "R: C15 a separator with alignment colons ok" case_R_C15_aligned_separator_ok
+run_case "R: C15 whole-word pending, spending ok" case_R_C15_whole_word_pending_ok
 summary
