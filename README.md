@@ -40,7 +40,7 @@ cortex/
   constitution.md              non-negotiables: cortex's, and the project's under ## Project
   config                       build, test and lint commands, test globs, tools, CI
   knowledge/                   index, glossary, architecture, verification recipe, decisions/
-  changes/                     one folder per change, and the pipeline log
+  changes/                     one folder per change, the pipeline log and the audit log
   harness/                     commands (spec-new ... retro, audit, onboard), policies, templates
   bin/                         check, gates, tests-locked, ci-gates, adapt, remove
   adapters/  ci/               sources for the tool files and the GitHub workflow
@@ -53,7 +53,7 @@ Code's agents and skills, and (with `CI=github`) a workflow and a
 `CODEOWNERS` block. Every one is recorded in `cortex/footprint`; nothing of
 yours is moved or rewritten.
 
-The workflow for a nontrivial change:
+The workflow for a nontrivial change, and the audit across changes:
 
 | Command | Who runs it | Produces |
 | --- | --- | --- |
@@ -63,7 +63,7 @@ The workflow for a nontrivial change:
 | `implement` | another fresh agent | the change, with the locked tests untouched (checked by script) |
 | `review` | one or more fresh, read-only agents (split when the change is more than one can read) | a verdict with findings; a separate security pass for new external surfaces |
 | `retro` | you + the agent, and a fresh reader of process edits | approved process fixes and a pipeline-log row |
-| `audit` | you + fresh, read-only readers (every 10 changes, or on demand) | stale docs, copied facts and recurring friction found; approved fixes and an audit-log row |
+| `audit` | you + fresh, read-only readers (when the audit log says one is due, or on demand) | stale docs, copied facts and recurring friction found; approved fixes and an audit-log row |
 
 In any agent tool: *"Read and execute `cortex/harness/commands/<name>.md`."*
 In Claude Code, the adapter adds `/cortex-<name>` skills that delegate the
@@ -134,7 +134,8 @@ Deliberate trade-offs; each links to where it's explained.
   refused ([the 3.0.0 spec](docs/specs/2026-10-05-v3-removable-layout.md),
   Non-goals). Upgrades within 3.x merge your edits.
 - **Every nontrivial change runs the full pipeline:** six stages, four of
-  them in fresh agents; pilot 3's change cost about $6 in agent runs. There
+  them in fresh agents (and a fifth fresh read when a retro proposes a
+  process edit); pilot 3's change cost about $6 in agent runs. There
   is no lighter tier for small fixes yet ([process weight scaled to
   stakes](docs/02-extensions.md)).
 - **The test lock freezes every matching test and fixture** (and

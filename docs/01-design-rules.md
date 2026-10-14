@@ -55,7 +55,9 @@ isolation is enforced is tool-specific and lives in the adapter (R8).
 
 **R5 — Progressive disclosure.** No file tells an agent to read everything
 under a directory. Commands name the specific files they need;
-`cortex/knowledge/index.md` is the one-screen router into knowledge.
+`cortex/knowledge/index.md` is the one-screen router into knowledge. The
+one exception is `audit` (`cortex/harness/commands/audit.md`), whose job is
+the whole of the docs it lists.
 *Check: C4.*
 
 **R6 — Gates are ordered, and approval is human.** `test-first` refuses to

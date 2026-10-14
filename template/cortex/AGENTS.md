@@ -25,7 +25,7 @@ To run a command in any agent tool: *"Read and execute `cortex/harness/commands/
 ## Where things live
 
 - Change folders: `cortex/changes/<yyyymmdd>-<slug>/` (proposal, design, tasks, and `lock.md` once tests are locked). One per nontrivial change, in the same pull request as the code.
-- Run history: `cortex/changes/pipeline-log.md`, one row per change.
+- Run history: `cortex/changes/pipeline-log.md`, one row per change; `cortex/changes/audit-log.md`, one row per audit.
 - Project knowledge: `cortex/knowledge/`. The harness (`cortex/harness/`) holds procedure, not facts about this project (R1).
 
 ## Commands

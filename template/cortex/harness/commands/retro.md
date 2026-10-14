@@ -13,6 +13,7 @@ This is the maintenance loop for everything under `cortex/harness/` and
   the user wants to reflect on.
 - The change folder, its `review-findings.md` (each round's verdict and
   findings), and the gate output in `tasks.md`. Friction is taken from these, not from memory.
+- For step 7, `cortex/changes/audit-log.md`.
 
 ## Procedure
 
@@ -43,8 +44,9 @@ This is the maintenance loop for everything under `cortex/harness/` and
    `AGENTS.md` file, `cortex/knowledge/` or the project's agent
    instructions, a fresh, read-only context reads it first (design rule
    R12): it gets the proposed diff, the evidence for each edit (the files
-   you cited, not your reasoning) and the paths, and answers: does an edit
-   contradict existing text (counts and step numbers included); could a
+   you cited, not your reasoning) and the paths, searches the repository
+   for references to the files and steps the edits touch, and answers: does
+   an edit contradict existing text (counts and step numbers included); could a
    newcomer apply it two ways; is each edit earned by its evidence; would a
    check or a deletion make the text unnecessary. It also tries the edits
    on two or three realistic changes and says where they gave no clear
@@ -56,9 +58,9 @@ This is the maintenance loop for everything under `cortex/harness/` and
    applied (its header defines the columns). An **escaped defect** (a bug
    found after review approved the change that introduced it) is recorded
    in that change's row and gets a retro immediately.
-7. If the pipeline log now has 10 or more rows past the **Log rows** of the
-   last row in `cortex/changes/audit-log.md` (or 10 rows and no audit yet),
-   propose running `audit` to the user.
+7. If an audit is now due (`cortex/changes/audit-log.md` says when),
+   propose running `audit` to the user once this change has merged, on a
+   branch of its own.
 8. Once the change has merged, archive its folder: `git mv` it under
    `cortex/changes/archive/`, alone in its own commit. The CI gates skip archived
    folders, so the lock record stays in history without being gated again.

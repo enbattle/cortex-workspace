@@ -39,7 +39,9 @@ tests to fit it, so the tests stop encoding the spec.
    behavior it tested needs none; say so. Record each under
    `## Criteria to tests` in `tasks.md` (step 4).
 3. Run `LINT_CMD` from `cortex/config` and fix any problem in the files you
-   wrote: once they are locked, no later stage can. An error that only
+   wrote: once they are locked, no later stage can. If `LINT_CMD` doesn't
+   read them, say so in the criterion-to-test mapping, so review checks
+   their style by hand. An error that only
    reports a module or name the approved design introduces, which nothing
    implements yet, is expected; never suppress it. Then run the test command
    and confirm each new test **fails for the expected reason**: the

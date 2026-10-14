@@ -5,9 +5,9 @@ description: Audit docs, recurring friction and deletions across changes (cortex
 
 Read and execute `cortex/harness/commands/audit.md` in this session, but
 don't do its reads yourself, and never fork: for step 2 spawn the
-`cortex-auditor` subagent (Agent tool, `subagent_type: cortex-auditor`)
-with the step's file list and its instruction; when step 3 is due, spawn a
-second `cortex-auditor` with step 3's files and instruction, in the same
-message so they run together. For step 4's independent read of an
-approved process edit, spawn `cortex-edit-reader` as `retro` step 5 says.
-Show the user what they return as returned.
+`cortex-reader` subagent (Agent tool, `subagent_type: cortex-reader`) with
+the step's file list and its instruction; when step 3 is due, spawn a
+second `cortex-reader` with step 3's files and instruction, in the same
+message so they run together. For step 4's edit read, spawn
+`cortex-reader` as the `cortex-retro` skill does. Show the user what they
+return as returned.

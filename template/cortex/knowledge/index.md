@@ -12,7 +12,7 @@ you add one.
 | How to run the software the way a user would, and what proves a feature works | `verification.md` |
 | How to build, test, lint, and this repo's conventions | `../AGENTS.md` |
 | Practices considered and deliberately deferred | `../deferred-practices.md` |
-| What happened in past changes | `../changes/pipeline-log.md`, and `../changes/archive/` |
+| What happened in past changes | `../changes/pipeline-log.md`, `../changes/audit-log.md`, and `../changes/archive/` |
 
 <!-- TODO: add a row per knowledge file you create (a runbook directory, an
 interface description, a data model), and nothing else. -->
