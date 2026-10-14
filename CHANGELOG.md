@@ -1,8 +1,8 @@
 # Changelog
 
-## 3.5.0 — unreleased
+## 3.5.0 — 2026-10-13
 
-**Before release:** the triage and review golden tasks twice each; dry
+**Before release** (done but the tag): the triage and review golden tasks twice each; dry
 runs of `audit` and the edit reader on the golden fixture
 (`evals/pilots/`); the completeness audit, an adversarial review and the
 round that fixed their findings (`evals/audits/2026-10-13-3.5.0.md`); the
