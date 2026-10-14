@@ -16,6 +16,7 @@ neither is stricter, ask.
 | Making a nontrivial change | The commands in order: `spec-new`, `spec-clarify`, `test-first`, `implement`, `review`, `retro` (in `cortex/harness/commands/`) |
 | Running any command | `cortex/constitution.md`; it is non-negotiable. Rule IDs (R1, R2, ...) are in `cortex/design-rules.md` |
 | Reviewing | Only the inputs `cortex/harness/commands/review.md` names, in a fresh context |
+| Auditing docs and recurring friction across changes | `cortex/harness/commands/audit.md` (when `retro` proposes it, or on demand) |
 | Checking the harness itself | `bash cortex/bin/check.sh` |
 | Upgrading or removing cortex | Upgrade: the new version's `INSTALL.md`. Remove: `bash cortex/bin/remove.sh` (it lists what it will do first) |
 
@@ -24,7 +25,7 @@ To run a command in any agent tool: *"Read and execute `cortex/harness/commands/
 ## Where things live
 
 - Change folders: `cortex/changes/<yyyymmdd>-<slug>/` (proposal, design, tasks, and `lock.md` once tests are locked). One per nontrivial change, in the same pull request as the code.
-- Run history: `cortex/changes/pipeline-log.md`, one row per change.
+- Run history: `cortex/changes/pipeline-log.md`, one row per change; `cortex/changes/audit-log.md`, one row per audit.
 - Project knowledge: `cortex/knowledge/`. The harness (`cortex/harness/`) holds procedure, not facts about this project (R1).
 
 ## Commands

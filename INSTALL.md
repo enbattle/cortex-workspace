@@ -94,8 +94,9 @@ batch where you can:
    rest.
 
 Then fill in, all under `cortex/`: `cortex/config` (`BUILD_CMD`, `TEST_CMD`,
-`LINT_CMD`, `TEST_GLOBS`, `TOOLS`, and `CI=github` with `CODE_OWNERS` if
-step 5 applies), the placeholders and the Conventions section of
+`LINT_CMD` (it should lint the test files too: `test-first` lints the tests
+it writes before they are locked), `TEST_GLOBS`, `TOOLS`, and `CI=github`
+with `CODE_OWNERS` if step 5 applies), the placeholders and the Conventions section of
 `cortex/AGENTS.md` (keep it at 60 lines or fewer; longer conventions go in
 `cortex/knowledge/conventions.md`, routed from there), the Project section of
 `cortex/constitution.md` (P1, P2, ...), `cortex/knowledge/glossary.md`,

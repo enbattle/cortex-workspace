@@ -94,7 +94,9 @@ against the change before approving it.
 
    A Medium or Low finding the user waived, recorded in
    `review-findings.md`, doesn't block approval; no waiver covers a
-   constitution breach.
+   constitution breach. Read the earlier rounds there: a finding the user
+   ruled **not real** or **decision stands** is raised again only with
+   evidence newer than the ruling, and you say what that evidence is.
 9. Confirm the working tree, the commit and the branch are exactly as they
    were in step 1.
 

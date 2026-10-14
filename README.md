@@ -8,7 +8,7 @@ evidence. It is plain markdown and a few bash scripts, works with any agent
 tool, and ships a Claude Code adapter that enforces as much of the isolation
 as the tool allows.
 
-**Status:** 3.4.0, released 2026-10-13 (3.0.0 on 2026-10-09): everything cortex installs lives in
+**Status:** 3.5.0, released 2026-10-13 (3.0.0 on 2026-10-09): everything cortex installs lives in
 one `cortex/` directory, and installs upgrade and remove cleanly (see
 [CHANGELOG.md](CHANGELOG.md)). Its release candidate was installed, used for
 one real change, upgraded and removed in a real repository first
@@ -40,8 +40,8 @@ cortex/
   constitution.md              non-negotiables: cortex's, and the project's under ## Project
   config                       build, test and lint commands, test globs, tools, CI
   knowledge/                   index, glossary, architecture, verification recipe, decisions/
-  changes/                     one folder per change, and the pipeline log
-  harness/                     commands (spec-new ... retro, onboard), policies, templates
+  changes/                     one folder per change, the pipeline log and the audit log
+  harness/                     commands (spec-new ... retro, audit, onboard), policies, templates
   bin/                         check, gates, tests-locked, ci-gates, adapt, remove
   adapters/  ci/               sources for the tool files and the GitHub workflow
   design-rules.md  deferred-practices.md  version  footprint
@@ -53,7 +53,7 @@ Code's agents and skills, and (with `CI=github`) a workflow and a
 `CODEOWNERS` block. Every one is recorded in `cortex/footprint`; nothing of
 yours is moved or rewritten.
 
-The workflow for a nontrivial change:
+The workflow for a nontrivial change, and the audit across changes:
 
 | Command | Who runs it | Produces |
 | --- | --- | --- |
@@ -62,11 +62,13 @@ The workflow for a nontrivial change:
 | `test-first` | a fresh agent | failing tests, committed and locked |
 | `implement` | another fresh agent | the change, with the locked tests untouched (checked by script) |
 | `review` | one or more fresh, read-only agents (split when the change is more than one can read) | a verdict with findings; a separate security pass for new external surfaces |
-| `retro` | you + the agent | approved process fixes and a pipeline-log row |
+| `retro` | you + the agent, and a fresh reader of process edits | approved process fixes and a pipeline-log row |
+| `audit` | you + fresh, read-only readers (when the audit log says one is due, or on demand) | stale docs, copied facts and recurring friction found; approved fixes and an audit-log row |
 
 In any agent tool: *"Read and execute `cortex/harness/commands/<name>.md`."*
 In Claude Code, the adapter adds `/cortex-<name>` skills that delegate the
-three role-separated commands to subagents.
+role-separated steps to subagents: `test-first`, `implement` and `review`,
+and the fresh reads in `spec-clarify`, `retro` and `audit`.
 
 ## Install, upgrade, remove
 
@@ -74,13 +76,13 @@ Prerequisites: git and bash (Git Bash on Windows; macOS's bash 3.2 is fine).
 
 Ask your agent, in your repository:
 
-> Install cortex v3.4.0 from https://github.com/enbattle/cortex-workspace by following its INSTALL.md.
+> Install cortex v3.5.0 from https://github.com/enbattle/cortex-workspace by following its INSTALL.md.
 
 It works on a branch, runs the installer, interviews you for the commands,
 tools and conventions, and runs the checks. Everything it can't know is left
 as a visible `TODO`. Later:
 
-> Upgrade cortex to v3.5.0 by following its INSTALL.md.
+> Upgrade cortex to v3.6.0 by following its INSTALL.md.
 
 > Remove cortex from this repository.
 
@@ -88,7 +90,7 @@ Without an agent, from a clone made outside your repository (full history,
 so upgrades can read the installed version):
 
 ```bash
-git clone --branch v3.4.0 https://github.com/enbattle/cortex-workspace.git ../cortex
+git clone --branch v3.5.0 https://github.com/enbattle/cortex-workspace.git ../cortex
 bash ../cortex/bin/install.sh .     # install, or upgrade an older 3.x
 bash cortex/bin/remove.sh           # remove: it stops for the hosting steps first
 ```
@@ -132,7 +134,8 @@ Deliberate trade-offs; each links to where it's explained.
   refused ([the 3.0.0 spec](docs/specs/2026-10-05-v3-removable-layout.md),
   Non-goals). Upgrades within 3.x merge your edits.
 - **Every nontrivial change runs the full pipeline:** six stages, four of
-  them in fresh agents; pilot 3's change cost about $6 in agent runs. There
+  them in fresh agents (and a fifth fresh read when a retro proposes a
+  process edit); pilot 3's change cost about $6 in agent runs. There
   is no lighter tier for small fixes yet ([process weight scaled to
   stakes](docs/02-extensions.md)).
 - **The test lock freezes every matching test and fixture** (and

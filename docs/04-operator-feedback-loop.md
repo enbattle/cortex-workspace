@@ -40,12 +40,13 @@ The skill to build: treat the *feeling* as a loggable event. Feelings about proc
 - The same *category* of review finding appearing across consecutive changes.
 - A change hitting its second rejection round.
 - The trivial-change rule (or any escape hatch) being invoked suspiciously often.
+- An `audit` coming due (`retro` says so): drift and recurring friction that no single change shows.
 - **The highest-severity signal in the system: a defect that shipped after review approved it.**
 
 ### 4. The calendar notices (staleness)
 - A version warning from `install.sh` (the repository runs an older template than cortex now ships).
 - "Last verified" dates aging on runbooks (once they exist).
-- A quarter passing — the horizon scan and retro-review are calendar-triggered on purpose, because some signals never announce themselves.
+- A quarter passing — the horizon scan is calendar-triggered on purpose, because some signals never announce themselves.
 
 ### 5. The outside world notices
 - The horizon scan surfaces a practice missing from the catalog.

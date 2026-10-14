@@ -1,5 +1,48 @@
 # Changelog
 
+## 3.5.0 — 2026-10-13
+
+**Before release** (done but the tag): the triage and review golden tasks twice each; dry
+runs of `audit` and the edit reader on the golden fixture
+(`evals/pilots/`); the completeness audit, an adversarial review and the
+round that fixed their findings (`evals/audits/2026-10-13-3.5.0.md`); the
+full suites and CI on Linux, macOS and Windows; `VERSION` 3.5.0 and the
+fixture refreshed; README's status and install tag; a date here, and the
+tag.
+
+**Added: an audit across changes, and an independent read of retro edits**
+(`docs/specs/2026-10-13-audit-and-edit-reader.md`).
+
+- **`audit`, a new command.** A fresh, read-only reader checks every claim
+  in your docs (the `AGENTS.md` files, `cortex/knowledge/`, the
+  constitution's Project section, the deferred practices, and the docs the
+  router names) against the repository, reports facts copied between
+  files, and nominates something to delete. When an audit is due (every 10
+  pipeline-log rows; `cortex/changes/audit-log.md` states the rule), a
+  second reader groups friction that recurs across changes and proposes
+  the smallest structural fix. You decide each finding; the audit commits
+  the approved edits and its log row on a branch of its own, defers an
+  edit that changes a command to a change of its own, and records what you
+  declined so it isn't proposed again. `retro` proposes an audit, for
+  after the change merges, when one is due.
+- **`retro` has its process edits read first.** When a proposed edit
+  touches the harness, the constitution, an `AGENTS.md` file or the
+  knowledge, a fresh context searches for the text it touches and checks
+  it for contradictions, double meanings and whether its evidence earns
+  it, and tries it on realistic changes, before you see the proposals.
+- **Your ruling on a disputed finding is recorded,** by the session you
+  rule in: not real, decision stands, fix (work for the next `implement`),
+  or a known limitation (never for a High). `review` re-raises a finding
+  ruled not real or decision stands only with newer evidence.
+- **`test-first` says when `LINT_CMD` doesn't read the tests it wrote**, so
+  review checks them by hand; INSTALL asks for a `LINT_CMD` that does.
+- In Claude Code: the `cortex-audit` skill and the read-only
+  `cortex-reader` agent; the implement skill records your rulings.
+
+**For installed repositories:** the upgrade adds `audit.md`, the audit log
+and the Claude Code files (its `adapt.sh` run writes them), and merges the
+changed commands.
+
 ## 3.4.0 — 2026-10-13
 
 **Before release** (done but the tag): the golden cycle (review 5/5,
