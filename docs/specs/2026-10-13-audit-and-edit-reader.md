@@ -134,6 +134,45 @@ no audit yet), propose running `audit`. The user decides.
   for a High).
 - R13's triage bullet names the same rulings, in one clause.
 
+## Review round (2026-10-13)
+
+From the completeness audit and the adversarial review
+(`evals/audits/2026-10-13-3.5.0.md`); approved by the maintainer as
+proposed (written by the agent on the maintainer's instruction). Text only.
+
+1. **Rulings have an owner.** The session the user rules in records each
+   ruling under the round and commits `review-findings.md` alone; a **fix**
+   ruling is an open finding for the next `implement`. The implement skill
+   says so (enforcement, R8). The **fix** gloss covers a finding disputed
+   for not reproducing.
+2. **`review` reads earlier rounds:** a finding ruled not real or decision
+   stands is re-raised only with evidence newer than the ruling. (The
+   review golden task runs twice.)
+3. **The edit reader searches** for references to the files and steps an
+   edit touches; the permissions rows allow it, and the `audit` row reads
+   the repository as evidence, as `review`'s does.
+4. **`audit` decides in `retro`'s order:** the reader reads approved-to-be
+   process edits before the user decides. An edit that changes how a
+   command behaves goes to its own change folder; the audit log records it
+   as deferred to that folder.
+5. **When `audit` runs:** `retro` proposes it for after the change merges,
+   on its own branch from the default branch; the session commits the
+   approved edits and the audit-log row.
+6. **One source for the cadence:** the audit log's header says when an
+   audit is due, counted from the last audit whose friction read ran (or
+   10 rows and no such audit); `retro` and `audit` point to it.
+7. **Docs:** R5 names `audit`'s surface as its one exception; the
+   `implement` wording; the catalog's horizon scan and the operator guide;
+   the audit log beside the pipeline log in the router, the knowledge
+   index and README; README's table heading and fresh-agent count.
+8. **Command claims are checked by reading their definitions** (the config,
+   the script, the manifest); the reader stays read-only.
+9. **One reader agent:** `cortex-auditor` and `cortex-edit-reader` merge
+   into `cortex-reader`; the skills' briefs carry the instruction.
+10. **3.4.0's lint gap:** when `LINT_CMD` doesn't read the test files,
+    `test-first` says so in the criterion-to-test mapping so review checks
+    them by hand; INSTALL asks for a `LINT_CMD` that covers the tests.
+
 ## Deletion (T14)
 
 - `docs/02-extensions.md` loses "Pipeline-log mining" and "Deletion pass"
